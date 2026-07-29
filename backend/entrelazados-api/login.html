@@ -4,81 +4,333 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Iniciar Sesión</title>
-    <link rel="stylesheet" href="styles.css">
+
+    <!-- Iconos de Tabler -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+    <!-- Fuentes Web -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
+
     <style>
-        .login-box {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        /* --- PALETA DE COLORES Y TIPOGRAFÍAS DEL PROYECTO --- */
+        :root {
+            --color-principal: #7D381B;  /* Marrón Cálido */
+            --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
+            --color-terciario: #993D24;  /* Terracota / Ámbar Rojizo */
+
+            --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
+            --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #f4f1ea;
+            color: #1a1a1a;
+            font-family: var(--font-secundaria);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* --- CABECERA DE NAVEGACIÓN --- */
+        .login-header {
+            background-color: var(--color-secundario);
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .logo {
+            font-family: var(--font-principal);
+            font-size: 28px;
+            font-weight: 900;
+            color: #ffffff;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--color-terciario);
+        }
+
+        /* --- CONTENEDOR DE TARJETA --- */
+        .main-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .login-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 420px;
+            padding: 35px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(61, 23, 10, 0.1);
+            border-top: 5px solid var(--color-principal);
             text-align: center;
         }
+
         .login-logo {
-            max-width: 130px;
+            max-width: 110px;
             height: auto;
-            margin-bottom: 20px;
+            margin: 0 auto 15px auto;
             display: block;
-            margin-left: auto;
-            margin-right: auto;
         }
-        .login-input {
+
+        .login-card h2 {
+            font-family: var(--font-principal);
+            font-size: 24px;
+            color: var(--color-secundario);
+            margin-bottom: 6px;
+        }
+
+        .login-card p.subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        /* --- CAMPOS Y FORMULARIO --- */
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-secundario);
+            margin-bottom: 6px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 12px;
+            color: var(--color-principal);
+            font-size: 18px;
+        }
+
+        .form-control {
             width: 100%;
-            padding: 12px;
-            margin: 15px 0;
+            padding: 11px 12px 11px 40px;
             border: 1px solid #ccc;
-            border-radius: 6px;
-            box-sizing: border-box;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: var(--font-secundaria);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--color-principal);
+            box-shadow: 0 0 0 3px rgba(125, 56, 27, 0.15);
+        }
+
+        .forgot-link {
+            display: block;
+            text-align: right;
+            font-size: 12px;
+            color: var(--color-principal);
+            text-decoration: none;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .forgot-link:hover {
+            color: var(--color-terciario);
+            text-decoration: underline;
+        }
+
+        /* Botón Principal */
+        .btn-primary {
+            width: 100%;
+            background-color: var(--color-principal);
+            color: #ffffff;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: var(--font-secundaria);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-terciario);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 25px 0 15px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background-color: #ddd;
+            z-index: 1;
+        }
+
+        .divider span {
+            background-color: #fff;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #777;
+            position: relative;
+            z-index: 2;
+        }
+
+        .register-link {
+            color: var(--color-principal);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .register-link:hover {
+            color: var(--color-terciario);
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--color-secundario);
+            color: #d1c2b8;
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            border-top: 3px solid var(--color-principal);
+        }
+
+        footer a {
+            color: #ffffff;
+            text-decoration: none;
+            margin: 0 8px;
+        }
+
+        footer a:hover {
+            color: var(--color-terciario);
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <nav class="nav">
-            <div class="nav-logo">Entre<span>Lazados</span></div>
-        </nav>
 
-        <div class="login-box">
-            <img src="logo.png" alt="Logo EntreLazados" class="login-logo">
+    <!-- CABECERA -->
+    <header class="login-header">
+        <a href="preview.html" class="logo">Entre<span>Lazados</span></a>
+    </header>
+
+    <!-- CONTENIDO CENTRAL -->
+    <main class="main-container">
+        <div class="login-card">
+            <img src="logo.png" alt="Logo EntreLazados" class="login-logo" onerror="this.style.display='none'">
 
             <h2>Iniciar Sesión</h2>
-            <p style="color: #666; font-size: 14px;">Ingresa el correo electrónico con el que te registraste</p>
-            
-            <input type="email" id="login-email" class="login-input" placeholder="ejemplo@correo.com" required>
-            <button class="btn-primary" style="width: 100%;" onclick="procesarLogin()">Entrar a la Plataforma</button>
-            
-            <p style="margin-top: 20px; font-size: 13px;">
-                ¿No tienes cuenta? <a href="unirse.html" style="color: var(--brand-brown); font-weight: bold; text-decoration: none;">Regístrate aquí</a>
+            <p class="subtitle">Ingresa tu correo y contraseña para ingresar a la plataforma</p>
+
+            <form id="loginForm" onsubmit="event.preventDefault(); procesarLogin();">
+                <!-- Correo Electrónico -->
+                <div class="form-group">
+                    <label for="login-email">Correo Electrónico</label>
+                    <div class="input-wrapper">
+                        <i class="ti ti-mail"></i>
+                        <input type="email" id="login-email" class="form-control" placeholder="ejemplo@correo.com" required>
+                    </div>
+                </div>
+
+                <!-- Campo de Contraseña (Añadido visualmente) -->
+                <div class="form-group">
+                    <label for="login-password">Contraseña</label>
+                    <div class="input-wrapper">
+                        <i class="ti ti-lock"></i>
+                        <input type="password" id="login-password" class="form-control" placeholder="••••••••">
+                    </div>
+                    <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <!-- Botón de Envío -->
+                <button type="submit" class="btn-primary">
+                    <i class="ti ti-login"></i> Entrar a la Plataforma
+                </button>
+            </form>
+
+            <div class="divider">
+                <span>¿No tienes cuenta?</span>
+            </div>
+
+            <p style="font-size: 13px;">
+                <a href="unirse.html" class="register-link">Regístrate aquí</a>
             </p>
         </div>
-    </div>
+    </main>
 
+    <!-- FOOTER -->
+    <footer>
+        <p>EntreLazados © 2026 - Mercado Digital de Materia Prima y Calzado</p>
+        <p style="margin-top: 8px;">
+            <a href="preview.html">Inicio</a> | 
+            <a href="mercado.html">Mercado</a> | 
+            <a href="unirse.html">Registro</a>
+        </p>
+    </footer>
+
+    <!-- LÓGICA DE BACKEND INTACTA -->
     <script>
         async function procesarLogin() {
             const email = document.getElementById('login-email').value.trim();
-            if(!email) return alert("Por favor ingresa tu correo.");
+            const password = document.getElementById('login-password').value; // Captura la contraseña
+
+            if (!email) return alert("Por favor ingresa tu correo.");
 
             try {
+                // Enviamos el correo (y el password en el body por si en el futuro lo lees en Node.js)
                 const response = await fetch(`http://${window.location.hostname}:3000/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
+                    body: JSON.stringify({ email, password })
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Guardamos la sesión en el navegador
+                    // Mantenemos la lógica de guardado exactamente como la tenías
                     localStorage.setItem('userEmail', email);
-                    localStorage.setItem('userRol', data.rol.toLowerCase());
-                    localStorage.setItem('userNombre', data.nombre);
-                    localStorage.setItem('userId', data.id);
+                    localStorage.setItem('userRol', data.rol ? data.rol.toLowerCase() : '');
+                    localStorage.setItem('userNombre', data.nombre || '');
+                    localStorage.setItem('userId', data.id || '');
 
                     alert(`¡Bienvenido de vuelta, ${data.nombre}!`);
-                    window.location.href = 'index.html'; // Redirige al inicio
+                    window.location.href = 'index.html'; // Redirige a tu inicio
                 } else {
-                    alert(data.message);
+                    alert(data.message || "No se pudo iniciar sesión.");
                 }
             } catch (error) {
                 console.error("Error en login:", error);
