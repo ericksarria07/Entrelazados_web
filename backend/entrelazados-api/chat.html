@@ -1,0 +1,292 @@
+<!DOCTYPE html><html lang="es"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Chat</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Añadimos estilos mínimos para la barra lateral de contactos integrándola a tu diseño */
+        .chat-layout {
+            display: flex;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            height: calc(100vh - 140px);
+            margin-top: 15px;
+        }
+        .chat-sidebar {
+            width: 280px;
+            border-right: 1px solid #eee;
+            background: #fdfcfb;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 15px;
+            font-weight: bold;
+            background: #8b5a2b;
+            color: white;
+            font-size: 13px;
+        }
+        .contact-list {
+            overflow-y: auto;
+            flex: 1;
+        }
+        .contact-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f5f5f5;
+            transition: 0.2s;
+        }
+        .contact-item:hover, .contact-item.active {
+            background: #f2ebe7;
+        }
+        .contact-avatar-side {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: #5c4033;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .chat-main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .no-chat-placeholder {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            background: #faf8f6;
+        }
+    </style>
+</head><body>
+    <div id="app">
+        <nav class="nav">
+            <div class="nav-logo">Entre<span>Lazados</span></div>
+            <div class="nav-tabs">
+                <a href="index.html" class="nav-tab">Inicio</a>
+                <a href="mercado.html" class="nav-tab">Mercado</a>
+                <a href="chat.html" class="nav-tab active">Chat</a>
+                <a href="#" class="nav-tab" onclick="cerrarSesion(); return false;" style="color: #d9534f;"><i class="ti ti-logout"></i> Salir</a>
+            </div>
+        </nav>
+
+        <div class="section">
+            <div class="chat-layout">
+                
+                <div class="chat-sidebar">
+                    <div class="sidebar-header" id="rol-title">Mensajes</div>
+                    <div class="contact-list" id="lista-contactos">
+                        <p style="text-align:center; padding:20px; color:#999; font-size:13px;">Buscando contactos...</p>
+                    </div>
+                </div>
+
+                <div class="chat-main-area" id="chat-principal">
+                    
+                    <div class="no-chat-placeholder" id="pantalla-vacia">
+                        <i class="ti ti-message-dots" style="font-size: 44px; margin-bottom: 8px; color: #8b5a2b;"></i>
+                        <p style="font-size:14px;">Selecciona un usuario de la lista para conversar</p>
+                    </div>
+
+                    <div class="chat-container" id="pantalla-activa" style="display: none; height: 100%; width: 100%; max-width: initial; box-shadow: none;">
+                        <div class="chat-header">
+                            <div class="chat-avatar-sm" id="chat-vendor-avatar">--</div>
+                            <div class="chat-hinfo">
+                                <div class="chat-hname" id="chat-vendor-name">Seleccione un chat</div>
+                                <div class="chat-hsub" id="chat-vendor-sub">Ubicación</div>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-messages" id="chat-msgs"></div>
+                        
+                        <div class="chat-input-bar">
+                            <input class="chat-input" id="chat-text" type="text" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') sendMsgMySQL()">
+                            <button class="chat-send" onclick="sendMsgMySQL()"><i class="ti ti-send"></i></button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = `http://${window.location.hostname}:3000`;
+        const miId = parseInt(localStorage.getItem('userId'));
+        const miRol = localStorage.getItem('userRol');
+
+        let contactoSeleccionadoId = null;
+        let bucleActualizacion = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // PROTECCIÓN: Redirección si no hay sesión
+            if (!localStorage.getItem('userEmail') || !miId) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Configurar cabecera lateral según quién navega
+            document.getElementById('rol-title').textContent = miRol === 'proveedor' ? '💬 Emprendedores interesados' : '🏭 Proveedores de Materiales';
+
+            // Cargar barra de contactos
+            cargarContactosDesdeBD();
+        });
+
+        // 1. CARGAR CONTACTOS DESDE BACKEND SEGÚN ROL
+        async function cargarContactosDesdeBD() {
+            const contenedor = document.getElementById('lista-contactos');
+            try {
+                const response = await fetch(`${API_URL}/api/chat/contactos?rol=${miRol}`);
+                const contactos = await response.json();
+                contenedor.innerHTML = '';
+
+                if (contactos.length === 0) {
+                    contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:#999; font-size:12px;">No hay perfiles disponibles.</p>`;
+                    return;
+                }
+
+                contactos.forEach(c => {
+                    const inicial = c.NombreRazonSocial.charAt(0).toUpperCase();
+                    contenedor.innerHTML += `
+                        <div class="contact-item" id="contacto-${c.UsuarioID}" onclick="seleccionarContacto(${c.UsuarioID}, '${c.NombreRazonSocial}')">
+                            <div class="contact-avatar-side">${inicial}</div>
+                            <div>
+                                <div style="font-weight: 600; font-size:13px; color:#333;">${c.NombreRazonSocial}</div>
+                                <div style="font-size:11px; color:#777; text-transform: capitalize;">${c.TipoRol}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // LÓGICA DE TU URL: Si venías desde Mercado o Mapa con ?nombre=... lo abre por defecto
+                const parametros = new URLSearchParams(window.location.search);
+                const nombreQuery = parametros.get('nombre');
+                if (nombreQuery) {
+                    const encontrado = contactos.find(c => c.NombreRazonSocial.toLowerCase().includes(nombreQuery.toLowerCase()));
+                    if (encontrado) {
+                        seleccionarContacto(encontrado.UsuarioID, encontrado.NombreRazonSocial);
+                    }
+                }
+
+            } catch (error) {
+                contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:red; font-size:12px;">Error al conectar.</p>`;
+            }
+        }
+
+        // 2. SELECCIONAR CONTACTO EN CONFIGURAR INTERFAZ
+        function seleccionarContacto(id, nombre) {
+            contactoSeleccionadoId = id;
+
+            document.querySelectorAll('.contact-item').forEach(item => item.classList.remove('active'));
+            const itemSeleccionado = document.getElementById(`contacto-${id}`);
+            if (itemSeleccionado) itemSeleccionado.classList.add('active');
+
+            document.getElementById('pantalla-vacia').style.display = 'none';
+            document.getElementById('pantalla-activa').style.display = 'flex';
+
+            // Configurar cabecera con tu lógica de iniciales
+            document.getElementById('chat-vendor-name').textContent = nombre;
+            const iniciales = nombre.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('chat-vendor-avatar').textContent = iniciales;
+            document.getElementById('chat-vendor-sub').textContent = nombre.toLowerCase().includes('sol') ? "Verificado · León" : "Verificado · Masaya";
+
+            // Resetear el intervalo para evitar múltiples hilos colgados
+            if (bucleActualizacion) clearInterval(bucleActualizacion);
+
+            // Cargar y activar polling en tiempo real cada 2 segundos
+            cargarMensajesDeLaConversacion();
+            bucleActualizacion = setInterval(cargarMensajesDeLaConversacion, 2000);
+        }
+
+        // 3. TRAER HISTORIAL BIDIRECCIONAL DESDE MYSQL
+        async function cargarMensajesDeLaConversacion() {
+            if (!contactoSeleccionadoId) return;
+
+            const areaMensajes = document.getElementById('chat-msgs');
+            try {
+                const response = await fetch(`${API_URL}/api/chat/mensajes?remitenteId=${miId}&destinatarioId=${contactoSeleccionadoId}`);
+                const mensajes = await response.json();
+
+                const estabaAbajo = areaMensajes.scrollHeight - areaMensajes.scrollTop <= areaMensajes.clientHeight + 60;
+                areaMensajes.innerHTML = '';
+
+                // Renderizar mensajes reales usando tus clases CSS de burbuja ('me' o 'them')
+                mensajes.forEach(m => {
+                    const claseEmisor = m.RemitenteID === miId ? 'msg me' : 'msg them';
+
+                    // Formatear la hora guardada
+                    const horaFormateada = new Date(m.FechaEnvio).toLocaleTimeString('es-NI', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+
+                    areaMensajes.innerHTML += `
+                        <div class="${claseEmisor}">
+                            <div class="msg-bubble">${m.ContenidoTexto}</div>
+                            <div class="msg-time">${horaFormateada}</div>
+                        </div>
+                    `;
+                });
+
+                if (estabaAbajo) {
+                    areaMensajes.scrollTop = areaMensajes.scrollHeight;
+                }
+
+            } catch (error) {
+                console.error("Error en sincronización en vivo:", error);
+            }
+        }
+
+        // 4. GUARDAR MENSAJE EN MYSQL AL ENVIAR
+        async function sendMsgMySQL() {
+            const input = document.getElementById('chat-text');
+            const text = input.value.trim();
+            if (!text || !contactoSeleccionadoId) return;
+
+            const data = {
+                remitenteId: miId,
+                destinatarioId: contactoSeleccionadoId,
+                texto: text
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/chat/enviar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    input.value = '';
+                    // Forzar carga instantánea para evitar lag visual
+                    cargarMensajesDeLaConversacion();
+                }
+            } catch (error) {
+                console.error("Error al publicar mensaje:", error);
+            }
+        }
+
+        // CERRAR SESIÓN
+        function cerrarSesion() {
+            if (bucleActualizacion) clearInterval(bucleActualizacion);
+            localStorage.clear();
+            alert("Sesión cerrada correctamente.");
+            window.location.href = 'login.html';
+        }
+    </script>
+</body></html>

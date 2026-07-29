@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html><html lang="es"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Inicio</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="styles.css"></head><body>
+    <div id="app">
+        <nav class="nav">
+            <div class="nav-logo">Entre<span>Lazados</span></div>
+            <div class="nav-tabs">
+                <a href="index.html" class="nav-tab active">Inicio</a>
+                <a href="mercado.html" class="nav-tab">Mercado</a>
+                <a href="chat.html" class="nav-tab">Chat</a>
+            </div>
+        </nav>
+
+        <div class="hero">
+            <div class="hero-eyebrow">Calzado · Materia Prima · Nicaragua</div>
+            <h1>El puente entre el proveedor y el emprendedor de calzado</h1>
+            <p>Conectamos artesanos y pequeñas fábricas con proveedores verificados de cuero, suela, hilo y más — con precios reales y sin intermediarios.</p>
+            <div class="hero-btns">
+                <a href="unirse.html" class="btn-primary">Registrarme como proveedor</a>
+                <a href="unirse.html" class="btn-outline">Soy emprendedor</a>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-num" id="stat-proveedores">0</div>
+                <div class="stat-lbl">Proveedores verificados</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num" id="stat-emprendedores">0</div>
+                <div class="stat-lbl">Emprendedores activos</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num" id="stat-subastas">0</div>
+                <div class="stat-lbl">Subastas en curso</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title"><i class="ti ti-star"></i> ¿Cómo funciona?</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="listing-card" style="cursor:default;">
+                    <div class="listing-top">
+                        <div class="listing-avatar"><i class="ti ti-id-badge-2"></i></div>
+                        <div class="listing-info">
+                            <div class="listing-name">1. Crea tu perfil y verifica tu negocio</div>
+                            <div class="listing-sub">Sube tu documento de identidad, RUC o constancia comercial. El equipo revisa en menos de 48 h.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="listing-card" style="cursor:default;">
+                    <div class="listing-top">
+                        <div class="listing-avatar"><i class="ti ti-map-pin"></i></div>
+                        <div class="listing-info">
+                            <div class="listing-name">2. Filtra por distancia y tipo de material</div>
+                            <div class="listing-sub">Ajusta el radio desde 5 km hasta toda la región. Ve qué hay disponible cerca de tu taller.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align:center;margin-top:1.25rem;">
+                <a href="mercado.html" class="btn-primary">Ver materiales disponibles →</a>
+            </div>
+        </div>
+    </div>
+
+   <script>
+       window.addEventListener('DOMContentLoaded', async () => {
+           // 👇 PROTECCIÓN DE PANTALLA: Si no hay una sesión activa, redirige al Login de inmediato
+           if (!localStorage.getItem('userEmail')) {
+               window.location.href = 'login.html';
+               return;
+           }
+
+           const API_URL = `http://${window.location.hostname}:3000`;
+
+           // 1. CARGAR ESTADÍSTICAS REALES EN LA BARRA
+           try {
+               const response = await fetch(`${API_URL}/api/estadisticas`);
+               if (response.ok) {
+                   const data = await response.json();
+                   document.getElementById('stat-proveedores').textContent = data.proveedores;
+                   document.getElementById('stat-emprendedores').textContent = data.emprendedores;
+                   document.getElementById('stat-subastas').textContent = data.subastas;
+               }
+           } catch (error) {
+               console.error("Error al conectar con la API de estadísticas:", error);
+           }
+
+           // 2. CONTROL DE PERFILES Y SESIÓN COHERENTE
+           const userRol = localStorage.getItem('userRol');
+           const userNombre = localStorage.getItem('userNombre');
+
+           const heroBtns = document.querySelector('.hero-btns');
+           const heroText = document.querySelector('.hero p');
+
+           if (userRol && userNombre) {
+               // Si el usuario ya inició sesión, adaptamos el texto del Home dinámicamente
+               heroText.innerHTML = `👋 ¡Hola de nuevo, <b>${userNombre}</b>! Has ingresado con el perfil de: <span class="badge badge-mat" style="background: #5c3a21; color:white; padding: 2px 8px; border-radius:4px; font-weight: bold;">${userRol.toUpperCase()}</span>`;
+
+               if (userRol === 'proveedor') {
+                   // Interfaz adaptada para Proveedor
+                   heroBtns.innerHTML = `
+                    <a href="mercado.html" class="btn-primary">➕ Publicar Material / Oferta</a>
+                    <button class="btn-outline" onclick="cerrarSesion()">Cerrar Sesión</button>
+                `;
+               } else {
+                   // Interfaz adaptada para Emprendedor
+                   heroBtns.innerHTML = `
+                    <a href="mercado.html" class="btn-primary">🛒 Explorar Mercado de Materiales</a>
+                    <button class="btn-outline" onclick="cerrarSesion()">Cerrar Sesión</button>
+                `;
+               }
+           }
+       });
+
+       function cerrarSesion() {
+           localStorage.clear();
+           alert("Sesión cerrada.");
+           window.location.href = 'login.html';
+       }
+   </script></body></html>

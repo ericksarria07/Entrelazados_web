@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Mercado</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        #mapa-interactivo {
+            width: 100%;
+            height: 450px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 450px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .close-btn {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close-btn:hover { color: black; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <nav class="nav">
+            <div class="nav-logo">Entre<span>Lazados</span></div>
+            <div class="nav-tabs">
+                <a href="index.html" class="nav-tab">Inicio</a>
+                <a href="mercado.html" class="nav-tab active">Mercado</a> 
+                <a href="chat.html" class="nav-tab">Chat</a>
+                <a href="#" class="nav-tab" onclick="cerrarSesion(); return false;" style="color: #d9534f;"><i class="ti ti-logout"></i> Salir</a>
+            </div>
+        </nav>
+
+        <div class="tab-bar">
+            <button class="tab active" onclick="switchMarketTab(this,'listings')">Ofertas</button>
+            <button class="tab" onclick="switchMarketTab(this,'auctions')">Subastas</button>
+            <button class="tab" onclick="switchMarketTab(this,'map')">Mapa</button>
+        </div>
+
+        <div id="tab-listings" class="section">
+            <div class="filter-bar">
+                <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display:flex; align-items:center; gap: 10px;">
+                        <label><i class="ti ti-map-pin" style="font-size:13px;vertical-align:-1px"></i> Radio:</label>
+                        <input type="range" id="range-km" min="5" max="100" value="30" step="5" oninput="actualizarFiltroKilometros(this.value)">
+                        <span class="range-val" id="range-val">30km</span>
+                    </div>
+                    <button id="btn-publicar-modal" class="btn-primary" style="display: none; padding: 6px 12px; font-size: 13px;" onclick="abrirModal()">
+                        <i class="ti ti-plus"></i> Publicar Oferta
+                    </button>
+                </div>
+            </div>
+            <div class="listings" id="contenedor-ofertas">
+                <p style="text-align: center; color: #666;">Cargando materiales desde la base de datos...</p>
+            </div>
+        </div>
+
+        <div id="tab-auctions" class="section" style="display:none;">
+            <div id="contenedor-subastas">
+                <p style="text-align: center; color: #666;">Cargando subastas activas...</p>
+            </div>
+        </div>
+
+        <div id="tab-map" class="section" style="display:none;">
+            <div style="margin-bottom: 10px; font-weight: 600; color: var(--brand-brown);"><i class="ti ti-map-2"></i> Proveedores Cercanos en Nicaragua</div>
+            <div id="mapa-interactivo"></div>
+        </div>
+    </div>
+
+    <div id="modalOferta" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="cerrarModal()">&times;</span>
+            <h3 style="margin-bottom: 15px;"><i class="ti ti-package"></i> Publicar Nuevo Material</h3>
+            <div class="form-group">
+                <label class="form-label">Título del Material</label>
+                <input class="form-input" type="text" id="ofertaTitulo" placeholder="Ej. Lote Suelas TR Caballero">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Precio (C$)</label>
+                <input class="form-input" type="number" id="ofertaPrecio" placeholder="Ej. 450">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Unidad de Medida</label>
+                <input class="form-input" type="text" id="ofertaUnidad" placeholder="Ej. por par, por pie², por docena">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Distancia Simulada (Km)</label>
+                <input class="form-input" type="number" id="ofertaDistancia" placeholder="Ej. 15">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Categoría del Material</label>
+                <select class="form-input" id="ofertaCategoria" style="width: 100%; height: 38px;">
+                    <option value="1">Cuero natural</option>
+                    <option value="2">Suela TR</option>
+                </select>
+            </div>
+            <button class="btn-primary" style="width:100%; margin-top: 15px;" onclick="guardarOferta()">Guardar y Publicar Mercado ↗</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        let mapa;
+        const API_URL = `http://${window.location.hostname}:3000`;
+
+        // VARIABLE GLOBAL: Mantiene en caché las ofertas de la BD para filtrarlas en el cliente de forma instantánea
+        let todasLasOfertas = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('userEmail')) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const userRol = localStorage.getItem('userRol');
+            if (userRol === 'proveedor') {
+                document.getElementById('btn-publicar-modal').style.display = 'block';
+            }
+
+            cargarOfertasDesdeBD();
+            cargarSubastasDesdeBD();
+        });
+
+        // 1. OBTENER OFERTAS DESDE BD Y ALMACENAR EN MEMORIA
+        async function cargarOfertasDesdeBD() {
+            try {
+                const response = await fetch(`${API_URL}/api/ofertas`);
+                if (!response.ok) throw new Error("Error backend");
+
+                // Guardamos el resultado crudo en memoria global
+                todasLasOfertas = await response.json();
+
+                // Filtramos y renderizamos inmediatamente según el valor actual del slider
+                const radioActual = document.getElementById('range-km').value;
+                renderizarOfertasFiltradas(radioActual);
+            } catch (error) {
+                document.getElementById('contenedor-ofertas').innerHTML = `<p style="text-align:center; color:red;">Error cargando datos de MySQL.</p>`;
+            }
+        }
+
+        // 2. FILTRAR Y RENDERIZAR LAS OFERTAS EN BASE AL KM SELECCIONADO
+        function renderizarOfertasFiltradas(maxKm) {
+            const contenedor = document.getElementById('contenedor-ofertas');
+            const miUserId = localStorage.getItem('userId');
+            const miRol = localStorage.getItem('userRol');
+
+            // Filtramos las ofertas guardadas globalmente en base a su distancia simulada
+            const ofertasFiltradas = todasLasOfertas.filter(oferta => {
+                return parseInt(oferta.DistanciaSimuladaKm) <= parseInt(maxKm);
+            });
+
+            contenedor.innerHTML = '';
+
+            if (ofertasFiltradas.length === 0) {
+                contenedor.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas dentro de un radio de ${maxKm}km.</p>`;
+                return;
+            }
+
+            ofertasFiltradas.forEach(oferta => {
+                const icono = oferta.NombreCategoria.toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
+
+                // Condición para evaluar si es el dueño de la publicación
+                const esDueno = (miRol === 'proveedor' && parseInt(miUserId) === parseInt(oferta.ProveedorID));
+                const botonEliminar = esDueno
+                    ? `<button class="btn-sm" style="background-color: #d9534f; color: white; border: none; margin-left: 10px; cursor: pointer;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-trash"></i> Eliminar</button>`
+                    : '';
+
+                contenedor.innerHTML += `
+                    <div class="listing-card">
+                        <div class="listing-top">
+                            <div class="listing-avatar"><i class="ti ${icono}"></i></div>
+                            <div class="listing-info">
+                                <div class="listing-name">${oferta.TituloMaterial}</div>
+                                <div class="listing-sub">Proveedor Local · Nicaragua · Ubicado a ${oferta.DistanciaSimuladaKm} km</div>
+                                <div class="listing-badges">
+                                    <span class="badge badge-verified"><i class="ti ti-shield-check" style="font-size:10px"></i> Verificado</span>
+                                    <span class="badge badge-mat">${oferta.NombreCategoria}</span>
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div class="listing-price">C$${parseFloat(oferta.Precio).toFixed(2)}</div>
+                                <div class="listing-punit">${oferta.UnidadMedida}</div>
+                            </div>
+                        </div>
+                        <div class="listing-bottom" style="display:flex; align-items:center; gap:10px;">
+                            <a href="chat.html?nombre=Proveedor" class="btn-sm" style="text-decoration:none; display:inline-block;"><i class="ti ti-message-circle"></i> Chat Directo</a>
+                            ${botonEliminar}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 3. CAPTURA EL MOVIMIENTO DEL RANGO (SLIDER)
+        function actualizarFiltroKilometros(valor) {
+            document.getElementById('range-val').textContent = valor + 'km';
+            // Llama a la función de renderizado en memoria sin saturar a consultas la BD
+            renderizarOfertasFiltradas(valor);
+        }
+
+        // 4. ACCIÓN PARA ELIMINAR LA OFERTA DIRECTO EN BACKEND MySQL
+        async function eliminarOferta(ofertaId) {
+            if (!confirm("¿Estás seguro de que deseas eliminar esta oferta del mercado?")) return;
+            const miUserId = localStorage.getItem('userId');
+
+            try {
+                const response = await fetch(`${API_URL}/api/ofertas/${ofertaId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proveedorId: parseInt(miUserId) })
+                });
+                const res = await response.json();
+                if (response.ok) {
+                    alert(res.message);
+                    cargarOfertasDesdeBD();
+                } else {
+                    alert(res.message);
+                }
+            } catch (error) {
+                alert("Error al conectar con el servidor.");
+            }
+        }
+
+        // 5. CARGAR SUBASTAS DINÁMICAS BLOQUEANDO TODAS LAS PUJAS PARA CUALQUIER PROVEEDOR
+        async function cargarSubastasDesdeBD() {
+            const contenedor = document.getElementById('contenedor-subastas');
+            const miUserId = parseInt(localStorage.getItem('userId'));
+            const miRol = localStorage.getItem('userRol');
+
+            try {
+                const response = await fetch(`${API_URL}/api/subastas`);
+                if (!response.ok) throw new Error("Error consultando subastas");
+                const subastas = await response.json();
+                contenedor.innerHTML = '';
+
+                if (subastas.length === 0) {
+                    contenedor.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px;">No hay lotes en subasta activa actualmente.</p>`;
+                    return;
+                }
+
+                subastas.forEach(subasta => {
+                    const esMiSubasta = (parseInt(subasta.ProveedorID) === miUserId);
+
+                    // REGLA CRÍTICA: Si el usuario actual es un PROVEEDOR, tiene totalmente deshabilitadas las pujas (ya sea su lote o no)
+                    const esProveedor = (miRol === 'proveedor');
+                    const deshabilitarPujas = esProveedor || esMiSubasta;
+
+                    contenedor.innerHTML += `
+                        <div class="auction-card" style="margin-bottom: 20px;">
+                            <div class="auction-header">
+                                <div class="auction-title">${subasta.TituloLote} ${esMiSubasta ? ' <span style="color:#8b5a2b; font-size:12px;">(Tu Lote)</span>' : ''}</div>
+                                <div class="auction-timer"><i class="ti ti-clock"></i> Activa</div>
+                            </div>
+                            <div class="auction-body">
+                                <div class="bid-track">
+                                    <div class="bid-row">
+                                        <span class="bid-label">Precio base: C$${parseFloat(subasta.PrecioBase).toLocaleString()}</span>
+                                        <div class="bid-amount" id="subasta-val-${subasta.SubastaID}">C$${parseFloat(subasta.PrecioActual).toLocaleString()}</div>
+                                    </div>
+                                </div>
+                                <div class="bid-input-row">
+                                    <input class="bid-input" type="number" placeholder="Tu oferta en C$" id="subasta-input-${subasta.SubastaID}" ${deshabilitarPujas ? 'disabled style="background:#eee; cursor:not-allowed;"' : ''}>
+                                    <button class="btn-sm cta" 
+                                            style="${deshabilitarPujas ? 'background-color:#aaa; cursor:not-allowed;' : ''}"
+                                            onclick="${deshabilitarPujas ? "alert('Los proveedores no tienen permitido realizar ofertas o pujas en el sistema.')" : `ejecutarPujaReal(${subasta.SubastaID}, ${subasta.PrecioActual})`}"
+                                            ${deshabilitarPujas ? 'disabled' : ''}>
+                                        ${deshabilitarPujas ? 'Bloqueado' : 'Pujar'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                contenedor.innerHTML = `<p style="text-align:center; color:red;">No se pudieron cargar las subastas de MySQL.</p>`;
+            }
+        }
+
+        // 6. ENVIAR LA PUJA REAL A TU TABLA EN MYSQL
+        async function ejecutarPujaReal(subastaId, precioActual) {
+            const input = document.getElementById(`subasta-input-${subastaId}`);
+            const montoPuja = parseFloat(input.value);
+            const emprendedorId = localStorage.getItem('userId');
+            const miRol = localStorage.getItem('userRol');
+
+            if (miRol === 'proveedor') {
+                alert("Los proveedores no pueden realizar pujas.");
+                return;
+            }
+
+            if (!emprendedorId) {
+                alert("Debes iniciar sesión para realizar una puja.");
+                return;
+            }
+
+            if (!montoPuja || montoPuja <= precioActual) {
+                alert(`Tu puja debe ser mayor al precio actual de C$${precioActual.toLocaleString()}`);
+                return;
+            }
+
+            const data = { subastaId, emprendedorId: parseInt(emprendedorId), montoPuja };
+
+            try {
+                const response = await fetch(`${API_URL}/api/pujas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const resData = await response.json();
+
+                if (response.ok) {
+                    alert(resData.message);
+                    input.value = '';
+                    cargarSubastasDesdeBD();
+                } else {
+                    alert("Error: " + resData.message);
+                }
+            } catch (error) {
+                alert("No se pudo procesar la puja con el servidor.");
+            }
+        }
+
+        async function guardarOferta() {
+            const titulo = document.getElementById('ofertaTitulo').value.trim();
+            const precio = document.getElementById('ofertaPrecio').value.trim();
+            const unidad = document.getElementById('ofertaUnidad').value.trim();
+            const distancia = document.getElementById('ofertaDistancia').value.trim();
+            const categoriaId = document.getElementById('ofertaCategoria').value;
+            const proveedorId = localStorage.getItem('userId');
+
+            if (!proveedorId) { alert("Error de sesión."); return; }
+            if (!titulo || !precio || !unidad) { alert("Llena los campos principales."); return; }
+
+            const data = { proveedorId: parseInt(proveedorId), titulo, precio: parseFloat(precio), unidad, distancia: parseInt(distancia) || 0, categoriaId: parseInt(categoriaId) };
+
+            try {
+                const response = await fetch(`${API_URL}/api/ofertas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const resData = await response.json();
+                if (response.ok) {
+                    alert("¡Éxito! " + resData.message);
+                    cerrarModal();
+                    cargarOfertasDesdeBD();
+                } else { alert("Error: " + resData.message); }
+            } catch (error) { alert("Error de red."); }
+        }
+
+        function abrirModal() { document.getElementById('modalOferta').style.display = 'block'; }
+        function cerrarModal() {
+            document.getElementById('modalOferta').style.display = 'none';
+            document.getElementById('ofertaTitulo').value = '';
+            document.getElementById('ofertaPrecio').value = '';
+            document.getElementById('ofertaUnidad').value = '';
+            document.getElementById('ofertaDistancia').value = '';
+        }
+
+        function switchMarketTab(el, tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            ['listings', 'auctions', 'map'].forEach(id => {
+                document.getElementById('tab-' + id).style.display = id === tab ? 'block' : 'none';
+            });
+
+            if (tab === 'listings') {
+                cargarOfertasDesdeBD();
+            }
+            if (tab === 'auctions') {
+                cargarSubastasDesdeBD();
+            }
+            if (tab === 'map') {
+                setTimeout(() => { if (!mapa) { inicializarMapa(); } else { mapa.invalidateSize(); } }, 200);
+            }
+        }
+
+        function inicializarMapa() {
+            const centroNicaragua = [12.115, -86.150];
+            mapa = L.map('mapa-interactivo').setView(centroNicaragua, 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(mapa);
+            L.marker([12.136, -86.270]).addTo(mapa).bindPopup("<b>📍 Mi Ubicación</b>").openPopup();
+        }
+
+        function cerrarSesion() { localStorage.clear(); window.location.href = 'login.html'; }
+    </script>
+</body>
+</html>

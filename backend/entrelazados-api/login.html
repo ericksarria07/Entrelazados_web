@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Iniciar Sesión</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .login-box {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .login-logo {
+            max-width: 130px;
+            height: auto;
+            margin-bottom: 20px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .login-input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <nav class="nav">
+            <div class="nav-logo">Entre<span>Lazados</span></div>
+        </nav>
+
+        <div class="login-box">
+            <img src="logo.png" alt="Logo EntreLazados" class="login-logo">
+
+            <h2>Iniciar Sesión</h2>
+            <p style="color: #666; font-size: 14px;">Ingresa el correo electrónico con el que te registraste</p>
+            
+            <input type="email" id="login-email" class="login-input" placeholder="ejemplo@correo.com" required>
+            <button class="btn-primary" style="width: 100%;" onclick="procesarLogin()">Entrar a la Plataforma</button>
+            
+            <p style="margin-top: 20px; font-size: 13px;">
+                ¿No tienes cuenta? <a href="unirse.html" style="color: var(--brand-brown); font-weight: bold; text-decoration: none;">Regístrate aquí</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        async function procesarLogin() {
+            const email = document.getElementById('login-email').value.trim();
+            if(!email) return alert("Por favor ingresa tu correo.");
+
+            try {
+                const response = await fetch(`http://${window.location.hostname}:3000/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Guardamos la sesión en el navegador
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userRol', data.rol.toLowerCase());
+                    localStorage.setItem('userNombre', data.nombre);
+                    localStorage.setItem('userId', data.id);
+
+                    alert(`¡Bienvenido de vuelta, ${data.nombre}!`);
+                    window.location.href = 'index.html'; // Redirige al inicio
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error("Error en login:", error);
+                alert("Error al conectar con el servidor.");
+            }
+        }
+    </script>
+</body>
+</html>

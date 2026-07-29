@@ -1,0 +1,128 @@
+<!DOCTYPE html><html lang="es"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Registro</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="styles.css"></head><body>
+    <div id="app">
+        <nav class="nav">
+            <div class="nav-logo">Entre<span>Lazados</span></div>
+        </nav>
+
+        <div class="section">
+            <div class="profile-card">
+                <div class="profile-cover"></div>
+                <div class="profile-body">
+                    <div class="profile-avatar-wrap">
+                        <div class="profile-avatar"><i class="ti ti-user"></i></div>
+                    </div>
+                    <div class="profile-name">Crear cuenta</div>
+                    <div class="profile-role">Elige tu perfil para comenzar</div>
+
+                    <div class="role-selector">
+                        <div class="role-option selected" onclick="selectRole(this)">
+                            <i class="ti ti-truck-delivery"></i>
+                            <div class="role-name">Proveedor</div>
+                        </div>
+                        <div class="role-option" onclick="selectRole(this)">
+                            <i class="ti ti-shoe"></i>
+                            <div class="role-name">Emprendedor</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Nombre o Razón Social</label>
+                        <input class="form-input" type="text" id="nombreNegocio" placeholder="Ej. Taller Jiménez">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Correo Electrónico</label>
+                        <input class="form-input" type="email" id="correo" placeholder="Ej. contacto@taller.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Teléfono WhatsApp</label>
+                        <input class="form-input" type="text" id="telefono" placeholder="Ej. +505 8888-8888">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Departamento</label>
+                        <input class="form-input" type="text" id="deptoId" placeholder="Ej. Managua, Masaya, León...">
+                    </div>
+
+                    <button class="btn-primary" style="width:100%; margin-top: 10px;" onclick="enviarDatos(); return false;">Continuar verificación ↗</button>
+                    
+                    <p style="text-align: center; margin-top: 25px; font-size: 14px; color: #666;">
+                        ¿Ya tienes una cuenta? <a href="login.html" style="color: var(--brand-brown); font-weight: bold; text-decoration: none;">Inicia sesión aquí</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Función para cambiar la selección visual de roles
+        function selectRole(el) {
+            document.querySelectorAll('.role-option').forEach(r => r.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        // Función para enviar los datos al servidor (Backend)
+        async function enviarDatos() {
+            // 1. Obtener valores de los inputs
+            const nombreVal = document.getElementById('nombreNegocio').value.trim();
+            const emailVal = document.getElementById('correo').value.trim();
+            const telefonoVal = document.getElementById('telefono').value.trim();
+            const deptoIdVal = document.getElementById('deptoId').value.trim();
+
+            const rolElemento = document.querySelector('.role-option.selected .role-name');
+            const rolVal = rolElemento ? rolElemento.innerText.toLowerCase().trim() : 'emprendedor';
+
+            // 2. Validación básica en el frontend
+            if (!nombreVal || !emailVal || !telefonoVal || !deptoIdVal) {
+                alert("Por favor, rellena todos los campos antes de continuar.");
+                return;
+            }
+
+            // Estructuramos el objeto para enviarlo al backend en index.js
+            const data = {
+                nombre: nombreVal,
+                rol: rolVal,
+                email: emailVal,
+                telefono: telefonoVal,
+                deptoId: deptoIdVal
+            };
+
+            // Detecta la IP automáticamente
+            const API_URL = `http://${window.location.hostname}:3000`;
+
+            try {
+                const response = await fetch(`${API_URL}/registro`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const resultado = await response.json();
+
+                if (response.ok) {
+                    alert("¡Éxito! " + resultado.message);
+
+                    // Limpiar formulario al registrar con éxito
+                    document.getElementById('nombreNegocio').value = '';
+                    document.getElementById('correo').value = '';
+                    document.getElementById('telefono').value = '';
+                    document.getElementById('deptoId').value = '';
+
+                    // 👇 MEJORA: Redirige automáticamente al login para que proceda a iniciar sesión de inmediato
+                    window.location.href = 'login.html';
+                } else {
+                    alert("Error del servidor: " + resultado.message);
+                }
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("No se pudo conectar al servidor. Asegúrate de que index.js esté corriendo.");
+            }
+        }
+    </script></body></html>
