@@ -152,6 +152,7 @@
             text-decoration: none;
             margin-top: 6px;
             font-weight: 600;
+            cursor: pointer;
         }
 
         .forgot-link:hover {
@@ -266,14 +267,14 @@
                     </div>
                 </div>
 
-                <!-- Campo de Contraseña (Añadido visualmente) -->
+                <!-- Campo de Contraseña -->
                 <div class="form-group">
                     <label for="login-password">Contraseña</label>
                     <div class="input-wrapper">
                         <i class="ti ti-lock"></i>
                         <input type="password" id="login-password" class="form-control" placeholder="••••••••">
                     </div>
-                    <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                    <a href="javascript:void(0)" onclick="solicitarRecuperacion()" class="forgot-link">¿Olvidaste tu contraseña?</a>
                 </div>
 
                 <!-- Botón de Envío -->
@@ -302,16 +303,15 @@
         </p>
     </footer>
 
-    <!-- LÓGICA DE BACKEND INTACTA -->
+    <!-- LÓGICA DE BACKEND -->
     <script>
         async function procesarLogin() {
             const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value; // Captura la contraseña
+            const password = document.getElementById('login-password').value;
 
             if (!email) return alert("Por favor ingresa tu correo.");
 
             try {
-                // Enviamos el correo (y el password en el body por si en el futuro lo lees en Node.js)
                 const response = await fetch(`http://${window.location.hostname}:3000/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -321,19 +321,44 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Mantenemos la lógica de guardado exactamente como la tenías
                     localStorage.setItem('userEmail', email);
                     localStorage.setItem('userRol', data.rol ? data.rol.toLowerCase() : '');
                     localStorage.setItem('userNombre', data.nombre || '');
                     localStorage.setItem('userId', data.id || '');
 
                     alert(`¡Bienvenido de vuelta, ${data.nombre}!`);
-                    window.location.href = 'index.html'; // Redirige a tu inicio
+                    window.location.href = 'index.html';
                 } else {
                     alert(data.message || "No se pudo iniciar sesión.");
                 }
             } catch (error) {
                 console.error("Error en login:", error);
+                alert("Error al conectar con el servidor.");
+            }
+        }
+
+        async function solicitarRecuperacion() {
+            let email = document.getElementById('login-email').value.trim();
+
+            if (!email) {
+                email = prompt("Por favor, ingresa tu correo electrónico registrado para enviarte el enlace de recuperación:");
+                if (!email) return;
+            } else {
+                const confirmar = confirm(`¿Enviar enlace de recuperación a: ${email}?`);
+                if (!confirmar) return;
+            }
+
+            try {
+                const response = await fetch(`http://${window.location.hostname}:3000/api/solicitar-recuperacion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+                alert(data.message || "Solicitud procesada.");
+            } catch (error) {
+                console.error("Error al solicitar recuperación:", error);
                 alert("Error al conectar con el servidor.");
             }
         }

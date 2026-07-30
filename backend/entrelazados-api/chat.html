@@ -1,129 +1,652 @@
-<!DOCTYPE html><html lang="es"><head>
+<!DOCTYPE html>
+<html lang="es">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EntreLazados - Chat</title>
+    <title>EntreLazados - Chat y Mensajes</title>
+
+    <!-- Iconos de Tabler -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-    <link rel="stylesheet" href="styles.css">
+
+    <!-- Fuentes Web -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
+
     <style>
-        /* Añadimos estilos mínimos para la barra lateral de contactos integrándola a tu diseño */
-        .chat-layout {
-            display: flex;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            height: calc(100vh - 140px);
-            margin-top: 15px;
+        /* ==========================================================================
+           VARIABLES DE DISEÑO Y PALETA DE COLORES (IGUAL A MERCADO.HTML)
+           ========================================================================== */
+        :root {
+            --color-principal: #7D381B;  /* Marrón Cálido */
+            --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
+            --color-terciario: #993D24;  /* Terracota / Ámbar Rojizo */
+
+            --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
+            --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
+
+            --bg-main: #f4f1ea;
+            --bg-card: #ffffff;
+            --text-dark: #1a1a1a;
+            --text-muted: #666666;
+            --border-color: #e0d8ce;
+            
+            --shadow-sm: 0 2px 6px rgba(61, 23, 10, 0.06);
+            --shadow-md: 0 4px 12px rgba(61, 23, 10, 0.1);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+            --radius-sm: 4px;
+            --radius-md: 6px;
         }
-        .chat-sidebar {
-            width: 280px;
-            border-right: 1px solid #eee;
-            background: #fdfcfb;
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-main); 
+            color: var(--text-dark);
+            font-family: var(--font-secundaria);
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, .logo {
+            font-family: var(--font-principal);
+            font-weight: 900;
+        }
+
+        /* ==========================================================================
+           HEADER SUPERIOR Y MENÚ DE NAVEGACIÓN
+           ========================================================================== */
+        .amazon-header {
+            background-color: var(--color-secundario);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: 900;
+            color: #fff;
+            text-decoration: none;
+            white-space: nowrap;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--color-terciario);
+        }
+
+        .header-location {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #d1c2b8;
+            cursor: pointer;
+        }
+
+        .header-location strong {
+            color: #fff;
+            display: block;
+            font-size: 13px;
+        }
+
+        .search-bar {
+            flex: 1;
+            display: flex;
+            height: 40px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--color-principal);
+        }
+
+        .search-category {
+            background-color: #f8f6f2;
+            border: none;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #444;
+            border-right: 1px solid #ddd;
+            cursor: pointer;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            padding: 0 15px;
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-btn {
+            background-color: var(--color-principal);
+            border: none;
+            width: 48px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-btn:hover {
+            background-color: var(--color-terciario);
+        }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* --- MENÚ DESPLEGABLE DE USUARIO --- */
+        .user-dropdown-wrapper {
+            position: relative;
+        }
+
+        .user-btn-nav {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 6px 14px;
+            border-radius: 4px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .user-btn-nav:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .user-nav-text {
+            text-align: left;
             display: flex;
             flex-direction: column;
         }
-        .sidebar-header {
-            padding: 15px;
-            font-weight: bold;
-            background: #8b5a2b;
-            color: white;
+
+        .user-nav-name {
             font-size: 13px;
+            font-weight: 700;
+            line-height: 1.1;
+            color: #ffffff;
         }
+
+        .user-nav-role {
+            font-size: 10px;
+            color: #d1c2b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dropdown-menu-nav {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: #ffffff;
+            color: #1a1a1a;
+            min-width: 180px;
+            border-radius: 4px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            z-index: 1000;
+            overflow: hidden;
+            border: 1px solid var(--color-principal);
+        }
+
+        .dropdown-menu-nav.show {
+            display: block;
+        }
+
+        .dropdown-item-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 16px;
+            color: var(--color-secundario);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item-nav:hover {
+            background-color: var(--bg-main);
+        }
+
+        .dropdown-item-nav.logout-item {
+            color: #c92a2a;
+        }
+
+        .dropdown-item-nav.logout-item:hover {
+            background-color: #fff0f0;
+        }
+
+        .dropdown-divider-nav {
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        /* --- SUB-NAVEGACIÓN --- */
+        .sub-bar {
+            background-color: #290f06;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .sub-bar a {
+            color: #f1e8e3;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sub-bar a:hover, .sub-bar a.active {
+            color: var(--color-terciario);
+        }
+
+        /* ==========================================================================
+           ESTILOS ESPECÍFICOS DEL INTERFAZ DE CHAT
+           ========================================================================== */
+        #app {
+            max-width: 1100px;
+            margin: 20px auto 30px auto;
+            padding: 0 20px;
+        }
+
+        .chat-layout {
+            display: flex;
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            height: calc(100vh - 180px);
+            min-height: 520px;
+        }
+
+        /* BANDEJA DE CONTACTOS (SIDEBAR) */
+        .chat-sidebar {
+            width: 300px;
+            border-right: 1px solid var(--border-color);
+            background: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            font-family: var(--font-principal);
+            font-weight: 900;
+            background: var(--color-secundario);
+            color: white;
+            font-size: 14px;
+            letter-spacing: 0.2px;
+            border-bottom: 3px solid var(--color-principal);
+        }
+
         .contact-list {
             overflow-y: auto;
             flex: 1;
         }
+
         .contact-item {
             display: flex;
             align-items: center;
-            padding: 12px 15px;
+            padding: 12px 16px;
             cursor: pointer;
-            border-bottom: 1px solid #f5f5f5;
-            transition: 0.2s;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s ease;
         }
-        .contact-item:hover, .contact-item.active {
-            background: #f2ebe7;
+
+        .contact-item:hover {
+            background: var(--bg-main);
         }
+
+        .contact-item.active {
+            background: #ede6dc;
+            border-left: 4px solid var(--color-principal);
+        }
+
         .contact-avatar-side {
-            width: 35px;
-            height: 35px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
-            background: #5c4033;
+            background: var(--color-principal);
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-right: 12px;
-            font-weight: bold;
-            font-size: 14px;
+            font-weight: 700;
+            font-size: 15px;
+            flex-shrink: 0;
+            font-family: var(--font-principal);
         }
+
+        /* ÁREA PRINCIPAL DEL CHAT */
         .chat-main-area {
             flex: 1;
             display: flex;
             flex-direction: column;
+            background: var(--bg-main);
         }
+
         .no-chat-placeholder {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #888;
-            background: #faf8f6;
+            color: var(--text-muted);
+            background: var(--bg-main);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            background: var(--bg-card);
+        }
+
+        /* HEADER DEL CHAT ACTIVO */
+        .chat-header {
+            padding: 14px 20px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+            z-index: 2;
+        }
+
+        .chat-avatar-sm {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--color-principal);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            font-family: var(--font-principal);
+        }
+
+        .chat-hinfo {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-hname {
+            font-family: var(--font-principal);
+            font-weight: 900;
+            color: var(--color-secundario);
+            font-size: 15px;
+        }
+
+        .chat-hsub {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* LISTA DE MENSAJES Y BURBUJAS */
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .msg {
+            display: flex;
+            flex-direction: column;
+            max-width: 68%;
+        }
+
+        .msg.me {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .msg.them {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .msg-bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-break: break-word;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .msg.me .msg-bubble {
+            background-color: var(--color-principal);
+            color: #ffffff;
+            border-bottom-right-radius: 2px;
+        }
+
+        .msg.them .msg-bubble {
+            background-color: #ffffff;
+            color: var(--text-dark);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 2px;
+        }
+
+        .msg-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            padding: 0 2px;
+        }
+
+        /* INPUT BAR */
+        .chat-input-bar {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 11px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-secundaria);
+            transition: border-color 0.2s ease;
+        }
+
+        .chat-input:focus {
+            border-color: var(--color-principal);
+        }
+
+        .chat-send {
+            background-color: var(--color-principal);
+            color: white;
+            border: none;
+            width: 42px;
+            height: 42px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+
+        .chat-send:hover {
+            background-color: var(--color-terciario);
+        }
+
+        .chat-send:active {
+            transform: scale(0.95);
+        }
+
+        /* FOOTER */
+        footer {
+            background-color: var(--color-secundario);
+            color: #fff;
+            text-align: center;
+            padding: 30px 20px;
+            font-size: 12px;
+            margin-top: 40px;
+            border-top: 4px solid var(--color-principal);
+        }
+
+        footer a {
+            color: #d1c2b8;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        footer a:hover {
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .amazon-header { flex-wrap: wrap; }
+            .search-bar { order: 3; width: 100%; }
+            .chat-sidebar { width: 100px; }
+            .contact-item { justify-content: center; padding: 12px 8px; }
+            .contact-avatar-side { margin-right: 0; }
+            .contact-item div:nth-child(2) { display: none; }
         }
     </style>
-</head><body>
+</head>
+<body>
+
+    <!-- BARRA SUPERIOR (HEADER TIPO E-COMMERCE) -->
+    <header class="amazon-header">
+        <a href="index.html" class="logo">Entre<span>Lazados</span></a>
+
+        <div class="header-location">
+            <i class="ti ti-map-pin" style="font-size: 18px;"></i>
+            <div>
+                Ubicación
+                <strong>Managua</strong>
+            </div>
+        </div>
+
+        <div class="search-bar">
+            <select class="search-category">
+                <option value="">Todos los insumos</option>
+                <option value="cuero">Pieles y Cueros</option>
+                <option value="herrajes">Herrajes y Cierres</option>
+                <option value="suelas">Suelas y Componentes</option>
+            </select>
+            <input type="text" class="search-input" placeholder="Buscar conversaciones o proveedores...">
+            <button class="search-btn"><i class="ti ti-search"></i></button>
+        </div>
+
+        <!-- ÁREA DE NAVEGACIÓN Y USUARIO -->
+        <div class="nav-user">
+            <div id="authArea">
+                <!-- Se llena dinámicamente desde JS -->
+            </div>
+        </div>
+    </header>
+
+    <!-- SUB-NAVEGACIÓN -->
+    <div class="sub-bar">
+        <a href="index.html"><i class="ti ti-home"></i> Inicio</a>
+        <a href="mercado.html"><i class="ti ti-building-store"></i> Mercado Completo</a>
+        <a href="chat.html" class="active"><i class="ti ti-message-circle"></i> Chat / Mensajes</a>
+        <a href="#"><i class="ti ti-tag"></i> Ofertas de la Semana</a>
+        <a href="#"><i class="ti ti-map-pin"></i> Proveedores de Masaya</a>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL DEL CHAT -->
     <div id="app">
-        <nav class="nav">
-            <div class="nav-logo">Entre<span>Lazados</span></div>
-            <div class="nav-tabs">
-                <a href="index.html" class="nav-tab">Inicio</a>
-                <a href="mercado.html" class="nav-tab">Mercado</a>
-                <a href="chat.html" class="nav-tab active">Chat</a>
-                <a href="#" class="nav-tab" onclick="cerrarSesion(); return false;" style="color: #d9534f;"><i class="ti ti-logout"></i> Salir</a>
+        <div class="chat-layout">
+            
+            <!-- BARRA LATERAL DE CONTACTOS -->
+            <div class="chat-sidebar">
+                <div class="sidebar-header" id="rol-title">Mensajes</div>
+                <div class="contact-list" id="lista-contactos">
+                    <p style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">Buscando contactos...</p>
+                </div>
             </div>
-        </nav>
 
-        <div class="section">
-            <div class="chat-layout">
+            <!-- ÁREA PRINCIPAL DE CONVERSACIÓN -->
+            <div class="chat-main-area" id="chat-principal">
                 
-                <div class="chat-sidebar">
-                    <div class="sidebar-header" id="rol-title">Mensajes</div>
-                    <div class="contact-list" id="lista-contactos">
-                        <p style="text-align:center; padding:20px; color:#999; font-size:13px;">Buscando contactos...</p>
-                    </div>
+                <!-- PANTALLA INICIAL (NINGÚN CHAT SELECCIONADO) -->
+                <div class="no-chat-placeholder" id="pantalla-vacia">
+                    <i class="ti ti-message-dots" style="font-size: 48px; margin-bottom: 12px; color: var(--color-principal);"></i>
+                    <p style="font-size:15px; font-weight: 700; color: var(--color-secundario);">Tus Mensajes Directos</p>
+                    <p style="font-size:13px; color: var(--text-muted); margin-top: 4px;">Selecciona un usuario de la lista lateral para iniciar o continuar la conversación.</p>
                 </div>
 
-                <div class="chat-main-area" id="chat-principal">
+                <!-- CONTENEDOR DEL CHAT ACTIVO -->
+                <div class="chat-container" id="pantalla-activa" style="display: none;">
+                    <div class="chat-header">
+                        <div class="chat-avatar-sm" id="chat-vendor-avatar">--</div>
+                        <div class="chat-hinfo">
+                            <div class="chat-hname" id="chat-vendor-name">Seleccione un chat</div>
+                            <div class="chat-hsub" id="chat-vendor-sub">Ubicación</div>
+                        </div>
+                    </div>
                     
-                    <div class="no-chat-placeholder" id="pantalla-vacia">
-                        <i class="ti ti-message-dots" style="font-size: 44px; margin-bottom: 8px; color: #8b5a2b;"></i>
-                        <p style="font-size:14px;">Selecciona un usuario de la lista para conversar</p>
+                    <div class="chat-messages" id="chat-msgs"></div>
+                    
+                    <div class="chat-input-bar">
+                        <input class="chat-input" id="chat-text" type="text" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') sendMsgMySQL()">
+                        <button class="chat-send" onclick="sendMsgMySQL()"><i class="ti ti-send"></i></button>
                     </div>
-
-                    <div class="chat-container" id="pantalla-activa" style="display: none; height: 100%; width: 100%; max-width: initial; box-shadow: none;">
-                        <div class="chat-header">
-                            <div class="chat-avatar-sm" id="chat-vendor-avatar">--</div>
-                            <div class="chat-hinfo">
-                                <div class="chat-hname" id="chat-vendor-name">Seleccione un chat</div>
-                                <div class="chat-hsub" id="chat-vendor-sub">Ubicación</div>
-                            </div>
-                        </div>
-                        
-                        <div class="chat-messages" id="chat-msgs"></div>
-                        
-                        <div class="chat-input-bar">
-                            <input class="chat-input" id="chat-text" type="text" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') sendMsgMySQL()">
-                            <button class="chat-send" onclick="sendMsgMySQL()"><i class="ti ti-send"></i></button>
-                        </div>
-                    </div>
-
                 </div>
 
             </div>
+
         </div>
     </div>
 
+    <!-- FOOTER -->
+    <footer>
+        <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+        <p style="margin-top: 10px;">
+            <a href="index.html">Inicio</a> | 
+            <a href="mercado.html">Mercado</a> | 
+            <a href="chat.html">Chat</a> | 
+            <a href="perfil.html">Mi Perfil</a>
+        </p>
+    </footer>
+
+    <!-- LÓGICA DEL CHAT -->
     <script>
         const API_URL = `http://${window.location.hostname}:3000`;
         const miId = parseInt(localStorage.getItem('userId'));
@@ -133,18 +656,65 @@
         let bucleActualizacion = null;
 
         window.addEventListener('DOMContentLoaded', () => {
+            const userEmail = localStorage.getItem('userEmail');
+            const userNombre = localStorage.getItem('userNombre') || 'Usuario';
+            const userRol = localStorage.getItem('userRol') || 'Miembro';
+
             // PROTECCIÓN: Redirección si no hay sesión
-            if (!localStorage.getItem('userEmail') || !miId) {
+            if (!userEmail || !miId) {
                 window.location.href = 'login.html';
                 return;
             }
 
+            // Renderizar el Menú Desplegable de Usuario en la cabecera
+            const authArea = document.getElementById('authArea');
+            authArea.innerHTML = `
+                <div class="user-dropdown-wrapper">
+                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                        <div class="user-nav-text">
+                            <span class="user-nav-name">${userNombre}</span>
+                            <span class="user-nav-role">${userRol.toUpperCase()}</span>
+                        </div>
+                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                    </button>
+
+                    <div class="dropdown-menu-nav" id="userDropdownMenu">
+                        <a href="perfil.html" class="dropdown-item-nav">
+                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
+                            Ver mi perfil
+                        </a>
+                        <div class="dropdown-divider-nav"></div>
+                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                            <i class="ti ti-logout" style="font-size: 18px;"></i>
+                            Cerrar sesión
+                        </a>
+                    </div>
+                </div>
+            `;
+
             // Configurar cabecera lateral según quién navega
-            document.getElementById('rol-title').textContent = miRol === 'proveedor' ? '💬 Emprendedores interesados' : '🏭 Proveedores de Materiales';
+            document.getElementById('rol-title').textContent = miRol === 'proveedor' ? '💬 Emprendedores Interesados' : '🏭 Proveedores de Materiales';
 
             // Cargar barra de contactos
             cargarContactosDesdeBD();
         });
+
+        // Toggle del Menú Desplegable
+        function toggleUserDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('userDropdownMenu');
+            if (dropdown) dropdown.classList.toggle('show');
+        }
+
+        window.onclick = function (event) {
+            if (!event.target.closest('.user-dropdown-wrapper')) {
+                const dropdown = document.getElementById('userDropdownMenu');
+                if (dropdown && dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            }
+        };
 
         // 1. CARGAR CONTACTOS DESDE BACKEND SEGÚN ROL
         async function cargarContactosDesdeBD() {
@@ -155,7 +725,7 @@
                 contenedor.innerHTML = '';
 
                 if (contactos.length === 0) {
-                    contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:#999; font-size:12px;">No hay perfiles disponibles.</p>`;
+                    contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:var(--text-muted); font-size:12px;">No hay perfiles disponibles.</p>`;
                     return;
                 }
 
@@ -165,14 +735,14 @@
                         <div class="contact-item" id="contacto-${c.UsuarioID}" onclick="seleccionarContacto(${c.UsuarioID}, '${c.NombreRazonSocial}')">
                             <div class="contact-avatar-side">${inicial}</div>
                             <div>
-                                <div style="font-weight: 600; font-size:13px; color:#333;">${c.NombreRazonSocial}</div>
-                                <div style="font-size:11px; color:#777; text-transform: capitalize;">${c.TipoRol}</div>
+                                <div style="font-weight: 700; font-size:13px; color:var(--color-secundario);">${c.NombreRazonSocial}</div>
+                                <div style="font-size:11px; color:var(--text-muted); text-transform: capitalize;">${c.TipoRol}</div>
                             </div>
                         </div>
                     `;
                 });
 
-                // LÓGICA DE TU URL: Si venías desde Mercado o Mapa con ?nombre=... lo abre por defecto
+                // Si venía desde Mercado o Mapa con ?nombre=... lo abre por defecto
                 const parametros = new URLSearchParams(window.location.search);
                 const nombreQuery = parametros.get('nombre');
                 if (nombreQuery) {
@@ -183,11 +753,11 @@
                 }
 
             } catch (error) {
-                contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:red; font-size:12px;">Error al conectar.</p>`;
+                contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:#c92a2a; font-size:12px;">Error al conectar.</p>`;
             }
         }
 
-        // 2. SELECCIONAR CONTACTO EN CONFIGURAR INTERFAZ
+        // 2. SELECCIONAR CONTACTO Y CONFIGURAR INTERFAZ
         function seleccionarContacto(id, nombre) {
             contactoSeleccionadoId = id;
 
@@ -198,7 +768,6 @@
             document.getElementById('pantalla-vacia').style.display = 'none';
             document.getElementById('pantalla-activa').style.display = 'flex';
 
-            // Configurar cabecera con tu lógica de iniciales
             document.getElementById('chat-vendor-name').textContent = nombre;
             const iniciales = nombre.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('chat-vendor-avatar').textContent = iniciales;
@@ -224,11 +793,9 @@
                 const estabaAbajo = areaMensajes.scrollHeight - areaMensajes.scrollTop <= areaMensajes.clientHeight + 60;
                 areaMensajes.innerHTML = '';
 
-                // Renderizar mensajes reales usando tus clases CSS de burbuja ('me' o 'them')
                 mensajes.forEach(m => {
                     const claseEmisor = m.RemitenteID === miId ? 'msg me' : 'msg them';
 
-                    // Formatear la hora guardada
                     const horaFormateada = new Date(m.FechaEnvio).toLocaleTimeString('es-NI', {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -273,7 +840,6 @@
 
                 if (response.ok) {
                     input.value = '';
-                    // Forzar carga instantánea para evitar lag visual
                     cargarMensajesDeLaConversacion();
                 }
             } catch (error) {
@@ -289,4 +855,5 @@
             window.location.href = 'login.html';
         }
     </script>
-</body></html>
+</body>
+</html>

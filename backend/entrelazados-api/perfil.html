@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Mi Perfil</title>
+    
+    <!-- Iconos de Tabler -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    
+    <!-- Fuentes Web (Mismas de preview.html) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- PALETA DE COLORES Y TIPOGRAFÍAS DE PREVIEW.HTML --- */
+        :root {
+            --color-principal: #7D381B;  /* Marrón Cálido */
+            --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
+            --color-terciario: #993D24;  /* Terracota / Ámbar Rojizo */
+
+            --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
+            --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #f4f1ea; 
+            color: #1a1a1a;
+            font-family: var(--font-secundaria);
+        }
+
+        h1, h2, h3, .logo {
+            font-family: var(--font-principal);
+            font-weight: 900;
+        }
+
+        /* --- BARRA SUPERIOR (ESTILO EXACTO PREVIEW.HTML) --- */
+        .amazon-header {
+            background-color: var(--color-secundario);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: 900;
+            color: #fff;
+            text-decoration: none;
+            white-space: nowrap;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--color-terciario);
+        }
+
+        /* Enlaces de Navegación: Inicio, Mercado, Chat */
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-link-item {
+            color: #f1e8e3;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-link-item:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .header-location {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #d1c2b8;
+            cursor: pointer;
+        }
+
+        .header-location strong {
+            color: #fff;
+            display: block;
+            font-size: 13px;
+        }
+
+        .search-bar {
+            flex: 1;
+            display: flex;
+            height: 40px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--color-principal);
+        }
+
+        .search-category {
+            background-color: #f8f6f2;
+            border: none;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #444;
+            border-right: 1px solid #ddd;
+            cursor: pointer;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            padding: 0 15px;
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-btn {
+            background-color: var(--color-principal);
+            border: none;
+            width: 48px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-btn:hover {
+            background-color: var(--color-terciario);
+        }
+
+        /* Desplegable de usuario en la barra */
+        .user-dropdown-wrapper { position: relative; }
+        .user-btn-nav {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--color-principal);
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: var(--font-secundaria);
+        }
+        .user-btn-nav:hover { background: rgba(255, 255, 255, 0.2); }
+        .user-nav-text { text-align: left; display: flex; flex-direction: column; }
+        .user-nav-name { font-size: 13px; font-weight: 700; line-height: 1.1; color: #fff; }
+        .user-nav-role { font-size: 10px; color: #d1c2b8; text-transform: uppercase; }
+        .dropdown-menu-nav {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: #ffffff;
+            color: #1a1a1a;
+            min-width: 190px;
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+            z-index: 1000;
+            overflow: hidden;
+            border: 1px solid #e0d8ce;
+        }
+        .dropdown-menu-nav.show { display: block; }
+        .dropdown-item-nav {
+            display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+            color: var(--color-secundario); text-decoration: none; font-size: 13px; font-weight: 600;
+        }
+        .dropdown-item-nav:hover { background-color: #f4f1ea; }
+        .dropdown-item-nav.logout-item { color: #c92a2a; }
+        .dropdown-item-nav.logout-item:hover { background-color: #fff0f0; }
+        .dropdown-divider-nav { height: 1px; background-color: #eee; }
+
+        /* --- ESTILOS DE LA TARJETA DE PERFIL --- */
+        .profile-container {
+            max-width: 850px;
+            margin: 30px auto;
+            padding: 0 20px 40px 20px;
+        }
+
+        .profile-card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(61, 23, 10, 0.08);
+            border: 1px solid #e0d8ce;
+            overflow: hidden;
+        }
+
+        .profile-header-banner {
+            background: linear-gradient(135deg, var(--color-secundario) 0%, var(--color-principal) 100%);
+            height: 120px;
+            position: relative;
+        }
+
+        .profile-avatar-wrapper {
+            position: relative;
+            margin-top: -50px;
+            padding: 0 30px;
+            display: flex;
+            align-items: flex-end;
+            gap: 20px;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: var(--color-principal);
+            color: #ffffff;
+            border: 4px solid #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+
+        .profile-header-info {
+            padding-top: 55px; 
+            padding-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .profile-header-info h2 {
+            font-size: 22px;
+            color: var(--color-secundario);
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+
+        .role-badge {
+            display: inline-block;
+            background-color: var(--color-principal);
+            color: #ffffff;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .profile-body {
+            padding: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--color-secundario);
+            border-bottom: 2px solid #f4f1ea;
+            padding-bottom: 8px;
+            margin-bottom: 20px;
+            margin-top: 25px;
+        }
+
+        .section-header:first-child {
+            margin-top: 0;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .info-box {
+            background-color: #fcfbf9;
+            border: 1px solid #ebe5df;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        .info-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--color-principal);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #1a1a1a;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        @media (max-width: 900px) {
+            .amazon-header { flex-wrap: wrap; }
+            .search-bar { order: 3; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- BARRA SUPERIOR CON ESTILO PREVIEW.HTML -->
+        <header class="amazon-header">
+            <a href="index.html" class="logo">Entre<span>Lazados</span></a>
+
+            <!-- OPCIONES DE NAVEGACIÓN SOLICITADAS -->
+            <nav class="nav-links">
+                <a href="index.html" class="nav-link-item"><i class="ti ti-home"></i> Inicio</a>
+                <a href="mercado.html" class="nav-link-item"><i class="ti ti-building-store"></i> Mercado</a>
+                <a href="chat.html" class="nav-link-item"><i class="ti ti-message-dots"></i> Chat</a>
+            </nav>
+
+            <div class="header-location">
+                <i class="ti ti-map-pin" style="font-size: 18px;"></i>
+                <div>
+                    Enviar a
+                    <strong>Managua</strong>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <select class="search-category">
+                    <option>Todos los insumos</option>
+                    <option>Cuero Vacuno</option>
+                    <option>Suelas & Caucho</option>
+                    <option>Herrajes</option>
+                    <option>Herramientas</option>
+                </select>
+                <input type="text" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
+                <button class="search-btn"><i class="ti ti-search"></i></button>
+            </div>
+
+            <!-- DESPLEGABLE DE USUARIO -->
+            <div class="user-dropdown-wrapper">
+                <button class="user-btn-nav" onclick="toggleUserDropdown()">
+                    <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                    <div class="user-nav-text">
+                        <span id="nav-user-nombre" class="user-nav-name">Cargando...</span>
+                        <span id="nav-user-rol" class="user-nav-role">...</span>
+                    </div>
+                    <i class="ti ti-chevron-down" style="font-size: 14px;"></i>
+                </button>
+
+                <div class="dropdown-menu-nav" id="userDropdownMenu">
+                    <a href="perfil.html" class="dropdown-item-nav">
+                        <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
+                        Ver mi perfil
+                    </a>
+                    <div class="dropdown-divider-nav"></div>
+                    <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                        <i class="ti ti-logout" style="font-size: 18px;"></i>
+                        Cerrar sesión
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- TARJETA DE PERFIL -->
+        <main class="profile-container">
+            <div class="profile-card">
+                <div class="profile-header-banner"></div>
+                <div class="profile-avatar-wrapper">
+                    <div class="profile-avatar">
+                        <i class="ti ti-building-store" id="avatar-icon"></i>
+                    </div>
+                    <div class="profile-header-info">
+                        <h2 id="profile-nombre">Cargando información...</h2>
+                        <span class="role-badge" id="profile-rol-badge">...</span>
+                    </div>
+                </div>
+
+                <div class="profile-body">
+                    <!-- DATOS GENERALES -->
+                    <div class="section-header">
+                        <i class="ti ti-user-check"></i> Información General
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-box">
+                            <div class="info-label"><i class="ti ti-id-badge"></i> Nombre / Razón Social</div>
+                            <div class="info-value" id="val-nombre">-</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label"><i class="ti ti-mail"></i> Correo Electrónico</div>
+                            <div class="info-value" id="val-email">-</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label"><i class="ti ti-brand-whatsapp"></i> Teléfono / WhatsApp</div>
+                            <div class="info-value" id="val-telefono">-</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label"><i class="ti ti-map-pin"></i> Departamento</div>
+                            <div class="info-value" id="val-departamento">-</div>
+                        </div>
+                    </div>
+
+                    <!-- PROVEEDOR (Oculto por defecto) -->
+                    <div id="section-proveedor" style="display: none;">
+                        <div class="section-header">
+                            <i class="ti ti-truck-delivery"></i> Detalle de Proveedor
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-box">
+                                <div class="info-label"><i class="ti ti-file-text"></i> Número RUC</div>
+                                <div class="info-value" id="val-ruc">-</div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label"><i class="ti ti-building-store"></i> Nombre Comercial</div>
+                                <div class="info-value" id="val-nombre-comercial">-</div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label"><i class="ti ti-box"></i> Materia Prima Principal</div>
+                                <div class="info-value" id="val-materia-prima">-</div>
+                            </div>
+                            <div class="info-box" style="grid-column: 1 / -1;">
+                                <div class="info-label"><i class="ti ti-info-circle"></i> Descripción de la Empresa</div>
+                                <div class="info-value" id="val-descripcion">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EMPRENDEDOR (Oculto por defecto) -->
+                    <div id="section-emprendedor" style="display: none;">
+                        <div class="section-header">
+                            <i class="ti ti-shoe"></i> Detalle del Taller / Emprendimiento
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-box">
+                                <div class="info-label"><i class="ti ti-tag"></i> Nombre de la Marca</div>
+                                <div class="info-value" id="val-marca">-</div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label"><i class="ti ti-shoe"></i> Especialidad de Calzado</div>
+                                <div class="info-value" id="val-especialidad">-</div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-label"><i class="ti ti-chart-bar"></i> Capacidad Mensual</div>
+                                <div class="info-value" id="val-capacidad">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- LÓGICA JAVASCRIPT -->
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            const userId = localStorage.getItem('userId');
+            if (!userId) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const API_URL = `http://${window.location.hostname}:3000`;
+
+            try {
+                const response = await fetch(`${API_URL}/api/perfil/${userId}`);
+                if (!response.ok) throw new Error("No se pudo obtener la información.");
+
+                const data = await response.json();
+
+                // Actualizar barra superior
+                document.getElementById('nav-user-nombre').textContent = data.NombreRazonSocial || 'Usuario';
+                document.getElementById('nav-user-rol').textContent = (data.TipoRol || '').toUpperCase();
+
+                // Actualizar encabezado del perfil
+                document.getElementById('profile-nombre').textContent = data.NombreRazonSocial || 'Sin Nombre';
+                document.getElementById('profile-rol-badge').textContent = (data.TipoRol || 'Miembro').toUpperCase();
+
+                // Cambiar icono según el rol
+                if ((data.TipoRol || '').toLowerCase() === 'proveedor') {
+                    document.getElementById('avatar-icon').className = 'ti ti-truck';
+                } else {
+                    document.getElementById('avatar-icon').className = 'ti ti-shoe';
+                }
+
+                // Llenar Datos Generales
+                document.getElementById('val-nombre').textContent = data.NombreRazonSocial || 'N/A';
+                document.getElementById('val-email').textContent = data.CorreoElectronico || 'N/A';
+                document.getElementById('val-telefono').textContent = data.TelefonoWhatsApp || 'No especificado';
+                document.getElementById('val-departamento').textContent = data.NombreDepartamento || 'No asignado';
+
+                // Mostrar campos según Rol
+                if ((data.TipoRol || '').toLowerCase() === 'proveedor') {
+                    document.getElementById('section-proveedor').style.display = 'block';
+                    document.getElementById('val-ruc').textContent = data.NumeroRUC || 'No registrado';
+                    document.getElementById('val-nombre-comercial').textContent = data.NombreComercial || 'N/A';
+                    document.getElementById('val-materia-prima').textContent = data.TipoMateriaPrimaPrincipal || 'No especificado';
+                    document.getElementById('val-descripcion').textContent = data.DescripcionEmpresa || 'Sin descripción disponible.';
+                } else if ((data.TipoRol || '').toLowerCase() === 'emprendedor') {
+                    document.getElementById('section-emprendedor').style.display = 'block';
+                    document.getElementById('val-marca').textContent = data.NombreMarca || 'N/A';
+                    document.getElementById('val-especialidad').textContent = data.EspecialidadCalzado || 'No especificado';
+                    document.getElementById('val-capacidad').textContent = data.CapacidadProduccionMensual
+                        ? `${data.CapacidadProduccionMensual} pares/mes`
+                        : 'No especificada';
+                }
+
+            } catch (error) {
+                console.error("Error al cargar perfil:", error);
+                alert("Error al cargar los datos del perfil.");
+            }
+        });
+
+        function toggleUserDropdown() {
+            document.getElementById('userDropdownMenu').classList.toggle('show');
+        }
+
+        window.onclick = function (event) {
+            if (!event.target.closest('.user-dropdown-wrapper')) {
+                const dropdown = document.getElementById('userDropdownMenu');
+                if (dropdown && dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            }
+        };
+
+        function cerrarSesion() {
+            localStorage.clear();
+            alert("Sesión cerrada.");
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

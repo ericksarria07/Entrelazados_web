@@ -3,19 +3,602 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EntreLazados - Mercado</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="styles.css">
+    <title>EntreLazados - Mercado de Materia Prima</title>
     
+    <!-- Iconos de Tabler -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    
+    <!-- Leaflet CSS (para el mapa) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Fuentes Web -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
+
     <style>
+        /* ==========================================================================
+           VARIABLES DE DISEÑO Y PALETA DE COLORES
+           ========================================================================== */
+        :root {
+            --color-principal: #7D381B;  /* Marrón Cálido */
+            --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
+            --color-terciario: #993D24;  /* Terracota / Ámbar Rojizo */
+
+            --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
+            --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
+
+            --bg-main: #f4f1ea;
+            --bg-card: #ffffff;
+            --text-dark: #1a1a1a;
+            --text-muted: #666666;
+            --border-color: #e0d8ce;
+            
+            --shadow-sm: 0 2px 6px rgba(61, 23, 10, 0.06);
+            --shadow-md: 0 4px 12px rgba(61, 23, 10, 0.1);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+            --radius-sm: 4px;
+            --radius-md: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-main); 
+            color: var(--text-dark);
+            font-family: var(--font-secundaria);
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, .logo, .shelf-title {
+            font-family: var(--font-principal);
+            font-weight: 900;
+        }
+
+        /* ==========================================================================
+           HEADER SUPERIOR Y MENÚ DE NAVEGACIÓN
+           ========================================================================== */
+        .amazon-header {
+            background-color: var(--color-secundario);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: 900;
+            color: #fff;
+            text-decoration: none;
+            white-space: nowrap;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--color-terciario);
+        }
+
+        .header-location {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #d1c2b8;
+            cursor: pointer;
+        }
+
+        .header-location strong {
+            color: #fff;
+            display: block;
+            font-size: 13px;
+        }
+
+        .search-bar {
+            flex: 1;
+            display: flex;
+            height: 40px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--color-principal);
+        }
+
+        .search-category {
+            background-color: #f8f6f2;
+            border: none;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #444;
+            border-right: 1px solid #ddd;
+            cursor: pointer;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            padding: 0 15px;
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-btn {
+            background-color: var(--color-principal);
+            border: none;
+            width: 48px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-btn:hover {
+            background-color: var(--color-terciario);
+        }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* --- MENÚ DESPLEGABLE DE USUARIO --- */
+        .user-dropdown-wrapper {
+            position: relative;
+        }
+
+        .user-btn-nav {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 6px 14px;
+            border-radius: 4px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .user-btn-nav:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .user-nav-text {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-nav-name {
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.1;
+            color: #ffffff;
+        }
+
+        .user-nav-role {
+            font-size: 10px;
+            color: #d1c2b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dropdown-menu-nav {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: #ffffff;
+            color: #1a1a1a;
+            min-width: 180px;
+            border-radius: 4px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            z-index: 1000;
+            overflow: hidden;
+            border: 1px solid var(--color-principal);
+        }
+
+        .dropdown-menu-nav.show {
+            display: block;
+        }
+
+        .dropdown-item-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 16px;
+            color: var(--color-secundario);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item-nav:hover {
+            background-color: var(--bg-main);
+        }
+
+        .dropdown-item-nav.logout-item {
+            color: #c92a2a;
+        }
+
+        .dropdown-item-nav.logout-item:hover {
+            background-color: #fff0f0;
+        }
+
+        .dropdown-divider-nav {
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        /* --- SUB-NAVEGACIÓN --- */
+        .sub-bar {
+            background-color: #290f06;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .sub-bar a {
+            color: #f1e8e3;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sub-bar a:hover, .sub-bar a.active {
+            color: var(--color-terciario);
+        }
+
+        /* ==========================================================================
+           CONTENEDOR PRINCIPAL Y PESTAÑAS DEL MERCADO
+           ========================================================================== */
+        #app {
+            max-width: 1100px;
+            margin: 24px auto 40px auto;
+            padding: 0 20px;
+        }
+
+        .tab-bar {
+            display: flex;
+            background: var(--bg-card);
+            padding: 6px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font-secundaria);
+            font-weight: 700;
+            font-size: 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab.active {
+            background-color: var(--color-principal);
+            color: #ffffff;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* ==========================================================================
+           FILTROS Y RANGO DE DISTANCIA
+           ========================================================================== */
+        .filter-bar {
+            background: var(--bg-card);
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            border-top: 3px solid var(--color-principal);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-row label {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-secundario);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        input[type="range"] {
+            accent-color: var(--color-principal);
+            cursor: pointer;
+        }
+
+        .range-val {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-principal);
+            background: var(--bg-main);
+            padding: 2px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* ==========================================================================
+           BOTONES GENERALES
+           ========================================================================== */
+        .btn-primary {
+            background-color: var(--color-principal);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-secundaria);
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-terciario);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--font-secundaria);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--color-secundario);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-sm:hover {
+            border-color: var(--color-principal);
+            color: var(--color-principal);
+        }
+
+        .btn-sm.cta {
+            background-color: var(--color-principal);
+            color: white;
+            border: none;
+        }
+
+        .btn-sm.cta:hover {
+            background-color: var(--color-terciario);
+        }
+
+        /* ==========================================================================
+           TARJETAS DE OFERTAS Y SUBASTAS
+           ========================================================================== */
+        .listings {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .listing-card, .auction-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            border-top: 3px solid var(--color-principal);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .auction-card {
+            border-top-color: var(--color-terciario);
+        }
+
+        .listing-card:hover, .auction-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .listing-top {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+
+        .listing-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--radius-sm);
+            background-color: var(--bg-main);
+            color: var(--color-principal);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .listing-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .listing-info {
+            flex: 1;
+        }
+
+        .listing-name {
+            font-size: 17px;
+            font-weight: 900;
+            font-family: var(--font-principal);
+            color: var(--color-secundario);
+            margin-bottom: 2px;
+        }
+
+        .listing-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .listing-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+
+        .badge-verified {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .badge-mat {
+            background-color: var(--bg-main);
+            color: var(--color-secundario);
+            border: 1px solid var(--border-color);
+        }
+
+        .listing-price {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--color-terciario);
+            font-family: var(--font-principal);
+        }
+
+        .listing-punit {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .listing-bottom {
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Estilos de Subasta */
+        .auction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .auction-title {
+            font-size: 18px;
+            font-weight: 900;
+            font-family: var(--font-principal);
+            color: var(--color-secundario);
+        }
+
+        .auction-timer {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--color-terciario);
+            background: #fff0eb;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid #ffd8cc;
+        }
+
+        .bid-track {
+            background-color: var(--bg-main);
+            padding: 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            margin-bottom: 14px;
+        }
+
+        .bid-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bid-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .bid-amount {
+            font-size: 20px;
+            font-weight: 900;
+            font-family: var(--font-principal);
+            color: var(--color-terciario);
+        }
+
+        .bid-input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bid-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-secundaria);
+        }
+
+        .bid-input:focus {
+            border-color: var(--color-principal);
+        }
+
+        /* ==========================================================================
+           MAPA INTERACTIVO Y MODALES DE PUBLICACIÓN
+           ========================================================================== */
         #mapa-interactivo {
             width: 100%;
-            height: 450px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            height: 480px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
             z-index: 1;
         }
+
         .modal {
             display: none;
             position: fixed;
@@ -24,152 +607,516 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(61, 23, 10, 0.5);
+            backdrop-filter: blur(3px);
+            overflow-y: auto;
         }
+
         .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 25px;
-            border-radius: 12px;
-            max-width: 450px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            background-color: var(--bg-card);
+            margin: 4% auto;
+            padding: 26px;
+            border-radius: var(--radius-md);
+            max-width: 500px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            border-top: 4px solid var(--color-principal);
         }
+
         .close-btn {
             float: right;
-            font-size: 24px;
+            font-size: 22px;
+            font-weight: bold;
             cursor: pointer;
-            color: #aaa;
+            color: var(--text-muted);
+            transition: color 0.2s ease;
         }
-        .close-btn:hover { color: black; }
+
+        .close-btn:hover { color: var(--text-dark); }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-secundario);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-secundaria);
+            transition: border-color 0.2s ease;
+        }
+
+        .form-input:focus {
+            border-color: var(--color-principal);
+        }
+
+        /* --- ESTILOS DE SUBIDA Y VISTA PREVIA DE FOTOS --- */
+        .upload-box {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            text-align: center;
+            background-color: var(--bg-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upload-box:hover {
+            border-color: var(--color-principal);
+            background-color: #eae4da;
+        }
+
+        .upload-box-icon {
+            font-size: 28px;
+            color: var(--color-principal);
+            margin-bottom: 4px;
+        }
+
+        .upload-box-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-secundario);
+        }
+
+        .upload-box-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .photo-preview-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .photo-preview-item {
+            position: relative;
+            width: 65px;
+            height: 65px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .photo-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-preview-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(201, 42, 42, 0.9);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* FOOTER */
+        footer {
+            background-color: var(--color-secundario);
+            color: #fff;
+            text-align: center;
+            padding: 30px 20px;
+            font-size: 12px;
+            margin-top: 40px;
+            border-top: 4px solid var(--color-principal);
+        }
+
+        footer a {
+            color: #d1c2b8;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        footer a:hover {
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .amazon-header { flex-wrap: wrap; }
+            .search-bar { order: 3; width: 100%; }
+        }
     </style>
 </head>
 <body>
-    <div id="app">
-        <nav class="nav">
-            <div class="nav-logo">Entre<span>Lazados</span></div>
-            <div class="nav-tabs">
-                <a href="index.html" class="nav-tab">Inicio</a>
-                <a href="mercado.html" class="nav-tab active">Mercado</a> 
-                <a href="chat.html" class="nav-tab">Chat</a>
-                <a href="#" class="nav-tab" onclick="cerrarSesion(); return false;" style="color: #d9534f;"><i class="ti ti-logout"></i> Salir</a>
-            </div>
-        </nav>
 
-        <div class="tab-bar">
-            <button class="tab active" onclick="switchMarketTab(this,'listings')">Ofertas</button>
-            <button class="tab" onclick="switchMarketTab(this,'auctions')">Subastas</button>
-            <button class="tab" onclick="switchMarketTab(this,'map')">Mapa</button>
+    <!-- BARRA SUPERIOR (HEADER TIPO E-COMMERCE) -->
+    <header class="amazon-header">
+        <a href="index.html" class="logo">Entre<span>Lazados</span></a>
+
+        <div class="header-location">
+            <i class="ti ti-map-pin" style="font-size: 18px;"></i>
+            <div>
+                Ubicación
+                <strong>Managua</strong>
+            </div>
         </div>
 
+        <div class="search-bar">
+            <select class="search-category">
+                <option value="">Todos los insumos</option>
+                <option value="cuero">Pieles y Cueros</option>
+                <option value="herrajes">Herrajes y Cierres</option>
+                <option value="suelas">Suelas y Componentes</option>
+                <option value="hilos">Hilos y Pegamentos</option>
+                <option value="quimicos">Tintes y Acabados</option>
+            </select>
+            <input type="text" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
+            <button class="search-btn"><i class="ti ti-search"></i></button>
+        </div>
+
+        <!-- ÁREA DE NAVEGACIÓN Y USUARIO -->
+        <div class="nav-user">
+            <div id="authArea">
+                <!-- Se llena dinámicamente desde JS -->
+            </div>
+        </div>
+    </header>
+
+    <!-- SUB-NAVEGACIÓN -->
+    <div class="sub-bar">
+        <a href="index.html"><i class="ti ti-home"></i> Inicio</a>
+        <a href="mercado.html" class="active"><i class="ti ti-building-store"></i> Mercado Completo</a>
+        <a href="chat.html"><i class="ti ti-message-circle"></i> Chat / Mensajes</a>
+        <a href="#"><i class="ti ti-tag"></i> Ofertas de la Semana</a>
+        <a href="#"><i class="ti ti-map-pin"></i> Proveedores de Masaya</a>
+    </div>
+
+    <!-- CONTENIDO DEL MERCADO -->
+    <div id="app">
+        <!-- Pestañas Principales -->
+        <div class="tab-bar">
+            <button class="tab active" onclick="switchMarketTab(this,'listings')">
+                <i class="ti ti-building-store" style="margin-right: 4px;"></i> Ofertas Directas
+            </button>
+            <button class="tab" onclick="switchMarketTab(this,'auctions')">
+                <i class="ti ti-gavel" style="margin-right: 4px;"></i> Subastas Activas
+            </button>
+            <button class="tab" onclick="switchMarketTab(this,'map')">
+                <i class="ti ti-map-2" style="margin-right: 4px;"></i> Mapa de Proveedores
+            </button>
+        </div>
+
+        <!-- Sección de Ofertas -->
         <div id="tab-listings" class="section">
             <div class="filter-bar">
                 <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div style="display:flex; align-items:center; gap: 10px;">
-                        <label><i class="ti ti-map-pin" style="font-size:13px;vertical-align:-1px"></i> Radio:</label>
+                        <label><i class="ti ti-map-pin" style="font-size:16px; color: var(--color-principal);"></i> Radio de Cercanía:</label>
                         <input type="range" id="range-km" min="5" max="100" value="30" step="5" oninput="actualizarFiltroKilometros(this.value)">
                         <span class="range-val" id="range-val">30km</span>
                     </div>
-                    <button id="btn-publicar-modal" class="btn-primary" style="display: none; padding: 6px 12px; font-size: 13px;" onclick="abrirModal()">
+                    <button id="btn-publicar-modal" class="btn-primary" style="display: none;" onclick="abrirModal()">
                         <i class="ti ti-plus"></i> Publicar Oferta
                     </button>
                 </div>
             </div>
             <div class="listings" id="contenedor-ofertas">
-                <p style="text-align: center; color: #666;">Cargando materiales desde la base de datos...</p>
+                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando materiales disponibles...</p>
             </div>
         </div>
 
+        <!-- Sección de Subastas -->
         <div id="tab-auctions" class="section" style="display:none;">
+            <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; border-top-color: var(--color-terciario);">
+                <div style="font-size: 14px; font-weight: 700; color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
+                    <i class="ti ti-gavel" style="font-size: 18px; color: var(--color-terciario);"></i> Lotes en Subasta Pública
+                </div>
+                <button id="btn-subasta-modal" class="btn-primary" style="display: none; background-color: var(--color-terciario);" onclick="abrirModalSubasta()">
+                    <i class="ti ti-plus"></i> Crear Subasta
+                </button>
+            </div>
             <div id="contenedor-subastas">
-                <p style="text-align: center; color: #666;">Cargando subastas activas...</p>
+                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando subastas activas...</p>
             </div>
         </div>
 
+        <!-- Sección de Mapa -->
         <div id="tab-map" class="section" style="display:none;">
-            <div style="margin-bottom: 10px; font-weight: 600; color: var(--brand-brown);"><i class="ti ti-map-2"></i> Proveedores Cercanos en Nicaragua</div>
+            <div style="margin-bottom: 12px; font-weight: 900; font-family: var(--font-principal); color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
+                <i class="ti ti-map-2" style="font-size: 20px; color: var(--color-principal);"></i> Proveedores Cercanos en Nicaragua
+            </div>
             <div id="mapa-interactivo"></div>
         </div>
     </div>
 
+    <!-- 1. MODAL PARA PUBLICAR OFERTA DIRECTA -->
     <div id="modalOferta" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="cerrarModal()">&times;</span>
-            <h3 style="margin-bottom: 15px;"><i class="ti ti-package"></i> Publicar Nuevo Material</h3>
+            <h3 style="margin-bottom: 18px; color: var(--color-secundario); display: flex; align-items: center; gap: 8px;">
+                <i class="ti ti-package" style="color: var(--color-principal);"></i> Publicar Oferta Directa
+            </h3>
+            
             <div class="form-group">
                 <label class="form-label">Título del Material</label>
                 <input class="form-input" type="text" id="ofertaTitulo" placeholder="Ej. Lote Suelas TR Caballero">
             </div>
+
             <div class="form-group">
                 <label class="form-label">Precio (C$)</label>
                 <input class="form-input" type="number" id="ofertaPrecio" placeholder="Ej. 450">
             </div>
+
             <div class="form-group">
                 <label class="form-label">Unidad de Medida</label>
                 <input class="form-input" type="text" id="ofertaUnidad" placeholder="Ej. por par, por pie², por docena">
             </div>
+
             <div class="form-group">
                 <label class="form-label">Distancia Simulada (Km)</label>
                 <input class="form-input" type="number" id="ofertaDistancia" placeholder="Ej. 15">
             </div>
+
             <div class="form-group">
                 <label class="form-label">Categoría del Material</label>
-                <select class="form-input" id="ofertaCategoria" style="width: 100%; height: 38px;">
-                    <option value="1">Cuero natural</option>
-                    <option value="2">Suela TR</option>
+                <select class="form-input" id="ofertaCategoria" style="height: 42px;">
+                    <option value="" disabled selected>-- Selecciona una categoría --</option>
+                    <option value="1">Cuero Bovino / Vacuno</option>
+                    <option value="2">Cuero Caprino / Ovino</option>
+                    <option value="3">Gamuza y Carnaza</option>
+                    <option value="4">Cuero Charol y Acabados Especiales</option>
+                    <option value="5">Forros Textiles y Sintéticos</option>
+                    <option value="6">Herrajes, Hebillas y Mosquetones</option>
+                    <option value="7">Remaches, Ojalillos y Tachuelas</option>
+                    <option value="8">Cierres, Cremalleras y Deslizadores</option>
+                    <option value="9">Hilos Encerados y Trenzados</option>
+                    <option value="10">Pegamentos, Cemento de Contacto y Látex</option>
+                    <option value="11">Tintes, Pintura para Cantos y Selladores</option>
+                    <option value="12">Ceras, Aceites y Acondicionadores</option>
+                    <option value="13">Suelas, Tacones y Tapas (Calzado)</option>
+                    <option value="14">Plantillas de Armado y Cambrillones</option>
+                    <option value="15">Refuerzos, Cartón Fibra y Espuma EVA</option>
                 </select>
             </div>
-            <button class="btn-primary" style="width:100%; margin-top: 15px;" onclick="guardarOferta()">Guardar y Publicar Mercado ↗</button>
+
+            <!-- SECCIÓN: TOMAR O SUBIR FOTOS -->
+            <div class="form-group">
+                <label class="form-label">Fotografías del Producto</label>
+                <div class="upload-box" onclick="document.getElementById('inputFotos').click()">
+                    <i class="ti ti-camera-plus upload-box-icon"></i>
+                    <div class="upload-box-text">Tomar o seleccionar fotos del material</div>
+                    <div class="upload-box-subtext">Haz clic aquí para abrir la cámara o galería</div>
+                </div>
+                <input type="file" id="inputFotos" accept="image/*" capture="environment" multiple style="display: none;" onchange="procesarFotosSeleccionadas(event)">
+                
+                <!-- Galería de vista previa -->
+                <div class="photo-preview-grid" id="previewGrid"></div>
+            </div>
+
+            <button class="btn-primary" style="width:100%; margin-top: 10px; padding: 12px;" onclick="guardarOferta()">
+                Guardar y Publicar Oferta ↗
+            </button>
         </div>
     </div>
 
+    <!-- 2. MODAL PARA CREAR SUBASTA -->
+    <div id="modalSubasta" class="modal">
+        <div class="modal-content" style="border-top-color: var(--color-terciario);">
+            <span class="close-btn" onclick="cerrarModalSubasta()">&times;</span>
+            <h3 style="margin-bottom: 18px; color: var(--color-secundario); display: flex; align-items: center; gap: 8px;">
+                <i class="ti ti-gavel" style="color: var(--color-terciario);"></i> Crear Nueva Subasta
+            </h3>
+            
+            <div class="form-group">
+                <label class="form-label">Título del Lote a Subastar</label>
+                <input class="form-input" type="text" id="subastaTitulo" placeholder="Ej. Lote de 50m2 Gamuza Negra">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Precio Base / Inicial de Salida (C$)</label>
+                <input class="form-input" type="number" id="subastaPrecioBase" placeholder="Ej. 1200">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Categoría del Material</label>
+                <select class="form-input" id="subastaCategoria" style="height: 42px;">
+                    <option value="" disabled selected>-- Selecciona una categoría --</option>
+                    <option value="1">Cuero Bovino / Vacuno</option>
+                    <option value="2">Cuero Caprino / Ovino</option>
+                    <option value="3">Gamuza y Carnaza</option>
+                    <option value="4">Cuero Charol y Acabados Especiales</option>
+                    <option value="5">Forros Textiles y Sintéticos</option>
+                    <option value="6">Herrajes, Hebillas y Mosquetones</option>
+                    <option value="7">Remaches, Ojalillos y Tachuelas</option>
+                    <option value="8">Cierres, Cremalleras y Deslizadores</option>
+                    <option value="9">Hilos Encerados y Trenzados</option>
+                    <option value="10">Pegamentos, Cemento de Contacto y Látex</option>
+                    <option value="11">Tintes, Pintura para Cantos y Selladores</option>
+                    <option value="12">Ceras, Aceites y Acondicionadores</option>
+                    <option value="13">Suelas, Tacones y Tapas (Calzado)</option>
+                    <option value="14">Plantillas de Armado y Cambrillones</option>
+                    <option value="15">Refuerzos, Cartón Fibra y Espuma EVA</option>
+                </select>
+            </div>
+
+            <button class="btn-primary" style="background-color: var(--color-terciario); width:100%; margin-top: 10px; padding: 12px;" onclick="guardarSubasta()">
+                Iniciar Subasta ↗
+            </button>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+        <p style="margin-top: 10px;">
+            <a href="index.html">Inicio</a> | 
+            <a href="mercado.html">Mercado</a> | 
+            <a href="chat.html">Chat</a> | 
+            <a href="perfil.html">Mi Perfil</a>
+        </p>
+    </footer>
+
+    <!-- Scripts de Leaflet y Lógica -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
         let mapa;
         const API_URL = `http://${window.location.hostname}:3000`;
-
-        // VARIABLE GLOBAL: Mantiene en caché las ofertas de la BD para filtrarlas en el cliente de forma instantánea
         let todasLasOfertas = [];
+        let fotosPublicacion = []; // Arreglo para almacenar imágenes Base64
 
-        window.addEventListener('DOMContentLoaded', () => {
-            if (!localStorage.getItem('userEmail')) {
+        document.addEventListener('DOMContentLoaded', () => {
+            const userEmail = localStorage.getItem('userEmail');
+            const userNombre = localStorage.getItem('userNombre') || 'Usuario';
+            const userRol = localStorage.getItem('userRol') || 'Miembro';
+
+            // Protección de Sesión
+            if (!userEmail) {
                 window.location.href = 'login.html';
                 return;
             }
 
-            const userRol = localStorage.getItem('userRol');
+            // Renderizar el Menú Desplegable de Usuario
+            const authArea = document.getElementById('authArea');
+            authArea.innerHTML = `
+                <div class="user-dropdown-wrapper">
+                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                        <div class="user-nav-text">
+                            <span class="user-nav-name">${userNombre}</span>
+                            <span class="user-nav-role">${userRol.toUpperCase()}</span>
+                        </div>
+                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                    </button>
+
+                    <div class="dropdown-menu-nav" id="userDropdownMenu">
+                        <a href="perfil.html" class="dropdown-item-nav">
+                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
+                            Ver mi perfil
+                        </a>
+                        <div class="dropdown-divider-nav"></div>
+                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                            <i class="ti ti-logout" style="font-size: 18px;"></i>
+                            Cerrar sesión
+                        </a>
+                    </div>
+                </div>
+            `;
+
+            // Mostrar botones de publicación si el rol es proveedor
             if (userRol === 'proveedor') {
-                document.getElementById('btn-publicar-modal').style.display = 'block';
+                document.getElementById('btn-publicar-modal').style.display = 'inline-flex';
+                document.getElementById('btn-subasta-modal').style.display = 'inline-flex';
             }
 
             cargarOfertasDesdeBD();
             cargarSubastasDesdeBD();
         });
 
-        // 1. OBTENER OFERTAS DESDE BD Y ALMACENAR EN MEMORIA
+        // Toggle del Menú Desplegable
+        function toggleUserDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('userDropdownMenu');
+            if (dropdown) dropdown.classList.toggle('show');
+        }
+
+        window.onclick = function (event) {
+            if (!event.target.closest('.user-dropdown-wrapper')) {
+                const dropdown = document.getElementById('userDropdownMenu');
+                if (dropdown && dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            }
+        };
+
+        /* LÓGICA DE FOTOGRAFÍAS (CARGA / VISTA PREVIA) */
+        function procesarFotosSeleccionadas(event) {
+            const archivos = Array.from(event.target.files);
+
+            archivos.forEach(archivo => {
+                const lector = new FileReader();
+                lector.onload = function (e) {
+                    fotosPublicacion.push(e.target.result);
+                    renderizarVistaPreviaFotos();
+                };
+                lector.readAsDataURL(archivo);
+            });
+
+            event.target.value = '';
+        }
+
+        function renderizarVistaPreviaFotos() {
+            const grid = document.getElementById('previewGrid');
+            grid.innerHTML = '';
+
+            fotosPublicacion.forEach((foto, index) => {
+                grid.innerHTML += `
+                    <div class="photo-preview-item">
+                        <img src="${foto}" alt="Vista previa ${index + 1}">
+                        <div class="photo-preview-remove" onclick="eliminarFoto(${index})">&times;</div>
+                    </div>
+                `;
+            });
+        }
+
+        function eliminarFoto(index) {
+            fotosPublicacion.splice(index, 1);
+            renderizarVistaPreviaFotos();
+        }
+
+        // CARGAR OFERTAS DIRECTAS
         async function cargarOfertasDesdeBD() {
             try {
                 const response = await fetch(`${API_URL}/api/ofertas`);
                 if (!response.ok) throw new Error("Error backend");
 
-                // Guardamos el resultado crudo en memoria global
                 todasLasOfertas = await response.json();
-
-                // Filtramos y renderizamos inmediatamente según el valor actual del slider
                 const radioActual = document.getElementById('range-km').value;
                 renderizarOfertasFiltradas(radioActual);
             } catch (error) {
-                document.getElementById('contenedor-ofertas').innerHTML = `<p style="text-align:center; color:red;">Error cargando datos de MySQL.</p>`;
+                document.getElementById('contenedor-ofertas').innerHTML = `<p style="text-align:center; color:#c92a2a; padding: 20px;">Error al conectar con la base de datos.</p>`;
             }
         }
 
-        // 2. FILTRAR Y RENDERIZAR LAS OFERTAS EN BASE AL KM SELECCIONADO
+        // RENDERIZAR OFERTAS
         function renderizarOfertasFiltradas(maxKm) {
             const contenedor = document.getElementById('contenedor-ofertas');
             const miUserId = localStorage.getItem('userId');
             const miRol = localStorage.getItem('userRol');
 
-            // Filtramos las ofertas guardadas globalmente en base a su distancia simulada
             const ofertasFiltradas = todasLasOfertas.filter(oferta => {
                 return parseInt(oferta.DistanciaSimuladaKm) <= parseInt(maxKm);
             });
@@ -177,38 +1124,43 @@
             contenedor.innerHTML = '';
 
             if (ofertasFiltradas.length === 0) {
-                contenedor.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas dentro de un radio de ${maxKm}km.</p>`;
+                contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas dentro de un radio de ${maxKm}km.</p>`;
                 return;
             }
 
             ofertasFiltradas.forEach(oferta => {
-                const icono = oferta.NombreCategoria.toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
+                const iconoCat = oferta.NombreCategoria.toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
 
-                // Condición para evaluar si es el dueño de la publicación
+                const tieneImagen = oferta.Fotos && oferta.Fotos.length > 0;
+                const contenidoAvatar = tieneImagen
+                    ? `<img src="${oferta.Fotos[0]}" alt="${oferta.TituloMaterial}">`
+                    : `<i class="ti ${iconoCat}"></i>`;
+
                 const esDueno = (miRol === 'proveedor' && parseInt(miUserId) === parseInt(oferta.ProveedorID));
                 const botonEliminar = esDueno
-                    ? `<button class="btn-sm" style="background-color: #d9534f; color: white; border: none; margin-left: 10px; cursor: pointer;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-trash"></i> Eliminar</button>`
+                    ? `<button class="btn-sm" style="background-color: #c92a2a; color: white; border: none; margin-left: auto;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-trash"></i> Eliminar</button>`
                     : '';
 
                 contenedor.innerHTML += `
                     <div class="listing-card">
                         <div class="listing-top">
-                            <div class="listing-avatar"><i class="ti ${icono}"></i></div>
+                            <div class="listing-avatar">${contenidoAvatar}</div>
                             <div class="listing-info">
                                 <div class="listing-name">${oferta.TituloMaterial}</div>
                                 <div class="listing-sub">Proveedor Local · Nicaragua · Ubicado a ${oferta.DistanciaSimuladaKm} km</div>
                                 <div class="listing-badges">
                                     <span class="badge badge-verified"><i class="ti ti-shield-check" style="font-size:10px"></i> Verificado</span>
                                     <span class="badge badge-mat">${oferta.NombreCategoria}</span>
+                                    ${tieneImagen ? `<span class="badge badge-mat"><i class="ti ti-photo"></i> ${oferta.Fotos.length} foto(s)</span>` : ''}
                                 </div>
                             </div>
                             <div style="text-align:right;">
-                                <div class="listing-price">C$${parseFloat(oferta.Precio).toFixed(2)}</div>
+                                <div class="listing-price">C$ ${parseFloat(oferta.Precio).toFixed(2)}</div>
                                 <div class="listing-punit">${oferta.UnidadMedida}</div>
                             </div>
                         </div>
                         <div class="listing-bottom" style="display:flex; align-items:center; gap:10px;">
-                            <a href="chat.html?nombre=Proveedor" class="btn-sm" style="text-decoration:none; display:inline-block;"><i class="ti ti-message-circle"></i> Chat Directo</a>
+                            <a href="chat.html" class="btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><i class="ti ti-message-circle"></i> Contactar Proveedor</a>
                             ${botonEliminar}
                         </div>
                     </div>
@@ -216,16 +1168,13 @@
             });
         }
 
-        // 3. CAPTURA EL MOVIMIENTO DEL RANGO (SLIDER)
         function actualizarFiltroKilometros(valor) {
             document.getElementById('range-val').textContent = valor + 'km';
-            // Llama a la función de renderizado en memoria sin saturar a consultas la BD
             renderizarOfertasFiltradas(valor);
         }
 
-        // 4. ACCIÓN PARA ELIMINAR LA OFERTA DIRECTO EN BACKEND MySQL
         async function eliminarOferta(ofertaId) {
-            if (!confirm("¿Estás seguro de que deseas eliminar esta oferta del mercado?")) return;
+            if (!confirm("¿Estás seguro de que deseas eliminar esta oferta?")) return;
             const miUserId = localStorage.getItem('userId');
 
             try {
@@ -246,7 +1195,7 @@
             }
         }
 
-        // 5. CARGAR SUBASTAS DINÁMICAS BLOQUEANDO TODAS LAS PUJAS PARA CUALQUIER PROVEEDOR
+        // CARGAR SUBASTAS
         async function cargarSubastasDesdeBD() {
             const contenedor = document.getElementById('contenedor-subastas');
             const miUserId = parseInt(localStorage.getItem('userId'));
@@ -259,35 +1208,33 @@
                 contenedor.innerHTML = '';
 
                 if (subastas.length === 0) {
-                    contenedor.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px;">No hay lotes en subasta activa actualmente.</p>`;
+                    contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;">No hay lotes en subasta activa actualmente.</p>`;
                     return;
                 }
 
                 subastas.forEach(subasta => {
                     const esMiSubasta = (parseInt(subasta.ProveedorID) === miUserId);
-
-                    // REGLA CRÍTICA: Si el usuario actual es un PROVEEDOR, tiene totalmente deshabilitadas las pujas (ya sea su lote o no)
                     const esProveedor = (miRol === 'proveedor');
                     const deshabilitarPujas = esProveedor || esMiSubasta;
 
                     contenedor.innerHTML += `
-                        <div class="auction-card" style="margin-bottom: 20px;">
+                        <div class="auction-card">
                             <div class="auction-header">
-                                <div class="auction-title">${subasta.TituloLote} ${esMiSubasta ? ' <span style="color:#8b5a2b; font-size:12px;">(Tu Lote)</span>' : ''}</div>
+                                <div class="auction-title">${subasta.TituloLote} ${esMiSubasta ? ' <span style="color:var(--color-principal); font-size:12px;">(Tu Lote)</span>' : ''}</div>
                                 <div class="auction-timer"><i class="ti ti-clock"></i> Activa</div>
                             </div>
                             <div class="auction-body">
                                 <div class="bid-track">
                                     <div class="bid-row">
-                                        <span class="bid-label">Precio base: C$${parseFloat(subasta.PrecioBase).toLocaleString()}</span>
-                                        <div class="bid-amount" id="subasta-val-${subasta.SubastaID}">C$${parseFloat(subasta.PrecioActual).toLocaleString()}</div>
+                                        <span class="bid-label">Precio base: C$ ${parseFloat(subasta.PrecioBase).toLocaleString()}</span>
+                                        <div class="bid-amount" id="subasta-val-${subasta.SubastaID}">C$ ${parseFloat(subasta.PrecioActual).toLocaleString()}</div>
                                     </div>
                                 </div>
                                 <div class="bid-input-row">
-                                    <input class="bid-input" type="number" placeholder="Tu oferta en C$" id="subasta-input-${subasta.SubastaID}" ${deshabilitarPujas ? 'disabled style="background:#eee; cursor:not-allowed;"' : ''}>
+                                    <input class="bid-input" type="number" placeholder="Tu oferta en C$" id="subasta-input-${subasta.SubastaID}" ${deshabilitarPujas ? 'disabled style="background:#f4f1ea; cursor:not-allowed;"' : ''}>
                                     <button class="btn-sm cta" 
-                                            style="${deshabilitarPujas ? 'background-color:#aaa; cursor:not-allowed;' : ''}"
-                                            onclick="${deshabilitarPujas ? "alert('Los proveedores no tienen permitido realizar ofertas o pujas en el sistema.')" : `ejecutarPujaReal(${subasta.SubastaID}, ${subasta.PrecioActual})`}"
+                                            style="${deshabilitarPujas ? 'background-color:#b0a8a0; cursor:not-allowed;' : ''}"
+                                            onclick="${deshabilitarPujas ? "alert('Los proveedores no pueden realizar ofertas en el sistema.')" : `ejecutarPujaReal(${subasta.SubastaID}, ${subasta.PrecioActual})`}"
                                             ${deshabilitarPujas ? 'disabled' : ''}>
                                         ${deshabilitarPujas ? 'Bloqueado' : 'Pujar'}
                                     </button>
@@ -297,11 +1244,10 @@
                     `;
                 });
             } catch (error) {
-                contenedor.innerHTML = `<p style="text-align:center; color:red;">No se pudieron cargar las subastas de MySQL.</p>`;
+                contenedor.innerHTML = `<p style="text-align:center; color:#c92a2a; padding: 20px;">No se pudieron cargar las subastas.</p>`;
             }
         }
 
-        // 6. ENVIAR LA PUJA REAL A TU TABLA EN MYSQL
         async function ejecutarPujaReal(subastaId, precioActual) {
             const input = document.getElementById(`subasta-input-${subastaId}`);
             const montoPuja = parseFloat(input.value);
@@ -313,27 +1259,19 @@
                 return;
             }
 
-            if (!emprendedorId) {
-                alert("Debes iniciar sesión para realizar una puja.");
-                return;
-            }
-
             if (!montoPuja || montoPuja <= precioActual) {
                 alert(`Tu puja debe ser mayor al precio actual de C$${precioActual.toLocaleString()}`);
                 return;
             }
 
-            const data = { subastaId, emprendedorId: parseInt(emprendedorId), montoPuja };
-
             try {
                 const response = await fetch(`${API_URL}/api/pujas`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ subastaId, emprendedorId: parseInt(emprendedorId), montoPuja })
                 });
 
                 const resData = await response.json();
-
                 if (response.ok) {
                     alert(resData.message);
                     input.value = '';
@@ -346,6 +1284,7 @@
             }
         }
 
+        /* GUARDAR OFERTA DIRECTA */
         async function guardarOferta() {
             const titulo = document.getElementById('ofertaTitulo').value.trim();
             const precio = document.getElementById('ofertaPrecio').value.trim();
@@ -355,32 +1294,89 @@
             const proveedorId = localStorage.getItem('userId');
 
             if (!proveedorId) { alert("Error de sesión."); return; }
-            if (!titulo || !precio || !unidad) { alert("Llena los campos principales."); return; }
-
-            const data = { proveedorId: parseInt(proveedorId), titulo, precio: parseFloat(precio), unidad, distancia: parseInt(distancia) || 0, categoriaId: parseInt(categoriaId) };
+            if (!titulo || !precio || !unidad || !categoriaId) { alert("Por favor llena todos los campos obligatorios."); return; }
 
             try {
                 const response = await fetch(`${API_URL}/api/ofertas`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        proveedorId: parseInt(proveedorId),
+                        titulo,
+                        precio: parseFloat(precio),
+                        unidad,
+                        distancia: parseInt(distancia) || 0,
+                        categoriaId: parseInt(categoriaId),
+                        fotos: fotosPublicacion
+                    })
                 });
+
                 const resData = await response.json();
                 if (response.ok) {
                     alert("¡Éxito! " + resData.message);
                     cerrarModal();
                     cargarOfertasDesdeBD();
                 } else { alert("Error: " + resData.message); }
-            } catch (error) { alert("Error de red."); }
+            } catch (error) { alert("Error de red al guardar la oferta."); }
         }
 
+        /* GUARDAR SUBASTA */
+        async function guardarSubasta() {
+            const tituloLote = document.getElementById('subastaTitulo').value.trim();
+            const precioBase = document.getElementById('subastaPrecioBase').value.trim();
+            const categoriaId = document.getElementById('subastaCategoria').value;
+            const proveedorId = localStorage.getItem('userId');
+
+            if (!proveedorId) { alert("Error de sesión."); return; }
+            if (!tituloLote || !precioBase || !categoriaId) { alert("Por favor llena todos los campos de la subasta."); return; }
+
+            try {
+                const response = await fetch(`${API_URL}/api/subastas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        proveedorId: parseInt(proveedorId),
+                        tituloLote,
+                        precioBase: parseFloat(precioBase),
+                        precioActual: parseFloat(precioBase),
+                        categoriaId: parseInt(categoriaId)
+                    })
+                });
+
+                const resData = await response.json();
+                if (response.ok) {
+                    alert("¡Subasta creada correctamente!");
+                    cerrarModalSubasta();
+                    cargarSubastasDesdeBD();
+                } else {
+                    alert("Error: " + resData.message);
+                }
+            } catch (error) {
+                alert("Error de red al publicar la subasta.");
+            }
+        }
+
+        // FUNCIONES DE CONTROL DE MODALES
         function abrirModal() { document.getElementById('modalOferta').style.display = 'block'; }
+
         function cerrarModal() {
             document.getElementById('modalOferta').style.display = 'none';
             document.getElementById('ofertaTitulo').value = '';
             document.getElementById('ofertaPrecio').value = '';
             document.getElementById('ofertaUnidad').value = '';
             document.getElementById('ofertaDistancia').value = '';
+            document.getElementById('ofertaCategoria').selectedIndex = 0;
+            fotosPublicacion = [];
+            renderizarVistaPreviaFotos();
+        }
+
+        function abrirModalSubasta() { document.getElementById('modalSubasta').style.display = 'block'; }
+
+        function cerrarModalSubasta() {
+            document.getElementById('modalSubasta').style.display = 'none';
+            document.getElementById('subastaTitulo').value = '';
+            document.getElementById('subastaPrecioBase').value = '';
+            document.getElementById('subastaCategoria').selectedIndex = 0;
         }
 
         function switchMarketTab(el, tab) {
@@ -390,25 +1386,42 @@
                 document.getElementById('tab-' + id).style.display = id === tab ? 'block' : 'none';
             });
 
-            if (tab === 'listings') {
-                cargarOfertasDesdeBD();
-            }
-            if (tab === 'auctions') {
-                cargarSubastasDesdeBD();
-            }
+            if (tab === 'listings') cargarOfertasDesdeBD();
+            if (tab === 'auctions') cargarSubastasDesdeBD();
             if (tab === 'map') {
-                setTimeout(() => { if (!mapa) { inicializarMapa(); } else { mapa.invalidateSize(); } }, 200);
+                setTimeout(() => {
+                    if (!mapa) { inicializarMapa(); }
+                    else { mapa.invalidateSize(); }
+                }, 200);
             }
         }
 
         function inicializarMapa() {
-            const centroNicaragua = [12.115, -86.150];
-            mapa = L.map('mapa-interactivo').setView(centroNicaragua, 10);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(mapa);
-            L.marker([12.136, -86.270]).addTo(mapa).bindPopup("<b>📍 Mi Ubicación</b>").openPopup();
+            mapa = L.map('mapa-interactivo').setView([12.1364, -86.2514], 10);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(mapa);
+
+            const proveedoresNicaragua = [
+                { nombre: "Pieles y Cueros Masaya", lat: 11.9744, lng: -86.0942, mat: "Cuero Natural" },
+                { nombre: "Suelas y Moldes Managua", lat: 12.1364, lng: -86.2514, mat: "Suela TR" },
+                { nombre: "Calzado & Materiales Granada", lat: 11.9299, lng: -85.9560, mat: "Cuero e Insumos" }
+            ];
+
+            proveedoresNicaragua.forEach(p => {
+                L.marker([p.lat, p.lng])
+                    .addTo(mapa)
+                    .bindPopup(`<b>${p.nombre}</b><br>Especialidad: ${p.mat}`);
+            });
         }
 
-        function cerrarSesion() { localStorage.clear(); window.location.href = 'login.html'; }
+        function cerrarSesion() {
+            localStorage.clear();
+            alert("Sesión cerrada.");
+            window.location.href = 'login.html';
+        }
     </script>
 </body>
 </html>

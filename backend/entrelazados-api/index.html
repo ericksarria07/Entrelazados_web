@@ -1,125 +1,694 @@
-﻿<!DOCTYPE html><html lang="es"><head>
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EntreLazados - Inicio</title>
+    <title>EntreLazados - Tu Mercado de Materia Prima para Cuero</title>
+    
+    <!-- Iconos de Tabler -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-    <link rel="stylesheet" href="styles.css"></head><body>
-    <div id="app">
-        <nav class="nav">
-            <div class="nav-logo">Entre<span>Lazados</span></div>
-            <div class="nav-tabs">
-                <a href="index.html" class="nav-tab active">Inicio</a>
-                <a href="mercado.html" class="nav-tab">Mercado</a>
-                <a href="chat.html" class="nav-tab">Chat</a>
-            </div>
-        </nav>
+    
+    <!-- Fuentes Web de Respaldo -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
-        <div class="hero">
-            <div class="hero-eyebrow">Calzado · Materia Prima · Nicaragua</div>
-            <h1>El puente entre el proveedor y el emprendedor de calzado</h1>
-            <p>Conectamos artesanos y pequeñas fábricas con proveedores verificados de cuero, suela, hilo y más — con precios reales y sin intermediarios.</p>
-            <div class="hero-btns">
-                <a href="unirse.html" class="btn-primary">Registrarme como proveedor</a>
-                <a href="unirse.html" class="btn-outline">Soy emprendedor</a>
+    <style>
+        /* --- PALETA DE COLORES Y TIPOGRAFÍAS --- */
+        :root {
+            /* Paleta Oficial */
+            --color-principal: #7D381B;  /* Marrón Cálido */
+            --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
+            --color-terciario: #993D24;  /* Terracota / Ámbar Rojizo */
+
+            /* Tipografías */
+            --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
+            --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #f4f1ea; 
+            color: #1a1a1a;
+            font-family: var(--font-secundaria);
+        }
+
+        h1, h2, h3, .logo, .hero-title, .shelf-title {
+            font-family: var(--font-principal);
+            font-weight: 900;
+        }
+
+        .amazon-header {
+            background-color: var(--color-secundario);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: 900;
+            color: #fff;
+            text-decoration: none;
+            white-space: nowrap;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--color-terciario);
+        }
+
+        /* Ubicación */
+        .header-location {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #d1c2b8;
+            cursor: pointer;
+        }
+
+        .header-location strong {
+            color: #fff;
+            display: block;
+            font-size: 13px;
+        }
+
+        .search-bar {
+            flex: 1;
+            display: flex;
+            height: 40px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--color-principal);
+        }
+
+        .search-category {
+            background-color: #f8f6f2;
+            border: none;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #444;
+            border-right: 1px solid #ddd;
+            cursor: pointer;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            padding: 0 15px;
+            font-size: 14px;
+            outline: none;
+            font-family: var(--font-secundaria);
+        }
+
+        .search-btn {
+            background-color: var(--color-principal);
+            border: none;
+            width: 48px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-btn:hover {
+            background-color: var(--color-terciario);
+        }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* --- ESTILOS DEL MENÚ DESPLEGABLE DE USUARIO --- */
+        .user-dropdown-wrapper {
+            position: relative;
+        }
+
+        .user-btn-nav {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 6px 14px;
+            border-radius: 4px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .user-btn-nav:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .user-nav-text {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-nav-name {
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.1;
+            color: #ffffff;
+        }
+
+        .user-nav-role {
+            font-size: 10px;
+            color: #d1c2b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dropdown-menu-nav {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: #ffffff;
+            color: #1a1a1a;
+            min-width: 180px;
+            border-radius: 4px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            z-index: 1000;
+            overflow: hidden;
+            border: 1px solid var(--color-principal);
+        }
+
+        .dropdown-menu-nav.show {
+            display: block;
+        }
+
+        .dropdown-item-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 16px;
+            color: var(--color-secundario);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item-nav:hover {
+            background-color: #f4f1ea;
+        }
+
+        .dropdown-item-nav.logout-item {
+            color: #c92a2a;
+        }
+
+        .dropdown-item-nav.logout-item:hover {
+            background-color: #fff0f0;
+        }
+
+        .dropdown-divider-nav {
+            height: 1px;
+            background-color: #e0d8ce;
+        }
+
+        .btn-nav-login {
+            background-color: var(--color-principal);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--font-secundaria);
+            transition: background 0.2s;
+        }
+
+        .btn-nav-login:hover {
+            background-color: var(--color-terciario);
+        }
+
+        .btn-nav-register {
+            background-color: transparent;
+            color: #fff;
+            border: 1px solid var(--color-principal);
+            padding: 7px 14px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--font-secundaria);
+            transition: all 0.2s;
+        }
+
+        .btn-nav-register:hover {
+            background-color: var(--color-principal);
+        }
+
+        .sub-bar {
+            background-color: #290f06;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .sub-bar a {
+            color: #f1e8e3;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sub-bar a:hover {
+            color: var(--color-terciario);
+        }
+
+        .hero-banner {
+            background: linear-gradient(to bottom, rgba(61, 23, 10, 0.6), rgba(244, 241, 234, 1)), 
+                        url('https://images.unsplash.com/photo-1531835551805-16d864c88311?w=1400') center/cover no-repeat;
+            height: 320px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 40px;
+            text-align: center;
+            color: white;
+            position: relative;
+        }
+
+        .hero-title {
+            font-size: 32px;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+            letter-spacing: -0.5px;
+        }
+
+        .main-content {
+            max-width: 1380px;
+            margin: -140px auto 30px auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .amazon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .amazon-card {
+            background: #ffffff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 3px 8px rgba(61, 23, 10, 0.08);
+            border-radius: 6px;
+            border-top: 3px solid var(--color-principal);
+        }
+
+        .amazon-card h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: var(--color-secundario);
+        }
+
+        .amazon-card-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .amazon-card-link {
+            color: var(--color-principal);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .amazon-card-link:hover {
+            color: var(--color-terciario);
+            text-decoration: underline;
+        }
+
+        .sub-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .sub-grid-item {
+            text-align: center;
+        }
+
+        .sub-grid-item img {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 2px;
+        }
+
+        .sub-grid-item span {
+            font-size: 11px;
+            color: #333;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .products-shelf {
+            background: #ffffff;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 3px 8px rgba(61, 23, 10, 0.08);
+            border-radius: 6px;
+            border-top: 3px solid var(--color-terciario);
+        }
+
+        .shelf-title {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: var(--color-secundario);
+        }
+
+        .shelf-items {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .shelf-item {
+            min-width: 200px;
+            max-width: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .shelf-item img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .shelf-item-title {
+            font-size: 13px;
+            color: var(--color-principal);
+            text-decoration: none;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+
+        .shelf-item-title:hover {
+            color: var(--color-terciario);
+            text-decoration: underline;
+        }
+
+        .price-tag {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--color-terciario);
+        }
+
+        footer {
+            background-color: var(--color-secundario);
+            color: #fff;
+            text-align: center;
+            padding: 30px 20px;
+            font-size: 12px;
+            margin-top: 40px;
+            border-top: 4px solid var(--color-principal);
+        }
+
+        footer a {
+            color: #d1c2b8;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        footer a:hover {
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .amazon-header { flex-wrap: wrap; }
+            .search-bar { order: 3; width: 100%; }
+            .hero-banner { height: 220px; }
+            .main-content { margin-top: -60px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA SUPERIOR (HEADER) -->
+    <header class="amazon-header">
+        <a href="index.html" class="logo">Entre<span>Lazados</span></a>
+
+        <div class="header-location">
+            <i class="ti ti-map-pin" style="font-size: 18px;"></i>
+            <div>
+                Enviar a
+                <strong>Managua</strong>
             </div>
         </div>
 
-        <div class="stats-bar">
-            <div class="stat-item">
-                <div class="stat-num" id="stat-proveedores">0</div>
-                <div class="stat-lbl">Proveedores verificados</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-num" id="stat-emprendedores">0</div>
-                <div class="stat-lbl">Emprendedores activos</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-num" id="stat-subastas">0</div>
-                <div class="stat-lbl">Subastas en curso</div>
-            </div>
+        <div class="search-bar">
+            <select class="search-category">
+                <option>Todos los insumos</option>
+                <option>Cuero Vacuno</option>
+                <option>Suelas & Caucho</option>
+                <option>Herrajes</option>
+                <option>Herramientas</option>
+            </select>
+            <input type="text" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
+            <button class="search-btn"><i class="ti ti-search"></i></button>
         </div>
 
-        <div class="section">
-            <div class="section-title"><i class="ti ti-star"></i> ¿Cómo funciona?</div>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-                <div class="listing-card" style="cursor:default;">
-                    <div class="listing-top">
-                        <div class="listing-avatar"><i class="ti ti-id-badge-2"></i></div>
-                        <div class="listing-info">
-                            <div class="listing-name">1. Crea tu perfil y verifica tu negocio</div>
-                            <div class="listing-sub">Sube tu documento de identidad, RUC o constancia comercial. El equipo revisa en menos de 48 h.</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="listing-card" style="cursor:default;">
-                    <div class="listing-top">
-                        <div class="listing-avatar"><i class="ti ti-map-pin"></i></div>
-                        <div class="listing-info">
-                            <div class="listing-name">2. Filtra por distancia y tipo de material</div>
-                            <div class="listing-sub">Ajusta el radio desde 5 km hasta toda la región. Ve qué hay disponible cerca de tu taller.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div style="text-align:center;margin-top:1.25rem;">
-                <a href="mercado.html" class="btn-primary">Ver materiales disponibles →</a>
+        <!-- ÁREA DE NAVEGACIÓN Y USUARIO -->
+        <div class="nav-user">
+            <div id="authArea">
+                <!-- Se llenará dinámicamente desde JS con el menú desplegable -->
             </div>
         </div>
+    </header>
+
+    <!-- SUB-NAVEGACIÓN -->
+    <div class="sub-bar">
+        <a href="#"><i class="ti ti-menu-2"></i> Todo el Catálogo</a>
+        <a href="mercado.html">Mercado Completo</a>
+        <a href="chat.html">Chat / Mensajes</a>
+        <a href="#">Ofertas de la Semana</a>
+        <a href="#">Proveedores de Masaya</a>
+        <a href="#">Suelaje & Tacones</a>
     </div>
 
-   <script>
-       window.addEventListener('DOMContentLoaded', async () => {
-           // 👇 PROTECCIÓN DE PANTALLA: Si no hay una sesión activa, redirige al Login de inmediato
-           if (!localStorage.getItem('userEmail')) {
-               window.location.href = 'login.html';
-               return;
-           }
+    <!-- BANNER PRINCIPAL -->
+    <section class="hero-banner">
+        <h1 class="hero-title">Insumos y Materia Prima para Artesanos del Calzado</h1>
+    </section>
 
-           const API_URL = `http://${window.location.hostname}:3000`;
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main-content">
 
-           // 1. CARGAR ESTADÍSTICAS REALES EN LA BARRA
-           try {
-               const response = await fetch(`${API_URL}/api/estadisticas`);
-               if (response.ok) {
-                   const data = await response.json();
-                   document.getElementById('stat-proveedores').textContent = data.proveedores;
-                   document.getElementById('stat-emprendedores').textContent = data.emprendedores;
-                   document.getElementById('stat-subastas').textContent = data.subastas;
-               }
-           } catch (error) {
-               console.error("Error al conectar con la API de estadísticas:", error);
-           }
+        <div class="amazon-grid">
 
-           // 2. CONTROL DE PERFILES Y SESIÓN COHERENTE
-           const userRol = localStorage.getItem('userRol');
-           const userNombre = localStorage.getItem('userNombre');
+            <!-- TARJETA DINÁMICA DE BIENVENIDA / ACCIONES -->
+            <div class="amazon-card" id="loginCard">
+                <h2 id="card-welcome-title">Bienvenido a EntreLazados</h2>
+                <img src="https://images.unsplash.com/photo-1605733160314-4fc7dac4bb16?q=80&w=1190&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="amazon-card-img" alt="Zapatos de Cuero">
+                <div id="card-actions">
+                    <a href="mercado.html" class="btn-nav-login" style="text-align: center; display: block; margin-bottom: 10px;">Explorar Mercado de Materiales</a>
+                    <a href="perfil.html" class="amazon-card-link">Ver mi Perfil de Negocio →</a>
+                </div>
+            </div>
 
-           const heroBtns = document.querySelector('.hero-btns');
-           const heroText = document.querySelector('.hero p');
+            <!-- CATEGORÍAS DE CUERO -->
+            <div class="amazon-card">
+                <h2>Cueros y Pieles Populares</h2>
+                <div class="sub-grid">
+                    <div class="sub-grid-item">
+                        <img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200" alt="Vacuno">
+                        <span>Vacuno Flor</span>
+                    </div>
+                    <div class="sub-grid-item">
+                        <img src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=200" alt="Gamuza">
+                        <span>Gamuza / Suede</span>
+                    </div>
+                    <div class="sub-grid-item">
+                        <img src="https://images.unsplash.com/photo-1699779328284-d13d2a4e6e6b?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Suela">
+                        <span>Suela Gruesa</span>
+                    </div>
+                    <div class="sub-grid-item">
+                        <img src="https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=200" alt="Grabado">
+                        <span>Cuero Grabado</span>
+                    </div>
+                </div>
+                <a href="mercado.html" class="amazon-card-link">Explorar todo en Pieles</a>
+            </div>
 
-           if (userRol && userNombre) {
-               // Si el usuario ya inició sesión, adaptamos el texto del Home dinámicamente
-               heroText.innerHTML = `👋 ¡Hola de nuevo, <b>${userNombre}</b>! Has ingresado con el perfil de: <span class="badge badge-mat" style="background: #5c3a21; color:white; padding: 2px 8px; border-radius:4px; font-weight: bold;">${userRol.toUpperCase()}</span>`;
+            <!-- HERRAJES -->
+            <div class="amazon-card">
+                <h2>Herrajes y Accesorios</h2>
+                <img src="https://plus.unsplash.com/premium_photo-1682145989449-1e625c4982ce?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="amazon-card-img" alt="Herrajes">
+                <a href="mercado.html" class="amazon-card-link">Ver Hebillas, Ojetes y Remaches</a>
+            </div>
 
-               if (userRol === 'proveedor') {
-                   // Interfaz adaptada para Proveedor
-                   heroBtns.innerHTML = `
-                    <a href="mercado.html" class="btn-primary">➕ Publicar Material / Oferta</a>
-                    <button class="btn-outline" onclick="cerrarSesion()">Cerrar Sesión</button>
-                `;
-               } else {
-                   // Interfaz adaptada para Emprendedor
-                   heroBtns.innerHTML = `
-                    <a href="mercado.html" class="btn-primary">🛒 Explorar Mercado de Materiales</a>
-                    <button class="btn-outline" onclick="cerrarSesion()">Cerrar Sesión</button>
-                `;
-               }
-           }
-       });
+            <!-- ARTESANO TRABAJANDO CUERO -->
+            <div class="amazon-card">
+                <h2>Materia Prima Directa de Curtiembres</h2>
+                <p style="font-size: 13px; color: #555; line-height: 1.5; margin-bottom: 15px;">
+                    Conecta directamente con productores de Masaya, Granada y Estelí sin intermediarios.
+                </p>
+                <img src="https://images.unsplash.com/photo-1607969892714-797a3d4c266a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="amazon-card-img" alt="Trabajador de Cuero">
+                <a href="mercado.html" class="amazon-card-link">Conocer Proveedores Verificados</a>
+            </div>
 
-       function cerrarSesion() {
-           localStorage.clear();
-           alert("Sesión cerrada.");
-           window.location.href = 'login.html';
-       }
-   </script></body></html>
+        </div>
+
+        <!-- TIRA DE PRODUCTOS DESTACADOS -->
+        <section class="products-shelf">
+            <h2 class="shelf-title">Insumos más buscados esta semana</h2>
+            
+            <div class="shelf-items">
+                <!-- Producto 1 -->
+                <div class="shelf-item">
+                    <img src="https://images.unsplash.com/photo-1599568723850-14196ee0f991?q=80&w=1196&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Cuero Vacuno">
+                    <a href="mercado.html" class="shelf-item-title">Cuero Vacuno Castaño (Pie de 30x30 cm)</a>
+                    <div class="price-tag">C$ 120.00 NIO</div>
+                </div>
+
+                <!-- Producto 2 -->
+                <div class="shelf-item">
+                    <img src="https://images.unsplash.com/photo-1628024450128-30c4bb7507eb?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Hilo Encerado">
+                    <a href="mercado.html" class="shelf-item-title">Hilo Encerado N° 9 para Costura Manual</a>
+                    <div class="price-tag">C$ 280.00 NIO</div>
+                </div>
+
+                <!-- Producto 3 -->
+                <div class="shelf-item">
+                    <img src="https://plus.unsplash.com/premium_photo-1726769202190-ad2a3f2f360b?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Hebilla Metálica">
+                    <a href="mercado.html" class="shelf-item-title">Hebilla Metálica Antioxidante 35mm</a>
+                    <div class="price-tag">C$ 45.00 NIO</div>
+                </div>
+
+                <!-- Producto 4 -->
+                <div class="shelf-item">
+                    <img src="https://images.unsplash.com/photo-1727233432290-10a382f42bb3?q=80&w=688&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Trabajo en Taller">
+                    <a href="mercado.html" class="shelf-item-title">Pegamento Cemento Amarillo</a>
+                    <div class="price-tag">C$ 850.00 NIO</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+        <p style="margin-top: 10px;">
+            <a href="index.html">Inicio</a> | 
+            <a href="mercado.html">Mercado</a> | 
+            <a href="chat.html">Chat</a> | 
+            <a href="perfil.html">Mi Perfil</a>
+        </p>
+    </footer>
+
+    <!-- LÓGICA DE SESIÓN Y MENÚ DESPLEGABLE -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const userEmail = localStorage.getItem('userEmail');
+            const userNombre = localStorage.getItem('userNombre') || 'Usuario';
+            const userRol = localStorage.getItem('userRol') || 'Miembro';
+
+            // 👇 PROTECCIÓN DE PANTALLA: Si no hay sesión activa, redirige al Login
+            if (!userEmail) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const authArea = document.getElementById('authArea');
+
+            // Renderizar el Menú Desplegable de Usuario
+            authArea.innerHTML = `
+                <div class="user-dropdown-wrapper">
+                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                        <div class="user-nav-text">
+                            <span class="user-nav-name">${userNombre}</span>
+                            <span class="user-nav-role">${userRol.toUpperCase()}</span>
+                        </div>
+                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                    </button>
+
+                    <div class="dropdown-menu-nav" id="userDropdownMenu">
+                        <a href="perfil.html" class="dropdown-item-nav">
+                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
+                            Ver mi perfil
+                        </a>
+                        <div class="dropdown-divider-nav"></div>
+                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                            <i class="ti ti-logout" style="font-size: 18px;"></i>
+                            Cerrar sesión
+                        </a>
+                    </div>
+                </div>
+            `;
+
+            // Personalizar tarjeta principal de bienvenida
+            const cardWelcomeTitle = document.getElementById('card-welcome-title');
+            if (cardWelcomeTitle) {
+                cardWelcomeTitle.textContent = `¡Hola de nuevo, ${userNombre}!`;
+            }
+        });
+
+        // Abrir/Cerrar menú desplegable
+        function toggleUserDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('userDropdownMenu');
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+        }
+
+        // Cerrar menú si se hace clic fuera de él
+        window.onclick = function (event) {
+            if (!event.target.closest('.user-dropdown-wrapper')) {
+                const dropdown = document.getElementById('userDropdownMenu');
+                if (dropdown && dropdown.classList.contains('show')) {
+                    dropdown.classList.remove('show');
+                }
+            }
+        };
+
+        // Cerrar sesión
+        function cerrarSesion() {
+            localStorage.clear();
+            alert("Sesión cerrada.");
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

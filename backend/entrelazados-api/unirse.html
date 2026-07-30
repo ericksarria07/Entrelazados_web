@@ -73,7 +73,7 @@
         .register-card {
             background: #ffffff;
             width: 100%;
-            max-width: 480px;
+            max-width: 520px;
             padding: 35px 30px;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(61, 23, 10, 0.1);
@@ -181,9 +181,33 @@
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
+        textarea.form-control {
+            padding-top: 10px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
         .form-control:focus {
             border-color: var(--color-principal);
             box-shadow: 0 0 0 3px rgba(125, 56, 27, 0.15);
+        }
+
+        /* Estilo para los bloques dinámicos */
+        .dynamic-section {
+            border-top: 1px dashed #ddd;
+            padding-top: 15px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .dynamic-section h3 {
+            font-size: 14px;
+            color: var(--color-terciario);
+            text-align: left;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         /* Botón Principal */
@@ -286,18 +310,18 @@
 
             <!-- Selector de Rol -->
             <div class="role-selector">
-                <div class="role-option selected" onclick="selectRole(this, 'proveedor')">
+                <div class="role-option selected" id="optProveedor" onclick="selectRole('Proveedor')">
                     <i class="ti ti-truck-delivery"></i>
                     <div class="role-name">Proveedor</div>
                 </div>
-                <div class="role-option" onclick="selectRole(this, 'emprendedor')">
+                <div class="role-option" id="optEmprendedor" onclick="selectRole('Emprendedor')">
                     <i class="ti ti-shoe"></i>
                     <div class="role-name">Emprendedor</div>
                 </div>
             </div>
 
             <form id="registerForm" onsubmit="event.preventDefault(); enviarDatos();">
-                <!-- Nombre / Razón Social -->
+                <!-- CAMPOS COMUNES -->
                 <div class="form-group">
                     <label for="nombreNegocio">Nombre o Razón Social</label>
                     <div class="input-wrapper">
@@ -306,7 +330,6 @@
                     </div>
                 </div>
 
-                <!-- Correo Electrónico -->
                 <div class="form-group">
                     <label for="correo">Correo Electrónico</label>
                     <div class="input-wrapper">
@@ -315,7 +338,6 @@
                     </div>
                 </div>
 
-                <!-- WhatsApp -->
                 <div class="form-group">
                     <label for="telefono">Teléfono WhatsApp</label>
                     <div class="input-wrapper">
@@ -324,7 +346,6 @@
                     </div>
                 </div>
 
-                <!-- Departamento -->
                 <div class="form-group">
                     <label for="deptoId">Departamento</label>
                     <div class="input-wrapper">
@@ -333,7 +354,73 @@
                     </div>
                 </div>
 
-                <!-- Crear Contraseña -->
+                <!-- SECCIÓN DINÁMICA: PROVEEDOR -->
+                <div id="seccionProveedor" class="dynamic-section">
+                    <h3><i class="ti ti-box"></i> Datos del Proveedor</h3>
+                    
+                    <div class="form-group">
+                        <label for="numeroRuc">Número RUC</label>
+                        <div class="input-wrapper">
+                            <i class="ti ti-id"></i>
+                            <input type="text" id="numeroRuc" class="form-control" placeholder="Ej. J0310000000000">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nombreComercial">Nombre Comercial</label>
+                        <div class="input-wrapper">
+                            <i class="ti ti-briefcase"></i>
+                            <input type="text" id="nombreComercial" class="form-control" placeholder="Ej. Cueros e Insumos Nicaragua">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tipoMateriaPrimaPrincipal">Materia Prima Principal</label>
+                        <div class="input-wrapper">
+                            <i class="ti ti-packages"></i>
+                            <input type="text" id="tipoMateriaPrimaPrincipal" class="form-control" placeholder="Ej. Cuero vacuno, Suelas, Sillas, Herrajes">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="descripcionEmpresa">Descripción de la Empresa</label>
+                        <div class="input-wrapper">
+                            <i class="ti ti-notes"></i>
+                            <textarea id="descripcionEmpresa" class="form-control" placeholder="Breve descripción de los insumos o servicios que ofreces..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DINÁMICA: EMPRENDEDOR -->
+                <div id="seccionEmprendedor" class="dynamic-section" style="display: none;">
+                    <h3><i class="ti ti-cut"></i> Datos del Emprendedor</h3>
+
+                    <div class="form-group">
+                        <label for="nombreMarca">Nombre de la Marca</label>
+                        <div class="input-wrapper">
+                            <i class="ti ti-tag"></i>
+                            <input type="text" id="nombreMarca" class="form-control" placeholder="Ej. Calzados Artesanales M&R">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="especialidadCalzado">Especialidad en Calzado</label>
+                        <div class="input-wrapper">
+                            <i class="ti ti-shoe"></i>
+                            <input type="text" id="especialidadCalzado" class="form-control" placeholder="Ej. Botas de cuero, Sandalias, Calzado formal">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="capacidadProduccionMensual">Capacidad de Producción Mensual (Pares)</label>
+                        <div class="input-wrapper">
+                            <i class="ti ti-report-analytics"></i>
+                            <input type="number" id="capacidadProduccionMensual" class="form-control" placeholder="Ej. 250">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTRASEÑAS -->
                 <div class="form-group">
                     <label for="password">Crear Contraseña</label>
                     <div class="input-wrapper">
@@ -342,7 +429,6 @@
                     </div>
                 </div>
 
-                <!-- Confirmar Contraseña -->
                 <div class="form-group">
                     <label for="confirmPassword">Confirmar Contraseña</label>
                     <div class="input-wrapper">
@@ -379,13 +465,28 @@
 
     <!-- LÓGICA DE JAVASCRIPT Y BACKEND -->
     <script>
-        let selectedRol = 'proveedor';
+        let selectedRol = 'Proveedor';
 
-        // Cambiar la selección visual de roles
-        function selectRole(element, rolValue) {
-            document.querySelectorAll('.role-option').forEach(r => r.classList.remove('selected'));
-            element.classList.add('selected');
+        // Cambiar la selección visual de roles y mostrar/ocultar campos
+        function selectRole(rolValue) {
             selectedRol = rolValue;
+
+            const optProv = document.getElementById('optProveedor');
+            const optEmp = document.getElementById('optEmprendedor');
+            const secProv = document.getElementById('seccionProveedor');
+            const secEmp = document.getElementById('seccionEmprendedor');
+
+            if (rolValue === 'Proveedor') {
+                optProv.classList.add('selected');
+                optEmp.classList.remove('selected');
+                secProv.style.display = 'block';
+                secEmp.style.display = 'none';
+            } else {
+                optEmp.classList.add('selected');
+                optProv.classList.remove('selected');
+                secProv.style.display = 'none';
+                secEmp.style.display = 'block';
+            }
         }
 
         // Función para enviar los datos al servidor backend
@@ -397,9 +498,9 @@
             const passVal = document.getElementById('password').value;
             const confirmPassVal = document.getElementById('confirmPassword').value;
 
-            // Validación de campos requeridos
+            // Validación de campos comunes obligatorios
             if (!nombreVal || !emailVal || !telefonoVal || !deptoIdVal || !passVal || !confirmPassVal) {
-                alert("Por favor, rellena todos los campos antes de continuar.");
+                alert("Por favor, rellena todos los campos obligatorios antes de continuar.");
                 return;
             }
 
@@ -409,13 +510,23 @@
                 return;
             }
 
+            // Construcción del objeto de envío con todos los campos
             const data = {
                 nombre: nombreVal,
                 rol: selectedRol,
                 email: emailVal,
                 telefono: telefonoVal,
                 deptoId: deptoIdVal,
-                password: passVal
+                password: passVal,
+                // Campos específicos de Proveedor
+                numeroRuc: document.getElementById('numeroRuc').value.trim(),
+                nombreComercial: document.getElementById('nombreComercial').value.trim(),
+                tipoMateriaPrimaPrincipal: document.getElementById('tipoMateriaPrimaPrincipal').value.trim(),
+                descripcionEmpresa: document.getElementById('descripcionEmpresa').value.trim(),
+                // Campos específicos de Emprendedor
+                nombreMarca: document.getElementById('nombreMarca').value.trim(),
+                especialidadCalzado: document.getElementById('especialidadCalzado').value.trim(),
+                capacidadProduccionMensual: document.getElementById('capacidadProduccionMensual').value.trim()
             };
 
             const API_URL = `http://${window.location.hostname}:3000`;

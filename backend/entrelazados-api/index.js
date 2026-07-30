@@ -2,15 +2,20 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
-// CONFIGURACIÓN MÁGICA: Hace que Node.js pueda abrir tus archivos HTML
+// 1. AUMENTAR LÍMITE PARA RECIBIR IMÁGENES EN BASE64
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Servir archivos estáticos
 app.use(express.static(path.join(__dirname)));
 
-// Configuración de la base de datos
+// Configuración de la conexión a MySQL
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -20,235 +25,154 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
     if (err) {
-        console.error('Error conectando a la base de datos:', err);
+        console.error('❌ Error conectando a la base de datos MySQL:', err.message);
         return;
     }
-    console.log('¡Conectado exitosamente a la base de datos MySQL!');
+    console.log('🚀 ¡Conectado exitosamente a la base de datos MySQL (EntreLazadosDB)!');
+});
+
+// Configuración de correo electrónico para recuperación (Nodemailer)
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'tu_correo@gmail.com', // Reemplaza con tu correo emisor de Gmail
+        pass: 'tu_contrasena_de_aplicacion' // Reemplaza con tu contraseña de aplicación de Gmail
+    }
 });
 
 // RUTA PARA REGISTRAR USUARIOS
 app.post('/registro', (req, res) => {
-    const { nombre, email, telefono, rol, deptoId } = req.body;
-    const nombreDepartamento = deptoId ? deptoId.trim() : '';
+    const {
+        nombre,
+        email,
+        telefono,
+        rol,
+        deptoId,
+        password,
+        contrasena,
+        numeroRuc,
+        nombreComercial,
+        tipoMateriaPrimaPrincipal,
+        descripcionEmpresa,
+        nombreMarca,
+        especialidadCalzado,
+        capacidadProduccionMensual
+    } = req.body;
 
-    if (!nombreDepartamento) {
-        return res.status(400).json({ message: "El departamento es obligatorio." });
+    const nombreDepartamento = deptoId ? deptoId.trim() : '';
+    const passwordHash = password || contrasena || '123456';
+
+    if (!nombreDepartamento || !email || !nombre || !rol) {
+        return res.status(400).json({ message: "Por favor, completa todos los campos obligatorios." });
     }
 
-    console.log(`📩 Intento de registro para: ${nombre} - Depto: ${nombreDepartamento}`);
+    console.log(`📩 Intento de registro: ${nombre} (${rol}) - Depto: ${nombreDepartamento}`);
 
     const sqlBuscarDepto = `SELECT DepartamentoID FROM Departamentos WHERE NombreDepartamento = ?`;
 
     db.query(sqlBuscarDepto, [nombreDepartamento], (err, deptoResult) => {
         if (err) {
             console.error("❌ Error al buscar departamento:", err.message);
-            return res.status(500).json({ message: "Error interno del servidor" });
+            return res.status(500).json({ message: "Error interno del servidor al verificar departamento." });
         }
 
-        const registrarUsuario = (idDelDepartamento) => {
-            const sqlUsuario = `INSERT INTO Usuarios (NombreRazonSocial, TipoRol, CorreoElectronico, TelefonoWhatsApp, DepartamentoID) 
-                                VALUES (?, ?, ?, ?, ?)`;
-
-            db.query(sqlUsuario, [nombre, rol, email, telefono, idDelDepartamento], (err, result) => {
-                if (err) {
-                    console.error("❌ Error al insertar usuario en MySQL:", err.message);
-                    return res.status(500).json({ message: err.message });
+        const procesarRegistro = (idDepartamento) => {
+            db.beginTransaction((errTx) => {
+                if (errTx) {
+                    return res.status(500).json({ message: "Error al iniciar la transacción." });
                 }
-                console.log("✅ ¡Usuario guardado en MySQL con éxito!");
-                res.json({ message: "¡Registro exitoso en la plataforma!" });
+
+                const sqlUsuario = `
+                    INSERT INTO Usuarios (CorreoElectronico, ContrasenaHash, TipoRol, EstadoCuenta) 
+                    VALUES (?, ?, ?, 'Activo')
+                `;
+
+                db.query(sqlUsuario, [email, passwordHash, rol], (errUser, resultUser) => {
+                    if (errUser) {
+                        return db.rollback(() => {
+                            console.error("❌ Error al insertar usuario:", errUser.message);
+                            res.status(500).json({ message: "El correo ya está registrado o hubo un error." });
+                        });
+                    }
+
+                    const nuevoUsuarioId = resultUser.insertId;
+
+                    const sqlPerfil = `
+                        INSERT INTO PerfilesUsuarios (UsuarioID, NombreRazonSocial, TelefonoWhatsApp, DepartamentoID) 
+                        VALUES (?, ?, ?, ?)
+                    `;
+
+                    db.query(sqlPerfil, [nuevoUsuarioId, nombre, telefono || '', idDepartamento], (errPerfil) => {
+                        if (errPerfil) {
+                            return db.rollback(() => {
+                                console.error("❌ Error al crear perfil:", errPerfil.message);
+                                res.status(500).json({ message: "Error al guardar el perfil del usuario." });
+                            });
+                        }
+
+                        let sqlRol = '';
+                        let paramsRol = [];
+
+                        if (rol.toLowerCase() === 'proveedor') {
+                            sqlRol = `
+                                INSERT INTO Proveedores (UsuarioID, NumeroRUC, NombreComercial, TipoMateriaPrimaPrincipal, DescripcionEmpresa) 
+                                VALUES (?, ?, ?, ?, ?)
+                            `;
+                            paramsRol = [
+                                nuevoUsuarioId,
+                                numeroRuc || null,
+                                nombreComercial || nombre,
+                                tipoMateriaPrimaPrincipal || null,
+                                descripcionEmpresa || null
+                            ];
+                        } else {
+                            sqlRol = `
+                                INSERT INTO Emprendedores (UsuarioID, NombreMarca, EspecialidadCalzado, CapacidadProduccionMensual) 
+                                VALUES (?, ?, ?, ?)
+                            `;
+                            paramsRol = [
+                                nuevoUsuarioId,
+                                nombreMarca || nombre,
+                                especialidadCalzado || null,
+                                capacidadProduccionMensual ? parseInt(capacidadProduccionMensual, 10) : null
+                            ];
+                        }
+
+                        db.query(sqlRol, paramsRol, (errRol) => {
+                            if (errRol) {
+                                return db.rollback(() => {
+                                    console.error("❌ Error al asignar rol específico:", errRol.message);
+                                    res.status(500).json({ message: "Error al configurar datos del rol." });
+                                });
+                            }
+
+                            db.commit((errCommit) => {
+                                if (errCommit) {
+                                    return db.rollback(() => {
+                                        res.status(500).json({ message: "Error al confirmar el registro." });
+                                    });
+                                }
+                                console.log(`✅ ¡Usuario '${nombre}' (${rol}) guardado en MySQL con ID: ${nuevoUsuarioId}!`);
+                                res.json({ message: "¡Registro exitoso en la plataforma!" });
+                            });
+                        });
+                    });
+                });
             });
         };
 
         if (deptoResult.length > 0) {
-            const idExistente = deptoResult[0].DepartamentoID;
-            console.log(`📌 El departamento '${nombreDepartamento}' ya existe con ID: ${idExistente}. Asignando...`);
-            registrarUsuario(idExistente);
+            procesarRegistro(deptoResult[0].DepartamentoID);
         } else {
-            console.log(`✨ '${nombreDepartamento}' es un departamento nuevo. Creándolo en la BD...`);
             const sqlInsertarDepto = `INSERT INTO Departamentos (NombreDepartamento) VALUES (?)`;
-
-            db.query(sqlInsertarDepto, [nombreDepartamento], (err, insertResult) => {
-                if (err) {
-                    console.error("❌ Error al crear nuevo departamento:", err.message);
-                    return res.status(500).json({ message: "Error al registrar el departamento" });
+            db.query(sqlInsertarDepto, [nombreDepartamento], (errIns, insertResult) => {
+                if (errIns) {
+                    console.error("❌ Error al crear departamento:", errIns.message);
+                    return res.status(500).json({ message: "Error al registrar el departamento." });
                 }
-                const nuevoId = insertResult.insertId;
-                console.log(`🎉 Departamento creado exitosamente con ID automático: ${nuevoId}`);
-                registrarUsuario(nuevoId);
+                procesarRegistro(insertResult.insertId);
             });
         }
-    });
-});
-
-// RUTA PARA CONSULTAR OFERTAS (GET)
-app.get('/api/ofertas', (req, res) => {
-    const query = `
-        SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, c.NombreCategoria 
-        FROM Ofertas o
-        JOIN CategoriasMateriales c ON o.CategoriaID = c.CategoriaID
-    `;
-
-    db.query(query, (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(results);
-    });
-});
-
-// MODIFICADO: RUTA PARA PUBLICAR NUEVA OFERTA Y CREAR SUBASTA SIMULTÁNEAMENTE
-app.post('/api/ofertas', (req, res) => {
-    const { proveedorId, titulo, precio, unidad, distancia, categoriaId } = req.body;
-
-    if (!proveedorId || !titulo || !precio || !unidad || !categoriaId) {
-        return res.status(400).json({ message: "Por favor, llena todos los campos obligatorios." });
-    }
-
-    // Iniciamos la transacción para asegurar consistencia en ambas tablas
-    db.beginTransaction((errTx) => {
-        if (errTx) {
-            console.error("❌ Error al iniciar transacción:", errTx.message);
-            return res.status(500).json({ message: "Error al procesar el servidor." });
-        }
-
-        const queryInsertarOferta = `
-            INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        `;
-
-        db.query(queryInsertarOferta, [proveedorId, titulo, categoriaId, precio, unidad, distancia || 0], (errOferta, resultOferta) => {
-            if (errOferta) {
-                return db.rollback(() => {
-                    console.error("❌ Error al publicar oferta:", errOferta.message);
-                    res.status(500).json({ message: "Error al guardar el material en la base de datos." });
-                });
-            }
-
-            const nuevoOfertaId = resultOferta.insertId;
-            // Se asume por defecto un vencimiento estándar (ej. 7 días hacia adelante)
-            const fechaFinSimulada = new Date();
-            fechaFinSimulada.setDate(fechaFinSimulada.getDate() + 7);
-
-            const queryInsertarSubasta = `
-                INSERT INTO Subastas (ProveedorID, OfertaID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado)
-                VALUES (?, ?, ?, ?, ?, ?, 'Activa')
-            `;
-
-            const tituloLote = `Lote Subasta: ${titulo}`;
-
-            db.query(queryInsertarSubasta, [proveedorId, nuevoOfertaId, tituloLote, precio, precio, fechaFinSimulada], (errSubasta) => {
-                if (errSubasta) {
-                    return db.rollback(() => {
-                        console.error("❌ Error al crear subasta vinculada:", errSubasta.message);
-                        res.status(500).json({ message: "Se canceló la operación por error en tabla Subastas." });
-                    });
-                }
-
-                db.commit((errCommit) => {
-                    if (errCommit) {
-                        return db.rollback(() => {
-                            res.status(500).json({ message: "Error al asentar los cambios en la BD." });
-                        });
-                    }
-                    console.log("📦 ¡Oferta y Subasta sincronizada creadas con éxito!");
-                    res.json({ message: "¡Material publicado y lote en subasta activo exitosamente!" });
-                });
-            });
-        });
-    });
-});
-
-// MODIFICADO: ELIMINAR OFERTA, SUBASTA Y PUJAS ASOCIADAS
-app.delete('/api/ofertas/:id', (req, res) => {
-    const ofertaId = req.params.id;
-    const { proveedorId } = req.body;
-
-    if (!proveedorId) {
-        return res.status(400).json({ message: "Identificador de proveedor requerido." });
-    }
-
-    db.beginTransaction((errTx) => {
-        if (errTx) {
-            return res.status(500).json({ message: "Error de transacción en el servidor." });
-        }
-
-        // 1. Eliminar las pujas de la subasta vinculada a esta oferta
-        const queryBorrarPujas = `
-            DELETE FROM Pujas 
-            WHERE SubastaID = (SELECT SubastaID FROM Subastas WHERE OfertaID = ? AND ProveedorID = ? LIMIT 1)
-        `;
-
-        db.query(queryBorrarPujas, [ofertaId, proveedorId], (errPujas) => {
-            if (errPujas) {
-                return db.rollback(() => {
-                    console.error("❌ Error al limpiar pujas:", errPujas.message);
-                    res.status(500).json({ message: "No se pudo actualizar las relaciones." });
-                });
-            }
-
-            // 2. Eliminar la subasta vinculada
-            const queryBorrarSubasta = `DELETE FROM Subastas WHERE OfertaID = ? AND ProveedorID = ?`;
-
-            db.query(queryBorrarSubasta, [ofertaId, proveedorId], (errSubasta) => {
-                if (errSubasta) {
-                    return db.rollback(() => {
-                        console.error("❌ Error al eliminar subasta vinculada:", errSubasta.message);
-                        res.status(500).json({ message: "Error al purgar subasta activa." });
-                    });
-                }
-
-                // 3. Eliminar la oferta original
-                const queryBorrarOferta = `DELETE FROM Ofertas WHERE OfertaID = ? AND ProveedorID = ?`;
-
-                db.query(queryBorrarOferta, [ofertaId, proveedorId], (errOferta, resultOferta) => {
-                    if (errOferta) {
-                        return db.rollback(() => {
-                            console.error("❌ Error al eliminar oferta:", errOferta.message);
-                            res.status(500).json({ message: "Error final al remover la oferta." });
-                        });
-                    }
-
-                    if (resultOferta.affectedRows === 0) {
-                        return db.rollback(() => {
-                            res.status(403).json({ message: "No tienes permiso para eliminar esta oferta o no existe." });
-                        });
-                    }
-
-                    db.commit((errCommit) => {
-                        if (errCommit) {
-                            return db.rollback(() => {
-                                res.status(500).json({ message: "Fallo al confirmar el borrado." });
-                            });
-                        }
-                        res.json({ success: true, message: "Oferta y subasta asociada eliminadas correctamente." });
-                    });
-                });
-            });
-        });
-    });
-});
-
-// RUTA PARA OBTENER ESTADÍSTICAS REALES EN PANTALLA DE INICIO
-app.get('/api/estadisticas', (req, res) => {
-    const queryProveedores = "SELECT COUNT(*) AS total FROM Usuarios WHERE LOWER(TipoRol) = 'proveedor'";
-    const queryEmprendedores = "SELECT COUNT(*) AS total FROM Usuarios WHERE LOWER(TipoRol) = 'emprendedor'";
-
-    db.query(queryProveedores, (err, resultProv) => {
-        if (err) {
-            console.error("❌ Error al contar proveedores:", err.message);
-            return res.status(500).json({ message: "Error en servidor" });
-        }
-
-        db.query(queryEmprendedores, (err, resultEmp) => {
-            if (err) {
-                console.error("❌ Error al contar emprendedores:", err.message);
-                return res.status(500).json({ message: "Error en servidor" });
-            }
-
-            res.json({
-                proveedores: resultProv[0].total,
-                emprendedores: resultEmp[0].total,
-                subastas: 28
-            });
-        });
     });
 });
 
@@ -260,7 +184,12 @@ app.post('/api/login', (req, res) => {
         return res.status(400).json({ message: "El correo es obligatorio." });
     }
 
-    const sqlBuscarUsuario = `SELECT UsuarioID, NombreRazonSocial, TipoRol FROM Usuarios WHERE CorreoElectronico = ?`;
+    const sqlBuscarUsuario = `
+        SELECT u.UsuarioID, p.NombreRazonSocial, u.TipoRol 
+        FROM Usuarios u
+        JOIN PerfilesUsuarios p ON u.UsuarioID = p.UsuarioID
+        WHERE u.CorreoElectronico = ?
+    `;
 
     db.query(sqlBuscarUsuario, [email], (err, results) => {
         if (err) {
@@ -280,7 +209,210 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// SE TRAE EL ProveedorID PARA CONTROLAR BLOQUEOS DE PUJA EN EL FRONTEND
+// RUTAS PARA RECUPERACIÓN DE CONTRASEÑA
+app.post('/api/solicitar-recuperacion', (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: "Por favor proporciona un correo electrónico." });
+    }
+
+    const sqlBuscar = `SELECT UsuarioID FROM Usuarios WHERE CorreoElectronico = ?`;
+
+    db.query(sqlBuscar, [email], (err, results) => {
+        if (err || results.length === 0) {
+            return res.json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+        }
+
+        const usuarioId = results[0].UsuarioID;
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiracion = new Date(Date.now() + 3600000);
+
+        const sqlGuardarToken = `
+            UPDATE Usuarios 
+            SET TokenRecuperacion = ?, ExpiracionToken = ? 
+            WHERE UsuarioID = ?
+        `;
+
+        db.query(sqlGuardarToken, [token, expiracion, usuarioId], (errToken) => {
+            if (errToken) {
+                console.error("❌ Error al guardar token de recuperación:", errToken.message);
+                return res.status(500).json({ message: "Error interno al generar enlace." });
+            }
+
+            const enlace = `http://localhost:3000/restablecer.html?token=${token}`;
+
+            const mailOptions = {
+                from: '"EntreLazados" <tu_correo@gmail.com>',
+                to: email,
+                subject: 'Recuperación de Contraseña - EntreLazados',
+                html: `
+                    <h3>Recuperación de Contraseña</h3>
+                    <p>Solicitaste restablecer tu contraseña en EntreLazados. Haz clic en el enlace a continuación:</p>
+                    <a href="${enlace}" target="_blank">${enlace}</a>
+                    <p>Este enlace estará activo durante 1 hora.</p>
+                `
+            };
+
+            transporter.sendMail(mailOptions, (errorInfo) => {
+                if (errorInfo) {
+                    console.error("❌ Error enviando correo de recuperación:", errorInfo.message);
+                } else {
+                    console.log(`📧 Correo de recuperación enviado a: ${email}`);
+                }
+                res.json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+            });
+        });
+    });
+});
+
+app.post('/api/restablecer-password', (req, res) => {
+    const { token, nuevaContrasena } = req.body;
+
+    if (!token || !nuevaContrasena) {
+        return res.status(400).json({ message: "Datos incompletos para restablecer la contraseña." });
+    }
+
+    const sqlVerificarToken = `
+        SELECT UsuarioID FROM Usuarios 
+        WHERE TokenRecuperacion = ? AND ExpiracionToken > NOW()
+    `;
+
+    db.query(sqlVerificarToken, [token], (err, results) => {
+        if (err || results.length === 0) {
+            return res.status(400).json({ message: "El token de recuperación es inválido o ha expirado." });
+        }
+
+        const usuarioId = results[0].UsuarioID;
+        const sqlActualizarPass = `
+            UPDATE Usuarios 
+            SET ContrasenaHash = ?, TokenRecuperacion = NULL, ExpiracionToken = NULL 
+            WHERE UsuarioID = ?
+        `;
+
+        db.query(sqlActualizarPass, [nuevaContrasena, usuarioId], (errUpdate) => {
+            if (errUpdate) {
+                console.error("❌ Error al cambiar contraseña:", errUpdate.message);
+                return res.status(500).json({ message: "Error al cambiar la contraseña." });
+            }
+
+            console.log(`🔑 ¡Contraseña actualizada exitosamente para el Usuario ID: ${usuarioId}!`);
+            res.json({ message: "¡Contraseña actualizada con éxito! Ahora puedes iniciar sesión." });
+        });
+    });
+});
+
+// ==========================================
+// RUTAS PARA OFERTAS (ACTUALIZADAS CON FOTOS)
+// ==========================================
+
+app.get('/api/ofertas', (req, res) => {
+    // 2. INCLUIR LA COLUMNA o.Fotos EN LA CONSULTA
+    const query = `
+        SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos, c.NombreCategoria 
+        FROM Ofertas o
+        JOIN CategoriasMateriales c ON o.CategoriaID = c.CategoriaID
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // PARSEAR EL TEXTO JSON DE CADA OFERTA A UN ARRAY
+        const ofertasFormateadas = results.map(oferta => ({
+            ...oferta,
+            Fotos: oferta.Fotos ? JSON.parse(oferta.Fotos) : []
+        }));
+
+        res.json(ofertasFormateadas);
+    });
+});
+
+app.post('/api/ofertas', (req, res) => {
+    // 3. EXTRAER EL ARREGLO DE fotos DEL BODY
+    const { proveedorId, titulo, precio, unidad, distancia, categoriaId, fotos } = req.body;
+
+    if (!proveedorId || !titulo || !precio || !unidad || !categoriaId) {
+        return res.status(400).json({ message: "Por favor, llena todos los campos obligatorios." });
+    }
+
+    db.beginTransaction((errTx) => {
+        if (errTx) {
+            return res.status(500).json({ message: "Error al procesar el servidor." });
+        }
+
+        // CONVERTIR EL ARREGLO DE FOTOS A STRING JSON
+        const fotosJSON = JSON.stringify(fotos || []);
+
+        const queryInsertarOferta = `
+            INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm, Fotos) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        db.query(queryInsertarOferta, [proveedorId, titulo, categoriaId, precio, unidad, distancia || 0, fotosJSON], (errOferta) => {
+            if (errOferta) {
+                return db.rollback(() => {
+                    console.error("❌ Error al publicar oferta:", errOferta.message);
+                    res.status(500).json({ message: "Error al guardar el material en la base de datos." });
+                });
+            }
+
+            const fechaFinSimulada = new Date();
+            fechaFinSimulada.setDate(fechaFinSimulada.getDate() + 7);
+
+            const queryInsertarSubasta = `
+                INSERT INTO Subastas (ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado)
+                VALUES (?, ?, ?, ?, ?, 'Activa')
+            `;
+
+            const tituloLote = `Lote Subasta: ${titulo}`;
+
+            db.query(queryInsertarSubasta, [proveedorId, tituloLote, precio, precio, fechaFinSimulada], (errSubasta) => {
+                if (errSubasta) {
+                    return db.rollback(() => {
+                        console.error("❌ Error al crear subasta vinculada:", errSubasta.message);
+                        res.status(500).json({ message: "Error al crear la subasta en la base de datos." });
+                    });
+                }
+
+                db.commit((errCommit) => {
+                    if (errCommit) {
+                        return db.rollback(() => {
+                            res.status(500).json({ message: "Error al asentar los cambios." });
+                        });
+                    }
+                    console.log("📦 ¡Oferta y Subasta creada con éxito!");
+                    res.json({ message: "¡Material publicado y lote en subasta activo exitosamente!" });
+                });
+            });
+        });
+    });
+});
+
+app.delete('/api/ofertas/:id', (req, res) => {
+    const ofertaId = req.params.id;
+    const { proveedorId } = req.body;
+
+    if (!proveedorId) {
+        return res.status(400).json({ message: "Identificador de proveedor requerido." });
+    }
+
+    const queryBorrarOferta = `DELETE FROM Ofertas WHERE OfertaID = ? AND ProveedorID = ?`;
+
+    db.query(queryBorrarOferta, [ofertaId, proveedorId], (errOferta, resultOferta) => {
+        if (errOferta) {
+            console.error("❌ Error al eliminar oferta:", errOferta.message);
+            return res.status(500).json({ message: "Error al remover la oferta." });
+        }
+
+        if (resultOferta.affectedRows === 0) {
+            return res.status(403).json({ message: "No tienes permiso para eliminar esta oferta o no existe." });
+        }
+
+        res.json({ success: true, message: "Oferta eliminada correctamente." });
+    });
+});
+
+// RUTAS PARA SUBASTAS Y PUJAS
 app.get('/api/subastas', (req, res) => {
     const query = `
         SELECT SubastaID, ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado 
@@ -296,7 +428,6 @@ app.get('/api/subastas', (req, res) => {
     });
 });
 
-// RUTA PARA REGISTRAR UNA NUEVA PUJA
 app.post('/api/pujas', (req, res) => {
     const { subastaId, emprendedorId, montoPuja } = req.body;
 
@@ -306,7 +437,7 @@ app.post('/api/pujas', (req, res) => {
 
     const sqlInsertarPuja = `INSERT INTO Pujas (SubastaID, EmprendedorID, MontoPuja) VALUES (?, ?, ?)`;
 
-    db.query(sqlInsertarPuja, [subastaId, emprendedorId, montoPuja], (err, result) => {
+    db.query(sqlInsertarPuja, [subastaId, emprendedorId, montoPuja], (err) => {
         if (err) {
             console.error("❌ Error al insertar puja:", err.message);
             return res.status(500).json({ message: "No se pudo registrar la puja." });
@@ -325,12 +456,17 @@ app.post('/api/pujas', (req, res) => {
     });
 });
 
-// CHAT 1: CONTACTOS DISPONIBLES SEGÚN EL ROL
+// RUTAS DE CHAT EN VIVO
 app.get('/api/chat/contactos', (req, res) => {
     const { rol } = req.query;
-    const rolBuscado = rol === 'emprendedor' ? 'proveedor' : 'emprendedor';
+    const rolBuscado = (rol && rol.toLowerCase() === 'emprendedor') ? 'Proveedor' : 'Emprendedor';
 
-    const query = `SELECT UsuarioID, NombreRazonSocial, TipoRol FROM Usuarios WHERE LOWER(TipoRol) = ?`;
+    const query = `
+        SELECT u.UsuarioID, p.NombreRazonSocial, u.TipoRol 
+        FROM Usuarios u
+        JOIN PerfilesUsuarios p ON u.UsuarioID = p.UsuarioID
+        WHERE u.TipoRol = ?
+    `;
 
     db.query(query, [rolBuscado], (err, results) => {
         if (err) {
@@ -341,7 +477,6 @@ app.get('/api/chat/contactos', (req, res) => {
     });
 });
 
-// CHAT 2: OBTENER LOS MENSAJES ENTRE DOS USUARIOS
 app.get('/api/chat/mensajes', (req, res) => {
     const { remitenteId, destinatarioId } = req.query;
 
@@ -366,7 +501,6 @@ app.get('/api/chat/mensajes', (req, res) => {
     });
 });
 
-// CHAT 3: GUARDAR UN NUEVO MENSAJE
 app.post('/api/chat/enviar', (req, res) => {
     const { remitenteId, destinatarioId, texto } = req.body;
 
@@ -379,7 +513,7 @@ app.post('/api/chat/enviar', (req, res) => {
         VALUES (?, ?, ?)
     `;
 
-    db.query(query, [remitenteId, destinatarioId, texto], (err, result) => {
+    db.query(query, [remitenteId, destinatarioId, texto], (err) => {
         if (err) {
             console.error("❌ Error al guardar mensaje en MySQL:", err.message);
             return res.status(500).json({ message: "Error interno al guardar mensaje." });
@@ -388,8 +522,74 @@ app.post('/api/chat/enviar', (req, res) => {
     });
 });
 
-// Iniciar el servidor
+// ESTADÍSTICAS DEL INICIO
+app.get('/api/estadisticas', (req, res) => {
+    const queryProveedores = "SELECT COUNT(*) AS total FROM Usuarios WHERE LOWER(TipoRol) = 'proveedor'";
+    const queryEmprendedores = "SELECT COUNT(*) AS total FROM Usuarios WHERE LOWER(TipoRol) = 'emprendedor'";
+    const querySubastas = "SELECT COUNT(*) AS total FROM Subastas WHERE Estado = 'Activa'";
+
+    db.query(queryProveedores, (err, resultProv) => {
+        if (err) return res.status(500).json({ message: "Error en servidor" });
+
+        db.query(queryEmprendedores, (err, resultEmp) => {
+            if (err) return res.status(500).json({ message: "Error en servidor" });
+
+            db.query(querySubastas, (err, resultSub) => {
+                if (err) return res.status(500).json({ message: "Error en servidor" });
+
+                res.json({
+                    proveedores: resultProv[0].total,
+                    emprendedores: resultEmp[0].total,
+                    subastas: resultSub[0].total
+                });
+            });
+        });
+    });
+});
+
+// RUTA PARA OBTENER EL PERFIL DEL USUARIO
+app.get('/api/perfil/:id', (req, res) => {
+    const usuarioId = req.params.id;
+
+    const query = `
+        SELECT 
+            u.UsuarioID, 
+            u.CorreoElectronico, 
+            u.TipoRol, 
+            p.NombreRazonSocial, 
+            p.TelefonoWhatsApp, 
+            d.NombreDepartamento,
+            prov.NumeroRUC, 
+            prov.NombreComercial, 
+            prov.TipoMateriaPrimaPrincipal, 
+            prov.DescripcionEmpresa,
+            emp.NombreMarca, 
+            emp.EspecialidadCalzado, 
+            emp.CapacidadProduccionMensual
+        FROM Usuarios u
+        LEFT JOIN PerfilesUsuarios p ON u.UsuarioID = p.UsuarioID
+        LEFT JOIN Departamentos d ON p.DepartamentoID = d.DepartamentoID
+        LEFT JOIN Proveedores prov ON u.UsuarioID = prov.UsuarioID
+        LEFT JOIN Emprendedores emp ON u.UsuarioID = emp.UsuarioID
+        WHERE u.UsuarioID = ?
+    `;
+
+    db.query(query, [usuarioId], (err, results) => {
+        if (err) {
+            console.error("❌ Error al obtener perfil:", err.message);
+            return res.status(500).json({ message: "Error al consultar la base de datos." });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        res.json(results[0]);
+    });
+});
+
+// Arrancar el servidor backend
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor Backend corriendo en http://localhost:${PORT}`);
+    console.log(`📡 Servidor Backend ejecutándose en http://localhost:${PORT}`);
 });
