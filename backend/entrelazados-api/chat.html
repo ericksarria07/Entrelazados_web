@@ -5,18 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Chat y Mensajes</title>
 
-    <!-- Iconos de Tabler -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
-    <!-- Fuentes Web -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
     <style>
-        /* ==========================================================================
-           VARIABLES DE DISEÑO Y PALETA DE COLORES (IGUAL A MERCADO.HTML)
-           ========================================================================== */
         :root {
             --color-principal: #7D381B;  /* Marrón Cálido */
             --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
@@ -45,6 +40,11 @@
         }
 
         body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('lagos.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             background-color: var(--bg-main); 
             color: var(--text-dark);
             font-family: var(--font-secundaria);
@@ -56,9 +56,6 @@
             font-weight: 900;
         }
 
-        /* ==========================================================================
-           HEADER SUPERIOR Y MENÚ DE NAVEGACIÓN
-           ========================================================================== */
         .amazon-header {
             background-color: var(--color-secundario);
             color: #ffffff;
@@ -149,7 +146,6 @@
             gap: 15px;
         }
 
-        /* --- MENÚ DESPLEGABLE DE USUARIO --- */
         .user-dropdown-wrapper {
             position: relative;
         }
@@ -263,9 +259,6 @@
             color: var(--color-terciario);
         }
 
-        /* ==========================================================================
-           ESTILOS ESPECÍFICOS DEL INTERFAZ DE CHAT
-           ========================================================================== */
         #app {
             max-width: 1100px;
             margin: 20px auto 30px auto;
@@ -283,7 +276,6 @@
             min-height: 520px;
         }
 
-        /* BANDEJA DE CONTACTOS (SIDEBAR) */
         .chat-sidebar {
             width: 300px;
             border-right: 1px solid var(--border-color);
@@ -304,6 +296,7 @@
         }
 
         .contact-list {
+            background-color: rgba(255, 255, 255, 0.85);
             overflow-y: auto;
             flex: 1;
         }
@@ -347,7 +340,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: var(--bg-main);
+            background-color: rgba(255, 255, 255, 0.85);
         }
 
         .no-chat-placeholder {
@@ -357,7 +350,7 @@
             align-items: center;
             justify-content: center;
             color: var(--text-muted);
-            background: var(--bg-main);
+            background-color: rgba(255, 255, 255, 0.85);
             padding: 20px;
             text-align: center;
         }
@@ -367,10 +360,9 @@
             flex-direction: column;
             height: 100%;
             width: 100%;
-            background: var(--bg-card);
+            background-color: rgba(255, 255, 255, 0.85);;
         }
 
-        /* HEADER DEL CHAT ACTIVO */
         .chat-header {
             padding: 14px 20px;
             background: var(--bg-card);
@@ -413,7 +405,6 @@
             color: var(--text-muted);
         }
 
-        /* LISTA DE MENSAJES Y BURBUJAS */
         .chat-messages {
             flex: 1;
             padding: 20px;
@@ -456,8 +447,8 @@
         }
 
         .msg.them .msg-bubble {
-            background-color: #ffffff;
-            color: var(--text-dark);
+            background-color: #333333;
+            color: #ffffff;
             border: 1px solid var(--border-color);
             border-bottom-left-radius: 2px;
         }
@@ -469,7 +460,6 @@
             padding: 0 2px;
         }
 
-        /* INPUT BAR */
         .chat-input-bar {
             padding: 12px 16px;
             background: var(--bg-card);
@@ -517,7 +507,6 @@
             transform: scale(0.95);
         }
 
-        /* FOOTER */
         footer {
             background-color: var(--color-secundario);
             color: #fff;
@@ -550,15 +539,14 @@
 </head>
 <body>
 
-    <!-- BARRA SUPERIOR (HEADER TIPO E-COMMERCE) -->
     <header class="amazon-header">
         <a href="index.html" class="logo">Entre<span>Lazados</span></a>
 
         <div class="header-location">
             <i class="ti ti-map-pin" style="font-size: 18px;"></i>
             <div>
-                Ubicación
-                <strong>Managua</strong>
+                <span class="location-label">Enviar a</span>
+                <strong id="user-location">Cargando...</strong>
             </div>
         </div>
 
@@ -573,15 +561,12 @@
             <button class="search-btn"><i class="ti ti-search"></i></button>
         </div>
 
-        <!-- ÁREA DE NAVEGACIÓN Y USUARIO -->
         <div class="nav-user">
             <div id="authArea">
-                <!-- Se llena dinámicamente desde JS -->
             </div>
         </div>
     </header>
 
-    <!-- SUB-NAVEGACIÓN -->
     <div class="sub-bar">
         <a href="index.html"><i class="ti ti-home"></i> Inicio</a>
         <a href="mercado.html"><i class="ti ti-building-store"></i> Mercado Completo</a>
@@ -590,11 +575,9 @@
         <a href="#"><i class="ti ti-map-pin"></i> Proveedores de Masaya</a>
     </div>
 
-    <!-- CONTENEDOR PRINCIPAL DEL CHAT -->
     <div id="app">
         <div class="chat-layout">
             
-            <!-- BARRA LATERAL DE CONTACTOS -->
             <div class="chat-sidebar">
                 <div class="sidebar-header" id="rol-title">Mensajes</div>
                 <div class="contact-list" id="lista-contactos">
@@ -602,17 +585,14 @@
                 </div>
             </div>
 
-            <!-- ÁREA PRINCIPAL DE CONVERSACIÓN -->
             <div class="chat-main-area" id="chat-principal">
                 
-                <!-- PANTALLA INICIAL (NINGÚN CHAT SELECCIONADO) -->
                 <div class="no-chat-placeholder" id="pantalla-vacia">
                     <i class="ti ti-message-dots" style="font-size: 48px; margin-bottom: 12px; color: var(--color-principal);"></i>
                     <p style="font-size:15px; font-weight: 700; color: var(--color-secundario);">Tus Mensajes Directos</p>
                     <p style="font-size:13px; color: var(--text-muted); margin-top: 4px;">Selecciona un usuario de la lista lateral para iniciar o continuar la conversación.</p>
                 </div>
 
-                <!-- CONTENEDOR DEL CHAT ACTIVO -->
                 <div class="chat-container" id="pantalla-activa" style="display: none;">
                     <div class="chat-header">
                         <div class="chat-avatar-sm" id="chat-vendor-avatar">--</div>
@@ -635,7 +615,6 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
     <footer>
         <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
         <p style="margin-top: 10px;">
@@ -646,9 +625,8 @@
         </p>
     </footer>
 
-    <!-- LÓGICA DEL CHAT -->
     <script>
-        const API_URL = `http://${window.location.hostname}:3000`;
+        const API_URL = window.location.origin;
         const miId = parseInt(localStorage.getItem('userId'));
         const miRol = localStorage.getItem('userRol');
 
@@ -660,13 +638,11 @@
             const userNombre = localStorage.getItem('userNombre') || 'Usuario';
             const userRol = localStorage.getItem('userRol') || 'Miembro';
 
-            // PROTECCIÓN: Redirección si no hay sesión
-            if (!userEmail || !miId) {
+           if (!userEmail || !miId) {
                 window.location.href = 'login.html';
                 return;
             }
 
-            // Renderizar el Menú Desplegable de Usuario en la cabecera
             const authArea = document.getElementById('authArea');
             authArea.innerHTML = `
                 <div class="user-dropdown-wrapper">
@@ -693,14 +669,11 @@
                 </div>
             `;
 
-            // Configurar cabecera lateral según quién navega
             document.getElementById('rol-title').textContent = miRol === 'proveedor' ? '💬 Emprendedores Interesados' : '🏭 Proveedores de Materiales';
 
-            // Cargar barra de contactos
             cargarContactosDesdeBD();
         });
 
-        // Toggle del Menú Desplegable
         function toggleUserDropdown(event) {
             event.stopPropagation();
             const dropdown = document.getElementById('userDropdownMenu');
@@ -716,48 +689,45 @@
             }
         };
 
-        // 1. CARGAR CONTACTOS DESDE BACKEND SEGÚN ROL
-        async function cargarContactosDesdeBD() {
-            const contenedor = document.getElementById('lista-contactos');
-            try {
-                const response = await fetch(`${API_URL}/api/chat/contactos?rol=${miRol}`);
-                const contactos = await response.json();
-                contenedor.innerHTML = '';
+        async function cargarContactos() {
+            const listaContactos = document.getElementById('lista-contactos') || document.querySelector('.lista-contactos');
+            const miUserId = localStorage.getItem('userId') || 0;
 
-                if (contactos.length === 0) {
-                    contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:var(--text-muted); font-size:12px;">No hay perfiles disponibles.</p>`;
+            try {
+                const res = await fetch(`/api/chat/contactos?userId=${miUserId}`);
+
+                if (!res.ok) {
+                    throw new Error("Error en la respuesta del servidor");
+                }
+
+                const contactos = await res.json();
+
+                if (!contactos || contactos.length === 0) {
+                    listaContactos.innerHTML = `
+                <div style="padding: 15px; text-align: center; color: #777; font-size: 13px;">
+                    No hay otros usuarios registrados aún.
+                </div>`;
                     return;
                 }
 
-                contactos.forEach(c => {
-                    const inicial = c.NombreRazonSocial.charAt(0).toUpperCase();
-                    contenedor.innerHTML += `
-                        <div class="contact-item" id="contacto-${c.UsuarioID}" onclick="seleccionarContacto(${c.UsuarioID}, '${c.NombreRazonSocial}')">
-                            <div class="contact-avatar-side">${inicial}</div>
-                            <div>
-                                <div style="font-weight: 700; font-size:13px; color:var(--color-secundario);">${c.NombreRazonSocial}</div>
-                                <div style="font-size:11px; color:var(--text-muted); text-transform: capitalize;">${c.TipoRol}</div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                // Si venía desde Mercado o Mapa con ?nombre=... lo abre por defecto
-                const parametros = new URLSearchParams(window.location.search);
-                const nombreQuery = parametros.get('nombre');
-                if (nombreQuery) {
-                    const encontrado = contactos.find(c => c.NombreRazonSocial.toLowerCase().includes(nombreQuery.toLowerCase()));
-                    if (encontrado) {
-                        seleccionarContacto(encontrado.UsuarioID, encontrado.NombreRazonSocial);
-                    }
-                }
+                listaContactos.innerHTML = contactos.map(c => `
+            <div class="contacto-item" onclick="seleccionarContacto(${c.UsuarioID}, '${c.NombreRazonSocial}')" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;">
+                <strong style="display: block; color: #3D170A; font-size: 14px;">${c.NombreRazonSocial}</strong>
+                <span style="font-size: 11px; color: #7D381B;">${c.TipoRol} - ${c.NombreDepartamento || 'Nicaragua'}</span>
+            </div>
+        `).join('');
 
             } catch (error) {
-                contenedor.innerHTML = `<p style="text-align:center; padding:20px; color:#c92a2a; font-size:12px;">Error al conectar.</p>`;
+                console.error("Error al cargar contactos:", error);
+                listaContactos.innerHTML = `
+            <div style="padding: 15px; text-align: center; color: red; font-size: 12px;">
+                Error al conectar con el chat.
+            </div>`;
             }
         }
 
-        // 2. SELECCIONAR CONTACTO Y CONFIGURAR INTERFAZ
+        document.addEventListener('DOMContentLoaded', cargarContactos);
+
         function seleccionarContacto(id, nombre) {
             contactoSeleccionadoId = id;
 
@@ -773,15 +743,12 @@
             document.getElementById('chat-vendor-avatar').textContent = iniciales;
             document.getElementById('chat-vendor-sub').textContent = nombre.toLowerCase().includes('sol') ? "Verificado · León" : "Verificado · Masaya";
 
-            // Resetear el intervalo para evitar múltiples hilos colgados
             if (bucleActualizacion) clearInterval(bucleActualizacion);
 
-            // Cargar y activar polling en tiempo real cada 2 segundos
             cargarMensajesDeLaConversacion();
             bucleActualizacion = setInterval(cargarMensajesDeLaConversacion, 2000);
         }
 
-        // 3. TRAER HISTORIAL BIDIRECCIONAL DESDE MYSQL
         async function cargarMensajesDeLaConversacion() {
             if (!contactoSeleccionadoId) return;
 
@@ -819,7 +786,6 @@
             }
         }
 
-        // 4. GUARDAR MENSAJE EN MYSQL AL ENVIAR
         async function sendMsgMySQL() {
             const input = document.getElementById('chat-text');
             const text = input.value.trim();
@@ -847,7 +813,6 @@
             }
         }
 
-        // CERRAR SESIÓN
         function cerrarSesion() {
             if (bucleActualizacion) clearInterval(bucleActualizacion);
             localStorage.clear();

@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Iniciar Sesión</title>
 
-    <!-- Iconos de Tabler -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
-    <!-- Fuentes Web -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
     <style>
-        /* --- PALETA DE COLORES Y TIPOGRAFÍAS DEL PROYECTO --- */
         :root {
             --color-principal: #7D381B;  /* Marrón Cálido */
             --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
@@ -30,7 +27,13 @@
             padding: 0;
         }
 
+
         body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('textura.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             background-color: #f4f1ea;
             color: #1a1a1a;
             font-family: var(--font-secundaria);
@@ -40,7 +43,6 @@
             justify-content: space-between;
         }
 
-        /* --- CABECERA DE NAVEGACIÓN --- */
         .login-header {
             background-color: var(--color-secundario);
             padding: 15px 20px;
@@ -61,7 +63,6 @@
             color: var(--color-terciario);
         }
 
-        /* --- CONTENEDOR DE TARJETA --- */
         .main-container {
             flex: 1;
             display: flex;
@@ -71,11 +72,11 @@
         }
 
         .login-card {
-            background: #ffffff;
+            background-color: rgba(255, 255, 255, 0.85);
             width: 100%;
             max-width: 420px;
-            padding: 35px 30px;
-            border-radius: 8px;
+            padding: 30px;
+            border-radius: 12px;
             box-shadow: 0 4px 15px rgba(61, 23, 10, 0.1);
             border-top: 5px solid var(--color-principal);
             text-align: center;
@@ -97,11 +98,10 @@
 
         .login-card p.subtitle {
             font-size: 14px;
-            color: #666;
+            color: var(--color-secundario);
             margin-bottom: 25px;
         }
 
-        /* --- CAMPOS Y FORMULARIO --- */
         .form-group {
             margin-bottom: 20px;
             text-align: left;
@@ -160,7 +160,6 @@
             text-decoration: underline;
         }
 
-        /* Botón Principal */
         .btn-primary {
             width: 100%;
             background-color: var(--color-principal);
@@ -197,15 +196,14 @@
             left: 0;
             width: 100%;
             height: 1px;
-            background-color: #ddd;
             z-index: 1;
         }
 
         .divider span {
-            background-color: #fff;
+            background-color: rgba(255, 255, 255,0);
             padding: 0 10px;
-            font-size: 12px;
-            color: #777;
+            font-size: 14px;
+            color: var(--color-secundario);
             position: relative;
             z-index: 2;
         }
@@ -221,7 +219,6 @@
             text-decoration: underline;
         }
 
-        /* Footer */
         footer {
             background-color: var(--color-secundario);
             color: #d1c2b8;
@@ -244,12 +241,10 @@
 </head>
 <body>
 
-    <!-- CABECERA -->
     <header class="login-header">
         <a href="preview.html" class="logo">Entre<span>Lazados</span></a>
     </header>
 
-    <!-- CONTENIDO CENTRAL -->
     <main class="main-container">
         <div class="login-card">
             <img src="logo.png" alt="Logo EntreLazados" class="login-logo" onerror="this.style.display='none'">
@@ -258,26 +253,31 @@
             <p class="subtitle">Ingresa tu correo y contraseña para ingresar a la plataforma</p>
 
             <form id="loginForm" onsubmit="event.preventDefault(); procesarLogin();">
-                <!-- Correo Electrónico -->
                 <div class="form-group">
                     <label for="login-email">Correo Electrónico</label>
                     <div class="input-wrapper">
                         <i class="ti ti-mail"></i>
-                        <input type="email" id="login-email" class="form-control" placeholder="ejemplo@correo.com" required>
+                        <input 
+                            type="email" 
+                            id="login-email" 
+                            class="form-control" 
+                            placeholder="ejemplo@correo.com" 
+                            pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$"
+                            title="Ingresa un correo válido con su dominio completo (ejemplo: usuario@gmail.com)"
+                            required
+                        >
                     </div>
                 </div>
 
-                <!-- Campo de Contraseña -->
                 <div class="form-group">
                     <label for="login-password">Contraseña</label>
                     <div class="input-wrapper">
                         <i class="ti ti-lock"></i>
-                        <input type="password" id="login-password" class="form-control" placeholder="••••••••">
+                        <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
                     </div>
                     <a href="javascript:void(0)" onclick="solicitarRecuperacion()" class="forgot-link">¿Olvidaste tu contraseña?</a>
                 </div>
 
-                <!-- Botón de Envío -->
                 <button type="submit" class="btn-primary">
                     <i class="ti ti-login"></i> Entrar a la Plataforma
                 </button>
@@ -293,7 +293,6 @@
         </div>
     </main>
 
-    <!-- FOOTER -->
     <footer>
         <p>EntreLazados © 2026 - Mercado Digital de Materia Prima y Calzado</p>
         <p style="margin-top: 8px;">
@@ -303,16 +302,20 @@
         </p>
     </footer>
 
-    <!-- LÓGICA DE BACKEND -->
     <script>
+        const API_URL = window.location.origin;
+        const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
         async function procesarLogin() {
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
 
-            if (!email) return alert("Por favor ingresa tu correo.");
+            if (!email || !REGEX_EMAIL.test(email)) {
+                return alert("Por favor, ingresa un correo electrónico válido con su dominio completo (ejemplo: usuario@gmail.com).");
+            }
 
             try {
-                const response = await fetch(`http://${window.location.hostname}:3000/api/login`, {
+                const response = await fetch(`${API_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
@@ -325,6 +328,7 @@
                     localStorage.setItem('userRol', data.rol ? data.rol.toLowerCase() : '');
                     localStorage.setItem('userNombre', data.nombre || '');
                     localStorage.setItem('userId', data.id || '');
+                    localStorage.setItem('userCiudad', data.departamento || 'Managua');
 
                     alert(`¡Bienvenido de vuelta, ${data.nombre}!`);
                     window.location.href = 'index.html';
@@ -340,16 +344,21 @@
         async function solicitarRecuperacion() {
             let email = document.getElementById('login-email').value.trim();
 
-            if (!email) {
-                email = prompt("Por favor, ingresa tu correo electrónico registrado para enviarte el enlace de recuperación:");
+            if (!email || !REGEX_EMAIL.test(email)) {
+                email = prompt("Por favor, ingresa tu correo electrónico completo (ejemplo: usuario@gmail.com):");
                 if (!email) return;
+                email = email.trim();
+
+                if (!REGEX_EMAIL.test(email)) {
+                    return alert("El correo ingresado no es válido. Debe incluir dominio completo (ej. .com, .ni).");
+                }
             } else {
                 const confirmar = confirm(`¿Enviar enlace de recuperación a: ${email}?`);
                 if (!confirmar) return;
             }
 
             try {
-                const response = await fetch(`http://${window.location.hostname}:3000/api/solicitar-recuperacion`, {
+                const response = await fetch(`${API_URL}/api/solicitar-recuperacion`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })

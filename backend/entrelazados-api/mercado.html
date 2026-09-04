@@ -5,25 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Mercado de Materia Prima</title>
     
-    <!-- Iconos de Tabler -->
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
-    <!-- Leaflet CSS (para el mapa) -->
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Fuentes Web -->
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
     <style>
-        /* ==========================================================================
-           VARIABLES DE DISEÑO Y PALETA DE COLORES
-           ========================================================================== */
+
         :root {
-            --color-principal: #7D381B;  /* Marrón Cálido */
-            --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
-            --color-terciario: #993D24;  /* Terracota / Ámbar Rojizo */
+            --color-principal: #7D381B; 
+            --color-secundario: #3D170A;
+            --color-terciario: #993D24;
 
             --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
             --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
@@ -48,10 +46,18 @@
         }
 
         body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('patron.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             background-color: var(--bg-main); 
             color: var(--text-dark);
             font-family: var(--font-secundaria);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
         }
 
         h1, h2, h3, .logo, .shelf-title {
@@ -59,9 +65,7 @@
             font-weight: 900;
         }
 
-        /* ==========================================================================
-           HEADER SUPERIOR Y MENÚ DE NAVEGACIÓN
-           ========================================================================== */
+
         .amazon-header {
             background-color: var(--color-secundario);
             color: #ffffff;
@@ -152,7 +156,7 @@
             gap: 15px;
         }
 
-        /* --- MENÚ DESPLEGABLE DE USUARIO --- */
+
         .user-dropdown-wrapper {
             position: relative;
         }
@@ -242,7 +246,7 @@
             background-color: var(--border-color);
         }
 
-        /* --- SUB-NAVEGACIÓN --- */
+
         .sub-bar {
             background-color: #290f06;
             color: #fff;
@@ -266,9 +270,7 @@
             color: var(--color-terciario);
         }
 
-        /* ==========================================================================
-           CONTENEDOR PRINCIPAL Y PESTAÑAS DEL MERCADO
-           ========================================================================== */
+
         #app {
             max-width: 1100px;
             margin: 24px auto 40px auto;
@@ -306,9 +308,7 @@
             box-shadow: var(--shadow-sm);
         }
 
-        /* ==========================================================================
-           FILTROS Y RANGO DE DISTANCIA
-           ========================================================================== */
+
         .filter-bar {
             background: var(--bg-card);
             padding: 16px 20px;
@@ -343,9 +343,7 @@
             border: 1px solid var(--border-color);
         }
 
-        /* ==========================================================================
-           BOTONES GENERALES
-           ========================================================================== */
+
         .btn-primary {
             background-color: var(--color-principal);
             color: white;
@@ -399,9 +397,6 @@
             background-color: var(--color-terciario);
         }
 
-        /* ==========================================================================
-           TARJETAS DE OFERTAS Y SUBASTAS
-           ========================================================================== */
         .listings {
             display: flex;
             flex-direction: column;
@@ -513,7 +508,7 @@
             border-top: 1px solid var(--border-color);
         }
 
-        /* Estilos de Subasta */
+
         .auction-header {
             display: flex;
             justify-content: space-between;
@@ -587,9 +582,7 @@
             border-color: var(--color-principal);
         }
 
-        /* ==========================================================================
-           MAPA INTERACTIVO Y MODALES DE PUBLICACIÓN
-           ========================================================================== */
+
         #mapa-interactivo {
             width: 100%;
             height: 480px;
@@ -661,7 +654,7 @@
             border-color: var(--color-principal);
         }
 
-        /* --- ESTILOS DE SUBIDA Y VISTA PREVIA DE FOTOS --- */
+
         .upload-box {
             border: 2px dashed var(--border-color);
             border-radius: var(--radius-sm);
@@ -733,15 +726,14 @@
             font-weight: bold;
         }
 
-        /* FOOTER */
         footer {
             background-color: var(--color-secundario);
             color: #fff;
             text-align: center;
-            padding: 30px 20px;
+            padding: 10px;
             font-size: 12px;
-            margin-top: 40px;
-            border-top: 4px solid var(--color-principal);
+            margin-top: auto;
+            border-top: 4px solid var(--color-terciario);
         }
 
         footer a {
@@ -762,15 +754,14 @@
 </head>
 <body>
 
-    <!-- BARRA SUPERIOR (HEADER TIPO E-COMMERCE) -->
     <header class="amazon-header">
         <a href="index.html" class="logo">Entre<span>Lazados</span></a>
 
         <div class="header-location">
             <i class="ti ti-map-pin" style="font-size: 18px;"></i>
             <div>
-                Ubicación
-                <strong>Managua</strong>
+                <span class="location-label">Enviar a</span>
+                <strong id="user-location">Cargando...</strong>
             </div>
         </div>
 
@@ -787,15 +778,15 @@
             <button class="search-btn"><i class="ti ti-search"></i></button>
         </div>
 
-        <!-- ÁREA DE NAVEGACIÓN Y USUARIO -->
+
         <div class="nav-user">
             <div id="authArea">
-                <!-- Se llena dinámicamente desde JS -->
+
             </div>
         </div>
     </header>
 
-    <!-- SUB-NAVEGACIÓN -->
+
     <div class="sub-bar">
         <a href="index.html"><i class="ti ti-home"></i> Inicio</a>
         <a href="mercado.html" class="active"><i class="ti ti-building-store"></i> Mercado Completo</a>
@@ -804,9 +795,9 @@
         <a href="#"><i class="ti ti-map-pin"></i> Proveedores de Masaya</a>
     </div>
 
-    <!-- CONTENIDO DEL MERCADO -->
+
     <div id="app">
-        <!-- Pestañas Principales -->
+
         <div class="tab-bar">
             <button class="tab active" onclick="switchMarketTab(this,'listings')">
                 <i class="ti ti-building-store" style="margin-right: 4px;"></i> Ofertas Directas
@@ -819,7 +810,7 @@
             </button>
         </div>
 
-        <!-- Sección de Ofertas -->
+
         <div id="tab-listings" class="section">
             <div class="filter-bar">
                 <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -838,7 +829,7 @@
             </div>
         </div>
 
-        <!-- Sección de Subastas -->
+
         <div id="tab-auctions" class="section" style="display:none;">
             <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; border-top-color: var(--color-terciario);">
                 <div style="font-size: 14px; font-weight: 700; color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
@@ -853,16 +844,17 @@
             </div>
         </div>
 
-        <!-- Sección de Mapa -->
         <div id="tab-map" class="section" style="display:none;">
-            <div style="margin-bottom: 12px; font-weight: 900; font-family: var(--font-principal); color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
-                <i class="ti ti-map-2" style="font-size: 20px; color: var(--color-principal);"></i> Proveedores Cercanos en Nicaragua
+            <div class="filter-bar">
+                <div style="font-size: 14px; font-weight: 700; color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
+                    <i class="ti ti-map-2" style="font-size: 18px; color: var(--color-principal);"></i> Proveedores Cercanos en Nicaragua
+                </div>
             </div>
             <div id="mapa-interactivo"></div>
         </div>
     </div>
 
-    <!-- 1. MODAL PARA PUBLICAR OFERTA DIRECTA -->
+
     <div id="modalOferta" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="cerrarModal()">&times;</span>
@@ -912,7 +904,6 @@
                 </select>
             </div>
 
-            <!-- SECCIÓN: TOMAR O SUBIR FOTOS -->
             <div class="form-group">
                 <label class="form-label">Fotografías del Producto</label>
                 <div class="upload-box" onclick="document.getElementById('inputFotos').click()">
@@ -922,7 +913,6 @@
                 </div>
                 <input type="file" id="inputFotos" accept="image/*" capture="environment" multiple style="display: none;" onchange="procesarFotosSeleccionadas(event)">
                 
-                <!-- Galería de vista previa -->
                 <div class="photo-preview-grid" id="previewGrid"></div>
             </div>
 
@@ -932,7 +922,6 @@
         </div>
     </div>
 
-    <!-- 2. MODAL PARA CREAR SUBASTA -->
     <div id="modalSubasta" class="modal">
         <div class="modal-content" style="border-top-color: var(--color-terciario);">
             <span class="close-btn" onclick="cerrarModalSubasta()">&times;</span>
@@ -978,7 +967,6 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
     <footer>
         <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
         <p style="margin-top: 10px;">
@@ -989,27 +977,24 @@
         </p>
     </footer>
 
-    <!-- Scripts de Leaflet y Lógica -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
         let mapa;
-        const API_URL = `http://${window.location.hostname}:3000`;
+        const API_URL = window.location.origin;
         let todasLasOfertas = [];
-        let fotosPublicacion = []; // Arreglo para almacenar imágenes Base64
+        let fotosPublicacion = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             const userEmail = localStorage.getItem('userEmail');
             const userNombre = localStorage.getItem('userNombre') || 'Usuario';
             const userRol = localStorage.getItem('userRol') || 'Miembro';
 
-            // Protección de Sesión
-            if (!userEmail) {
+           if (!userEmail) {
                 window.location.href = 'login.html';
                 return;
             }
 
-            // Renderizar el Menú Desplegable de Usuario
             const authArea = document.getElementById('authArea');
             authArea.innerHTML = `
                 <div class="user-dropdown-wrapper">
@@ -1036,7 +1021,6 @@
                 </div>
             `;
 
-            // Mostrar botones de publicación si el rol es proveedor
             if (userRol === 'proveedor') {
                 document.getElementById('btn-publicar-modal').style.display = 'inline-flex';
                 document.getElementById('btn-subasta-modal').style.display = 'inline-flex';
@@ -1046,7 +1030,6 @@
             cargarSubastasDesdeBD();
         });
 
-        // Toggle del Menú Desplegable
         function toggleUserDropdown(event) {
             event.stopPropagation();
             const dropdown = document.getElementById('userDropdownMenu');
@@ -1062,7 +1045,6 @@
             }
         };
 
-        /* LÓGICA DE FOTOGRAFÍAS (CARGA / VISTA PREVIA) */
         function procesarFotosSeleccionadas(event) {
             const archivos = Array.from(event.target.files);
 
@@ -1097,7 +1079,6 @@
             renderizarVistaPreviaFotos();
         }
 
-        // CARGAR OFERTAS DIRECTAS
         async function cargarOfertasDesdeBD() {
             try {
                 const response = await fetch(`${API_URL}/api/ofertas`);
@@ -1111,7 +1092,6 @@
             }
         }
 
-        // RENDERIZAR OFERTAS
         function renderizarOfertasFiltradas(maxKm) {
             const contenedor = document.getElementById('contenedor-ofertas');
             const miUserId = localStorage.getItem('userId');
@@ -1195,7 +1175,6 @@
             }
         }
 
-        // CARGAR SUBASTAS
         async function cargarSubastasDesdeBD() {
             const contenedor = document.getElementById('contenedor-subastas');
             const miUserId = parseInt(localStorage.getItem('userId'));
@@ -1320,7 +1299,6 @@
             } catch (error) { alert("Error de red al guardar la oferta."); }
         }
 
-        /* GUARDAR SUBASTA */
         async function guardarSubasta() {
             const tituloLote = document.getElementById('subastaTitulo').value.trim();
             const precioBase = document.getElementById('subastaPrecioBase').value.trim();
@@ -1356,7 +1334,6 @@
             }
         }
 
-        // FUNCIONES DE CONTROL DE MODALES
         function abrirModal() { document.getElementById('modalOferta').style.display = 'block'; }
 
         function cerrarModal() {
