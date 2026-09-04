@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Registro</title>
 
-    <!-- Iconos de Tabler -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
-    <!-- Fuentes Web -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
     <style>
-        /* --- PALETA DE COLORES Y TIPOGRAFÍAS --- */
         :root {
             --color-principal: #7D381B;  /* Marrón Cálido */
             --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
@@ -31,6 +28,11 @@
         }
 
         body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('textura.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             background-color: #f4f1ea;
             color: #1a1a1a;
             font-family: var(--font-secundaria);
@@ -40,7 +42,6 @@
             justify-content: space-between;
         }
 
-        /* --- CABECERA DE NAVEGACIÓN --- */
         .login-header {
             background-color: var(--color-secundario);
             padding: 15px 20px;
@@ -61,7 +62,6 @@
             color: var(--color-terciario);
         }
 
-        /* --- CONTENEDOR PRINCIPAL --- */
         .main-container {
             flex: 1;
             display: flex;
@@ -71,7 +71,7 @@
         }
 
         .register-card {
-            background: #ffffff;
+            background: rgba(255, 255, 255,0.85);
             width: 100%;
             max-width: 520px;
             padding: 35px 30px;
@@ -81,7 +81,6 @@
             text-align: center;
         }
 
-        /* Logo superior dentro de la tarjeta */
         .register-logo {
             max-width: 110px;
             height: auto;
@@ -97,12 +96,11 @@
         }
 
         .register-card p.subtitle {
-            font-size: 14px;
-            color: #666;
+            font-size: 15px;
+            color: var(--color-secundario);
             margin-bottom: 20px;
         }
 
-        /* Selector de Rol */
         .role-selector {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -143,7 +141,6 @@
             color: var(--color-terciario);
         }
 
-        /* --- CAMPOS Y FORMULARIO --- */
         .form-group {
             margin-bottom: 18px;
             text-align: left;
@@ -192,7 +189,6 @@
             box-shadow: 0 0 0 3px rgba(125, 56, 27, 0.15);
         }
 
-        /* Estilo para los bloques dinámicos */
         .dynamic-section {
             border-top: 1px dashed #ddd;
             padding-top: 15px;
@@ -210,7 +206,6 @@
             gap: 6px;
         }
 
-        /* Botón Principal */
         .btn-primary {
             width: 100%;
             background-color: var(--color-principal);
@@ -247,15 +242,15 @@
             left: 0;
             width: 100%;
             height: 1px;
-            background-color: #ddd;
+            background-color: rgba(255, 255, 255,0);
             z-index: 1;
         }
 
         .divider span {
-            background-color: #fff;
+            background-color: rgba(255, 255, 255,0);
             padding: 0 10px;
-            font-size: 12px;
-            color: #777;
+            font-size: 14px;
+            color: var(--color-secundario);
             position: relative;
             z-index: 2;
         }
@@ -271,7 +266,6 @@
             text-decoration: underline;
         }
 
-        /* Footer */
         footer {
             background-color: var(--color-secundario);
             color: #d1c2b8;
@@ -294,21 +288,17 @@
 </head>
 <body>
 
-    <!-- CABECERA -->
     <header class="login-header">
         <a href="preview.html" class="logo">Entre<span>Lazados</span></a>
     </header>
 
-    <!-- CONTENIDO CENTRAL -->
     <main class="main-container">
         <div class="register-card">
-            <!-- LOGO SUPERIOR -->
             <img src="logo.png" alt="Logo EntreLazados" class="register-logo" onerror="this.style.display='none'">
 
             <h2>Crear Cuenta</h2>
             <p class="subtitle">Elige tu perfil y completa el formulario para comenzar</p>
 
-            <!-- Selector de Rol -->
             <div class="role-selector">
                 <div class="role-option selected" id="optProveedor" onclick="selectRole('Proveedor')">
                     <i class="ti ti-truck-delivery"></i>
@@ -321,7 +311,6 @@
             </div>
 
             <form id="registerForm" onsubmit="event.preventDefault(); enviarDatos();">
-                <!-- CAMPOS COMUNES -->
                 <div class="form-group">
                     <label for="nombreNegocio">Nombre o Razón Social</label>
                     <div class="input-wrapper">
@@ -334,7 +323,15 @@
                     <label for="correo">Correo Electrónico</label>
                     <div class="input-wrapper">
                         <i class="ti ti-mail"></i>
-                        <input type="email" id="correo" class="form-control" placeholder="contacto@taller.com" required>
+                        <input 
+                            type="email" 
+                            id="correo" 
+                            class="form-control" 
+                            placeholder="contacto@taller.com" 
+                            pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$"
+                            title="Ingresa un correo electrónico válido con su dominio completo (ejemplo: usuario@gmail.com)"
+                            required
+                        >
                     </div>
                 </div>
 
@@ -354,7 +351,6 @@
                     </div>
                 </div>
 
-                <!-- SECCIÓN DINÁMICA: PROVEEDOR -->
                 <div id="seccionProveedor" class="dynamic-section">
                     <h3><i class="ti ti-box"></i> Datos del Proveedor</h3>
                     
@@ -391,7 +387,6 @@
                     </div>
                 </div>
 
-                <!-- SECCIÓN DINÁMICA: EMPRENDEDOR -->
                 <div id="seccionEmprendedor" class="dynamic-section" style="display: none;">
                     <h3><i class="ti ti-cut"></i> Datos del Emprendedor</h3>
 
@@ -420,7 +415,6 @@
                     </div>
                 </div>
 
-                <!-- CONTRASEÑAS -->
                 <div class="form-group">
                     <label for="password">Crear Contraseña</label>
                     <div class="input-wrapper">
@@ -437,7 +431,6 @@
                     </div>
                 </div>
 
-                <!-- Botón de Envío -->
                 <button type="submit" class="btn-primary">
                     <i class="ti ti-user-plus"></i> Completar Registro
                 </button>
@@ -453,7 +446,6 @@
         </div>
     </main>
 
-    <!-- FOOTER -->
     <footer>
         <p>EntreLazados © 2026 - Mercado Digital de Materia Prima y Calzado</p>
         <p style="margin-top: 8px;">
@@ -463,11 +455,10 @@
         </p>
     </footer>
 
-    <!-- LÓGICA DE JAVASCRIPT Y BACKEND -->
     <script>
+        const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
         let selectedRol = 'Proveedor';
 
-        // Cambiar la selección visual de roles y mostrar/ocultar campos
         function selectRole(rolValue) {
             selectedRol = rolValue;
 
@@ -489,7 +480,6 @@
             }
         }
 
-        // Función para enviar los datos al servidor backend
         async function enviarDatos() {
             const nombreVal = document.getElementById('nombreNegocio').value.trim();
             const emailVal = document.getElementById('correo').value.trim();
@@ -498,19 +488,21 @@
             const passVal = document.getElementById('password').value;
             const confirmPassVal = document.getElementById('confirmPassword').value;
 
-            // Validación de campos comunes obligatorios
             if (!nombreVal || !emailVal || !telefonoVal || !deptoIdVal || !passVal || !confirmPassVal) {
                 alert("Por favor, rellena todos los campos obligatorios antes de continuar.");
                 return;
             }
 
-            // Validar que las contraseñas coincidan
+            if (!REGEX_EMAIL.test(emailVal)) {
+                alert("Por favor, ingresa un correo electrónico válido con su dominio completo (ejemplo: usuario@gmail.com).");
+                return;
+            }
+
             if (passVal !== confirmPassVal) {
                 alert("Las contraseñas no coinciden. Por favor verifícalas.");
                 return;
             }
 
-            // Construcción del objeto de envío con todos los campos
             const data = {
                 nombre: nombreVal,
                 rol: selectedRol,
@@ -518,18 +510,16 @@
                 telefono: telefonoVal,
                 deptoId: deptoIdVal,
                 password: passVal,
-                // Campos específicos de Proveedor
                 numeroRuc: document.getElementById('numeroRuc').value.trim(),
                 nombreComercial: document.getElementById('nombreComercial').value.trim(),
                 tipoMateriaPrimaPrincipal: document.getElementById('tipoMateriaPrimaPrincipal').value.trim(),
                 descripcionEmpresa: document.getElementById('descripcionEmpresa').value.trim(),
-                // Campos específicos de Emprendedor
                 nombreMarca: document.getElementById('nombreMarca').value.trim(),
                 especialidadCalzado: document.getElementById('especialidadCalzado').value.trim(),
                 capacidadProduccionMensual: document.getElementById('capacidadProduccionMensual').value.trim()
             };
 
-            const API_URL = `http://${window.location.hostname}:3000`;
+            const API_URL = window.location.origin;
 
             try {
                 const response = await fetch(`${API_URL}/registro`, {

@@ -5,23 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Tu Mercado de Materia Prima para Cuero</title>
     
-    <!-- Iconos de Tabler -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
-    <!-- Fuentes Web de Respaldo -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
     <style>
-        /* --- PALETA DE COLORES Y TIPOGRAFÍAS --- */
         :root {
-            /* Paleta Oficial */
             --color-principal: #7D381B;  /* Marrón Cálido */
             --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
             --color-terciario: #993D24;  /* Terracota / Ámbar Rojizo */
 
-            /* Tipografías */
             --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
             --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
         }
@@ -33,6 +28,11 @@
         }
 
         body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('volcanes.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             background-color: #f4f1ea; 
             color: #1a1a1a;
             font-family: var(--font-secundaria);
@@ -69,7 +69,6 @@
             color: var(--color-terciario);
         }
 
-        /* Ubicación */
         .header-location {
             display: flex;
             align-items: center;
@@ -208,8 +207,6 @@
         }
 
         .hero-banner {
-            background: linear-gradient(to bottom, rgba(61, 23, 10, 0.6), rgba(244, 241, 234, 1)), 
-                        url('https://images.unsplash.com/photo-1531835551805-16d864c88311?w=1400') center/cover no-repeat;
             height: 320px;
             display: flex;
             align-items: flex-start;
@@ -390,7 +387,6 @@
 </head>
 <body>
 
-    <!-- BARRA SUPERIOR (HEADER) -->
     <header class="amazon-header">
         <a href="preview.html" class="logo">Entre<span>Lazados</span></a>
 
@@ -422,7 +418,6 @@
         </div>
     </header>
 
-    <!-- SUB-NAVEGACIÓN -->
     <div class="sub-bar">
         <a href="#"><i class="ti ti-menu-2"></i> Todo el Catálogo</a>
         <a href="mercado.html">Mercado Completo</a>
@@ -432,26 +427,21 @@
         <a href="#">Herramientas de Zapatería</a>
     </div>
 
-    <!-- BANNER PRINCIPAL -->
     <section class="hero-banner">
         <h1 class="hero-title">Insumos y Materia Prima para Artesanos del Calzado</h1>
     </section>
 
-    <!-- CONTENIDO PRINCIPAL -->
     <main class="main-content">
 
         <div class="amazon-grid">
 
-            <!-- ZAPATOS DE CUERO -->
             <div class="amazon-card" id="loginCard">
                 <h2>Inicia sesión para ver tus cotizaciones</h2>
-                <!-- Calzado artesanal de cuero -->
                 <img src="https://images.unsplash.com/photo-1605733160314-4fc7dac4bb16?q=80&w=1190&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="amazon-card-img" alt="Zapatos de Cuero">
                 <a href="login.html" class="btn-nav-login" style="text-align: center; display: block; margin-bottom: 10px;">Iniciar Sesión de Forma Segura</a>
                 <a href="unirse.html" class="amazon-card-link">¿Eres nuevo proveedor? Empieza aquí</a>
             </div>
 
-            <!-- CATEGORÍAS DE CUERO -->
             <div class="amazon-card">
                 <h2>Cueros y Pieles Populares</h2>
                 <div class="sub-grid">
@@ -475,55 +465,46 @@
                 <a href="mercado.html" class="amazon-card-link">Explorar todo en Pieles</a>
             </div>
 
-            <!-- HERRAJES -->
             <div class="amazon-card">
                 <h2>Herrajes y Accesorios</h2>
                 <img src="https://plus.unsplash.com/premium_photo-1682145989449-1e625c4982ce?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="amazon-card-img" alt="Herrajes">
                 <a href="mercado.html" class="amazon-card-link">Ver Hebillas, Ojetes y Remaches</a>
             </div>
 
-            <!-- ARTESANO TRABAJANDO CUERO -->
             <div class="amazon-card">
                 <h2>Materia Prima Directa de Curtiembres</h2>
                 <p style="font-size: 13px; color: #555; line-height: 1.5; margin-bottom: 15px;">
                     Conecta directamente con productores de Masaya, Granada y Estelí sin intermediarios.
                 </p>
-                <!-- Artesano trabajando cuero manualmente -->
                 <img src="https://images.unsplash.com/photo-1607969892714-797a3d4c266a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="amazon-card-img" alt="Trabajador de Cuero">
                 <a href="mercado.html" class="amazon-card-link">Conocer Proveedores Verificados</a>
             </div>
 
         </div>
 
-        <!-- TIRA DE PRODUCTOS DESTACADOS -->
         <section class="products-shelf">
             <h2 class="shelf-title">Insumos más buscados esta semana</h2>
             
             <div class="shelf-items">
-                <!-- Producto 1 -->
                 <div class="shelf-item">
                     <img src="https://images.unsplash.com/photo-1599568723850-14196ee0f991?q=80&w=1196&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Cuero Vacuno">
                     <a href="mercado.html" class="shelf-item-title">Cuero Vacuno Castaño (Pie de 30x30 cm)</a>
                     <div class="price-tag">C$ 120.00 NIO</div>
                 </div>
 
-                <!-- Producto 2 -->
                 <div class="shelf-item">
                     <img src="https://images.unsplash.com/photo-1628024450128-30c4bb7507eb?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Hilo Encerado">
                     <a href="mercado.html" class="shelf-item-title">Hilo Encerado N° 9 para Costura Manual</a>
                     <div class="price-tag">C$ 280.00 NIO</div>
                 </div>
 
-                <!-- Producto 3 -->
                 <div class="shelf-item">
                     <img src="https://plus.unsplash.com/premium_photo-1726769202190-ad2a3f2f360b?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Hebilla Metálica">
                     <a href="mercado.html" class="shelf-item-title">Hebilla Metálica Antioxidante 35mm</a>
                     <div class="price-tag">C$ 45.00 NIO</div>
                 </div>
 
-                <!-- Producto 4 -->
                 <div class="shelf-item">
-                    <!-- Imagen -->
                     <img src="https://images.unsplash.com/photo-1727233432290-10a382f42bb3?q=80&w=688&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Trabajo en Taller">
                     <a href="mercado.html" class="shelf-item-title">Pegamento Cemento Amarillo</a>
                     <div class="price-tag">C$ 850.00 NIO</div>
@@ -533,7 +514,6 @@
 
     </main>
 
-    <!-- FOOTER -->
     <footer>
         <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
         <p style="margin-top: 10px;">
@@ -544,8 +524,9 @@
         </p>
     </footer>
 
-    <!-- LÓGICA DE SESIÓN CON LOCALSTORAGE -->
     <script>
+        const API_URL = window.location.origin;
+
         document.addEventListener('DOMContentLoaded', () => {
             const userNombre = localStorage.getItem('userNombre');
             const userRol = localStorage.getItem('userRol');
@@ -580,4 +561,4 @@
         }
     </script>
 </body>
-</html>    
+</html>

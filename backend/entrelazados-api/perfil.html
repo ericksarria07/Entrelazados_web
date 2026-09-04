@@ -8,13 +8,13 @@
     <!-- Iconos de Tabler -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     
-    <!-- Fuentes Web (Mismas de preview.html) -->
+    <!-- Fuentes Web -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
     <style>
-        /* --- PALETA DE COLORES Y TIPOGRAFÍAS DE PREVIEW.HTML --- */
+        /* --- PALETA DE COLORES Y TIPOGRAFÍAS --- */
         :root {
             --color-principal: #7D381B;  /* Marrón Cálido */
             --color-secundario: #3D170A; /* Marrón Oscuro / Chocolate */
@@ -31,17 +31,23 @@
         }
 
         body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('xo.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-color: #f4f1ea;
             background-color: #f4f1ea; 
             color: #1a1a1a;
             font-family: var(--font-secundaria);
         }
-
+            
         h1, h2, h3, .logo {
             font-family: var(--font-principal);
             font-weight: 900;
         }
 
-        /* --- BARRA SUPERIOR (ESTILO EXACTO PREVIEW.HTML) --- */
+        /* --- BARRA SUPERIOR --- */
         .amazon-header {
             background-color: var(--color-secundario);
             color: #ffffff;
@@ -68,7 +74,7 @@
             color: var(--color-terciario);
         }
 
-        /* Enlaces de Navegación: Inicio, Mercado, Chat */
+        /* Enlaces de Navegación */
         .nav-links {
             display: flex;
             align-items: center;
@@ -151,7 +157,7 @@
             background-color: var(--color-terciario);
         }
 
-        /* Desplegable de usuario en la barra */
+        /* Desplegable de usuario */
         .user-dropdown-wrapper { position: relative; }
         .user-btn-nav {
             background: rgba(255, 255, 255, 0.1);
@@ -202,7 +208,7 @@
         }
 
         .profile-card {
-            background: #ffffff;
+            background:rgba(255, 255, 255,0.85);
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(61, 23, 10, 0.08);
             border: 1px solid #e0d8ce;
@@ -327,11 +333,10 @@
 </head>
 <body>
     <div id="app">
-        <!-- BARRA SUPERIOR CON ESTILO PREVIEW.HTML -->
+        <!-- BARRA SUPERIOR -->
         <header class="amazon-header">
             <a href="index.html" class="logo">Entre<span>Lazados</span></a>
 
-            <!-- OPCIONES DE NAVEGACIÓN SOLICITADAS -->
             <nav class="nav-links">
                 <a href="index.html" class="nav-link-item"><i class="ti ti-home"></i> Inicio</a>
                 <a href="mercado.html" class="nav-link-item"><i class="ti ti-building-store"></i> Mercado</a>
@@ -341,8 +346,8 @@
             <div class="header-location">
                 <i class="ti ti-map-pin" style="font-size: 18px;"></i>
                 <div>
-                    Enviar a
-                    <strong>Managua</strong>
+                <span class="location-label">Enviar a</span>
+                <strong id="user-location">Cargando...</strong>
                 </div>
             </div>
 
@@ -474,14 +479,14 @@
 
     <!-- LÓGICA JAVASCRIPT -->
     <script>
+        const API_URL = window.location.origin;
+
         window.addEventListener('DOMContentLoaded', async () => {
             const userId = localStorage.getItem('userId');
-            if (!userId) {
+           if (!userId) {
                 window.location.href = 'login.html';
                 return;
             }
-
-            const API_URL = `http://${window.location.hostname}:3000`;
 
             try {
                 const response = await fetch(`${API_URL}/api/perfil/${userId}`);
