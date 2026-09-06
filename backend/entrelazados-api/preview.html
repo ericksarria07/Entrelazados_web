@@ -357,25 +357,64 @@
             color: var(--color-terciario);
         }
 
-        footer {
-            background-color: var(--color-secundario);
-            color: #fff;
-            text-align: center;
-            padding: 30px 20px;
-            font-size: 12px;
-            margin-top: 40px;
-            border-top: 4px solid var(--color-principal);
-        }
+footer {
+    background-color: var(--color-secundario);
+    color: #fff;
+    padding: 20px 30px;
+    font-size: 12px;
+    margin-top: auto;
+    border-top: 4px solid var(--color-principal);
+}
 
-        footer a {
-            color: #d1c2b8;
-            text-decoration: none;
-            margin: 0 10px;
-        }
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
 
-        footer a:hover {
-            color: #fff;
-        }
+/* Grupo Izquierdo: Marca + Volcán juntos */
+.footer-brand-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.footer-brand {
+    font-family: var(--font-principal);
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+}
+
+.footer-brand span {
+    color: var(--color-terciario);
+}
+
+.footer-volcano-img {
+    height: 32px;
+    width: auto;
+    display: block;
+}
+
+/* Sección Central/Derecha */
+.footer-center {
+    text-align: right;
+}
+
+footer a {
+    color: #d1c2b8;
+    text-decoration: none;
+    margin: 0 8px;
+}
+
+footer a:hover {
+    color: #fff;
+}
 
         @media (max-width: 768px) {
             .amazon-header { flex-wrap: wrap; }
@@ -514,15 +553,37 @@
 
     </main>
 
-    <footer>
-        <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
-        <p style="margin-top: 10px;">
-            <a href="preview.html">Inicio</a> | 
-            <a href="mercado.html">Mercado</a> | 
-            <a href="login.html">Iniciar Sesión</a> | 
-            <a href="unirse.html">Registro</a>
-        </p>
-    </footer>
+<footer>
+    <div class="footer-container">
+        <div class="footer-brand-group">
+            <div class="footer-brand">
+                NICA<span>RAGUA</span>
+            </div>
+            <img src="volcan.png" alt="Volcán Nicaragua" class="footer-volcano-img">
+        </div>
+
+
+        <div class="footer-center">
+            <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+            <p style="margin-top: 8px;">
+                <a href="index.html">Inicio</a> | 
+                <a href="mercado.html">Mercado</a> | 
+                <a href="chat.html">Chat</a> | 
+                <a href="perfil.html">Mi Perfil</a>
+            </p>
+        </div>
+
+
+        <div class="footer-volcano">
+        <div class="footer-brand-group">
+            <div class="footer-brand">
+                NICA<span>RAGUA</span>
+            </div>
+            <img src="volcan.png" alt="Volcán Nicaragua" class="footer-volcano-img">
+        </div>
+        </div>
+    </div>
+</footer>
 
     <script>
         const API_URL = window.location.origin;
