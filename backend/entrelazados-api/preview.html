@@ -376,16 +376,9 @@ footer {
     gap: 15px;
 }
 
-/* Grupo Izquierdo: Marca + Volcán juntos */
-.footer-brand-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
 .footer-brand {
     font-family: var(--font-principal);
-    font-size: 20px;
+    font-size: 30px;
     font-weight: 900;
     letter-spacing: 1.5px;
     color: #ffffff;
@@ -395,27 +388,25 @@ footer {
     color: var(--color-terciario);
 }
 
-.footer-volcano-img {
-    height: 32px;
-    width: auto;
-    display: block;
-}
-
-/* Sección Central/Derecha */
 .footer-center {
-    text-align: right;
+    text-align: center;
 }
 
 footer a {
     color: #d1c2b8;
     text-decoration: none;
-    margin: 0 8px;
+    margin: 0 10px;
 }
 
 footer a:hover {
     color: #fff;
 }
 
+.footer-volcano img {
+    height: 70px;
+    width: auto;
+    display: block;
+}
         @media (max-width: 768px) {
             .amazon-header { flex-wrap: wrap; }
             .search-bar { order: 3; width: 100%; }
@@ -555,13 +546,9 @@ footer a:hover {
 
 <footer>
     <div class="footer-container">
-        <div class="footer-brand-group">
-            <div class="footer-brand">
-                NICA<span>RAGUA</span>
-            </div>
-            <img src="volcan.png" alt="Volcán Nicaragua" class="footer-volcano-img">
+        <div class="footer-brand">
+            NICA<span>RAGUA</span>
         </div>
-
 
         <div class="footer-center">
             <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
@@ -573,14 +560,8 @@ footer a:hover {
             </p>
         </div>
 
-
         <div class="footer-volcano">
-        <div class="footer-brand-group">
-            <div class="footer-brand">
-                NICA<span>RAGUA</span>
-            </div>
-            <img src="volcan.png" alt="Volcán Nicaragua" class="footer-volcano-img">
-        </div>
+            <img src="volcan.png" alt="Volcán Nicaragua">
         </div>
     </div>
 </footer>
