@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Panel de Administración</title>
+
+    <!-- Iconos de Tabler -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+    <!-- Fuentes Web -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900&display=swap" rel="stylesheet">
+
+    <!-- GUARDIÁN DE NAVEGACIÓN PARA ADMINISTRADORES -->
+    <script>
+        (function () {
+            const userEmail = localStorage.getItem('userEmail');
+            const userId = localStorage.getItem('userId');
+            const userRol = (localStorage.getItem('userRol') || '').toLowerCase();
+
+            if (!userEmail || !userId) {
+                window.location.href = 'preview.html';
+                return;
+            }
+
+            if (userRol !== 'administrador' && userRol !== 'admin') {
+                alert('Acceso restringido únicamente para Administradores.');
+                window.location.href = 'index.html';
+            }
+        })();
+    </script>
+
+    <style>
+        :root {
+            --color-principal: #7D381B;
+            --color-secundario: #3D170A;
+            --color-terciario: #993D24;
+            --color-bg: #f4f1ea;
+            --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
+            --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--color-bg);
+            color: #1a1a1a;
+            font-family: var(--font-secundaria);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, .logo { font-family: var(--font-principal); font-weight: 900; }
+
+        /* HEADER */
+        .amazon-header {
+            background-color: var(--color-secundario);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .logo { font-size: 24px; color: #fff; text-decoration: none; }
+        .logo span { color: var(--color-terciario); }
+
+        .admin-badge-header {
+            background-color: #d9480f;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .user-btn-nav {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--color-principal);
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        /* SUB-BARRA */
+        .sub-bar {
+            background-color: #290f06;
+            color: #fff;
+            display: flex;
+            gap: 20px;
+            padding: 8px 24px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .sub-bar a { color: #f1e8e3; text-decoration: none; display: flex; align-items: center; gap: 6px; }
+        .sub-bar a:hover { color: var(--color-terciario); }
+
+        /* CONTENEDOR PRINCIPAL */
+        .admin-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 25px auto;
+            padding: 0 20px 40px;
+            flex: 1;
+        }
+
+        /* METRICAS / KPIS */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid #e0d8ce;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background-color: rgba(125, 56, 27, 0.1);
+            color: var(--color-principal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .metric-info h4 { font-size: 12px; text-transform: uppercase; color: #777; margin-bottom: 2px; }
+        .metric-info p { font-size: 22px; font-weight: 800; color: var(--color-secundario); }
+
+        /* PANELES DE TABLAS */
+        .panel-section {
+            background: #ffffff;
+            border-radius: 10px;
+            border: 1px solid #e0d8ce;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            border-bottom: 2px solid #f4f1ea;
+            padding-bottom: 10px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            color: var(--color-secundario);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* TABLAS RESPONSIVAS */
+        .table-responsive { width: 100%; overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th { background-color: #f9f7f4; color: var(--color-principal); font-weight: 700; }
+
+        .badge-status {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-activo { background: #e6fcf5; color: #0ca678; }
+        .badge-inactivo { background: #fff9db; color: #f59f00; }
+        .badge-suspendido { background: #ffe3e3; color: #f03e3e; }
+
+        .btn-action {
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-action:hover { opacity: 0.85; }
+        .btn-delete { background-color: #e03131; color: white; }
+
+        /* FORMULARIO CATEGORÍA */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--color-principal);
+            margin-bottom: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .btn-submit {
+            background-color: var(--color-principal);
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        /* --- ESTILOS DE KAN (ASISTENTE FLOTANTE) --- */
+        .kan-floating-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .kan-trigger-btn {
+            background: var(--color-principal);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .kan-trigger-btn:hover { transform: scale(1.08); }
+        .kan-trigger-btn img { width: 100%; height: 100%; object-fit: cover; }
+
+        .kan-chat-window {
+            display: none;
+            width: 320px;
+            height: 420px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            border: 1fr solid #e0d8ce;
+            margin-bottom: 10px;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .kan-chat-window.active { display: flex; }
+
+        .kan-chat-header {
+            background: var(--color-secundario);
+            color: #ffffff;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .kan-chat-body {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #fcfbf9;
+            font-size: 12px;
+        }
+
+        .kan-msg { padding: 8px 12px; border-radius: 8px; max-width: 85%; word-break: break-word; }
+        .kan-msg.bot { background: #e0d8ce; color: #1a1a1a; align-self: flex-start; }
+        .kan-msg.user { background: var(--color-principal); color: #ffffff; align-self: flex-end; }
+
+        .kan-quick-opts { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+        .kan-opt-btn {
+            background: #ffffff;
+            border: 1px solid var(--color-principal);
+            color: var(--color-principal);
+            padding: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            text-align: left;
+        }
+        .kan-opt-btn:hover { background: var(--color-principal); color: white; }
+
+        .kan-chat-footer { display: flex; padding: 8px; background: #fff; border-top: 1px solid #eee; }
+        .kan-chat-footer input { flex: 1; border: 1px solid #ccc; padding: 6px; border-radius: 4px; outline: none; font-size: 12px; }
+        .kan-chat-footer button { background: var(--color-principal); color: white; border: none; padding: 6px 10px; margin-left: 4px; border-radius: 4px; cursor: pointer; }
+
+        footer {
+            background-color: var(--color-secundario);
+            color: #fff;
+            padding: 15px 24px;
+            text-align: center;
+            font-size: 12px;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="amazon-header">
+        <a href="index.html" class="logo">Entre<span>Lazados</span> Admin</a>
+        <span class="admin-badge-header"><i class="ti ti-shield-check"></i> Modo Administrador</span>
+        <button class="user-btn-nav" onclick="cerrarSesion()">
+            <i class="ti ti-logout"></i> Cerrar Sesión
+        </button>
+    </header>
+
+    <div class="sub-bar">
+        <a href="index.html"><i class="ti ti-home"></i> Ir a la Vista Pública</a>
+        <a href="dashboard.html"><i class="ti ti-chart-bar"></i> Mi Dashboard</a>
+    </div>
+
+    <main class="admin-container">
+
+        <!-- 1. MÉTRICAS GLOBALES -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-users"></i></div>
+                <div class="metric-info">
+                    <h4>Total Usuarios</h4>
+                    <p id="kpi-usuarios">0</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-truck"></i></div>
+                <div class="metric-info">
+                    <h4>Proveedores</h4>
+                    <p id="kpi-proveedores">0</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-shoe"></i></div>
+                <div class="metric-info">
+                    <h4>Emprendedores</h4>
+                    <p id="kpi-emprendedores">0</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-box"></i></div>
+                <div class="metric-info">
+                    <h4>Ofertas Publicadas</h4>
+                    <p id="kpi-ofertas">0</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. GESTIÓN DE USUARIOS -->
+        <section class="panel-section">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="ti ti-users-group"></i> Gestión General de Usuarios</h3>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre / Razón Social</th>
+                            <th>Correo Electrónico</th>
+                            <th>Rol</th>
+                            <th>Departamento</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-usuarios-body">
+                        <tr><td colspan="7" style="text-align:center;">Cargando usuarios...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 3. MODERACIÓN DE OFERTAS Y PUBLICACIONES -->
+        <section class="panel-section">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="ti ti-shopping-bag"></i> Moderación de Insumos / Ofertas</h3>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Oferta</th>
+                            <th>Título Material</th>
+                            <th>Categoría</th>
+                            <th>Precio (C$)</th>
+                            <th>Unidad</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-ofertas-body">
+                        <tr><td colspan="6" style="text-align:center;">Cargando ofertas...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 4. GESTIÓN DE CATEGORÍAS -->
+        <section class="panel-section">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="ti ti-category"></i> Agregar Nueva Categoría de Materiales</h3>
+            </div>
+            <form onsubmit="crearCategoria(event)" class="form-grid">
+                <div class="form-group">
+                    <label>Nombre de Categoría</label>
+                    <input type="text" id="catNombre" class="form-control" placeholder="Ej. Hilos y Costuras" required>
+                </div>
+                <div class="form-group">
+                    <label>Descripción (Opcional)</label>
+                    <input type="text" id="catDesc" class="form-control" placeholder="Hilos de nylon, cera o reforzados">
+                </div>
+                <button type="submit" class="btn-submit"><i class="ti ti-plus"></i> Guardar</button>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- WIDGET FLOTANTE DE KAN -->
+    <div class="kan-floating-widget">
+        <div class="kan-chat-window" id="kanChatWindow">
+            <div class="kan-chat-header">
+                <span><i class="ti ti-robot"></i> Asistente Kan</span>
+                <i class="ti ti-x" style="cursor:pointer;" onclick="toggleKanChat()"></i>
+            </div>
+            <div class="kan-chat-body" id="kanBody">
+                <div class="kan-msg bot">
+                    ¡Hola Admin! 👋 Soy <strong>Kan</strong>. ¿En qué te puedo ayudar a controlar la plataforma hoy?
+                </div>
+                <div class="kan-quick-opts" id="kanQuickOptions">
+                    <button class="kan-opt-btn" onclick="responderKanLocal('reporte')">📊 Ver reporte rápido</button>
+                    <button class="kan-opt-btn" onclick="responderKanLocal('moderacion')">🛡️ ¿Cómo moderar un lote?</button>
+                </div>
+            </div>
+            <div class="kan-chat-footer">
+                <input type="text" id="kanInput" placeholder="Escribe a Kan..." onkeypress="if(event.key==='Enter') enviarMensajeKan()">
+                <button onclick="enviarMensajeKan()"><i class="ti ti-send"></i></button>
+            </div>
+        </div>
+        <button class="kan-trigger-btn" onclick="toggleKanChat()">
+            <img id="imgKanFlotante" src="randal principal.png" alt="Kan">
+        </button>
+    </div>
+
+    <footer>
+        EntreLazados © 2026 - Módulo de Control Administrativo
+    </footer>
+
+    <script>
+        const API_URL = window.location.origin;
+        const currentAdminId = localStorage.getItem('userId');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarMetricas();
+            cargarUsuarios();
+            cargarOfertas();
+        });
+
+        // 1. CARGAR KPIS/MÉTRICAS
+        async function cargarMetricas() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/metricas`, {
+                    headers: { 'x-user-id': currentAdminId }
+                });
+                if (!res.ok) throw new Error("Error al obtener métricas");
+                const data = await res.json();
+
+                document.getElementById('kpi-usuarios').textContent = data.totalUsuarios || 0;
+                document.getElementById('kpi-proveedores').textContent = data.totalProveedores || 0;
+                document.getElementById('kpi-emprendedores').textContent = data.totalEmprendedores || 0;
+                document.getElementById('kpi-ofertas').textContent = data.totalOfertas || 0;
+            } catch (err) {
+                console.error("Error métricas:", err);
+            }
+        }
+
+        // 2. CARGAR Y GESTIONAR USUARIOS
+        async function cargarUsuarios() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios`, {
+                    headers: { 'x-user-id': currentAdminId }
+                });
+                const usuarios = await res.json();
+                const tbody = document.getElementById('tabla-usuarios-body');
+
+                if (!usuarios.length) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No hay usuarios registrados.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = usuarios.map(u => {
+                    const est = (u.EstadoCuenta || 'Activo').toLowerCase();
+                    const badgeClass = est === 'activo' ? 'badge-activo' : (est === 'suspendido' ? 'badge-suspendido' : 'badge-inactivo');
+
+                    return `
+                        <tr>
+                            <td>#${u.UsuarioID}</td>
+                            <td><strong>${u.NombreRazonSocial || 'Sin Nombre'}</strong></td>
+                            <td>${u.CorreoElectronico}</td>
+                            <td>${(u.TipoRol || 'Miembro').toUpperCase()}</td>
+                            <td>${u.NombreDepartamento || 'Managua'}</td>
+                            <td><span class="badge-status ${badgeClass}">${u.EstadoCuenta || 'Activo'}</span></td>
+                            <td>
+                                <select onchange="cambiarEstadoUsuario(${u.UsuarioID}, this.value)" style="font-size:11px; padding:3px;">
+                                    <option value="">Cambiar estado...</option>
+                                    <option value="Activo">Activo</option>
+                                    <option value="Inactivo">Inactivo</option>
+                                    <option value="Suspendido">Suspendido</option>
+                                </select>
+                                <button onclick="eliminarUsuario(${u.UsuarioID})" class="btn-action btn-delete" style="margin-left:4px;">
+                                    <i class="ti ti-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error("Error usuarios:", err);
+            }
+        }
+
+        async function cambiarEstadoUsuario(usuarioId, nuevoEstado) {
+            if (!nuevoEstado) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}/estado`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': currentAdminId
+                    },
+                    body: JSON.stringify({ nuevoEstado })
+                });
+                const data = await res.json();
+                alert(data.message);
+                cargarUsuarios();
+            } catch (err) {
+                alert("Error al actualizar el estado del usuario.");
+            }
+        }
+
+        async function eliminarUsuario(usuarioId) {
+            if (!confirm(`¿Estás seguro de eliminar el usuario #${usuarioId}? Esta acción borrará todas sus publicaciones y registros.`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}`, {
+                    method: 'DELETE',
+                    headers: { 'x-user-id': currentAdminId }
+                });
+                const data = await res.json();
+                alert(data.message);
+                cargarUsuarios();
+                cargarMetricas();
+            } catch (err) {
+                alert("Error al eliminar el usuario.");
+            }
+        }
+
+        // 3. CARGAR Y MODERAR OFERTAS
+        async function cargarOfertas() {
+            try {
+                const res = await fetch(`${API_URL}/api/ofertas`);
+                const ofertas = await res.json();
+                const tbody = document.getElementById('tabla-ofertas-body');
+
+                if (!ofertas.length) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No hay ofertas disponibles.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = ofertas.map(o => `
+                    <tr>
+                        <td>#${o.OfertaID}</td>
+                        <td><strong>${o.TituloMaterial}</strong></td>
+                        <td>${o.NombreCategoria || 'General'}</td>
+                        <td>C$ ${o.Precio}</td>
+                        <td>${o.UnidadMedida}</td>
+                        <td>
+                            <button onclick="eliminarOfertaAdmin(${o.OfertaID})" class="btn-action btn-delete">
+                                <i class="ti ti-trash"></i> Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error("Error ofertas:", err);
+            }
+        }
+
+        async function eliminarOfertaAdmin(ofertaId) {
+            if (!confirm(`¿Deseas eliminar la oferta #${ofertaId}?`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/ofertas/${ofertaId}`, {
+                    method: 'DELETE',
+                    headers: { 'x-user-id': currentAdminId }
+                });
+                const data = await res.json();
+                alert(data.message);
+                cargarOfertas();
+                cargarMetricas();
+            } catch (err) {
+                alert("Error al eliminar la oferta.");
+            }
+        }
+
+        // 4. CREAR NUEVA CATEGORÍA
+        async function crearCategoria(event) {
+            event.preventDefault();
+            const nombreCategoria = document.getElementById('catNombre').value.trim();
+            const descripcion = document.getElementById('catDesc').value.trim();
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/categorias`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': currentAdminId
+                    },
+                    body: JSON.stringify({ nombreCategoria, descripcion })
+                });
+
+                const data = await res.json();
+                alert(data.message);
+                if (res.ok) {
+                    document.getElementById('catNombre').value = '';
+                    document.getElementById('catDesc').value = '';
+                }
+            } catch (err) {
+                alert("Error al intentar registrar la categoría.");
+            }
+        }
+
+        /* --- LÓGICA DE KAN EN ADMIN --- */
+        function toggleKanChat() {
+            document.getElementById('kanChatWindow').classList.toggle('active');
+        }
+
+        function responderKanLocal(opcion) {
+            const body = document.getElementById('kanBody');
+            if (opcion === 'reporte') {
+                body.innerHTML += `<div class="kan-msg user">Ver reporte rápido</div>`;
+                body.innerHTML += `<div class="kan-msg bot">Revisa la parte superior del panel. Tienes el resumen general de usuarios, proveedores y materiales activos.</div>`;
+            } else if (opcion === 'moderacion') {
+                body.innerHTML += `<div class="kan-msg user">¿Cómo moderar un lote?</div>`;
+                body.innerHTML += `<div class="kan-msg bot">En las tablas del panel puedes usar el menú de 'Cambiar estado' para suspender cuentas o hacer clic en 'Eliminar' para retirar cualquier publicación inapropiada.</div>`;
+            }
+            body.scrollTop = body.scrollHeight;
+
+            setTimeout(() => {
+                body.innerHTML += `<div class="kan-msg bot">¿Tienes alguna otra duda de administración?</div>`;
+                body.scrollTop = body.scrollHeight;
+            }, 3000);
+        }
+
+        async function enviarMensajeKan() {
+            const input = document.getElementById('kanInput');
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            const body = document.getElementById('kanBody');
+            body.innerHTML += `<div class="kan-msg user">${texto}</div>`;
+            input.value = '';
+            body.scrollTop = body.scrollHeight;
+
+            try {
+                const res = await fetch(`${API_URL}/api/chat/ia`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensajeUsuario: texto, rolUsuario: 'administrador' })
+                });
+                const data = await res.json();
+                body.innerHTML += `<div class="kan-msg bot">${data.respuesta}</div>`;
+            } catch (err) {
+                body.innerHTML += `<div class="kan-msg bot">Lo siento, no pude procesar tu consulta en este momento.</div>`;
+            }
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function cerrarSesion() {
+            localStorage.clear();
+            alert("Sesión administrativa cerrada.");
+            window.location.href = 'preview.html';
+        }
+    </script>
+</body>
+</html>

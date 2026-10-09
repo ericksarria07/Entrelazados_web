@@ -6,10 +6,20 @@
     <title>EntreLazados - Chat y Mensajes</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
+
+    <script>
+        (function () {
+            const userEmail = localStorage.getItem('userEmail');
+            const userId = localStorage.getItem('userId');
+
+            if (!userEmail || !userId) {
+                window.location.href = 'preview.html';
+            }
+        })();
+    </script>
 
     <style>
         :root {
@@ -28,7 +38,6 @@
             
             --shadow-sm: 0 2px 6px rgba(61, 23, 10, 0.06);
             --shadow-md: 0 4px 12px rgba(61, 23, 10, 0.1);
-            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
             --radius-sm: 4px;
             --radius-md: 6px;
         }
@@ -49,6 +58,8 @@
             color: var(--text-dark);
             font-family: var(--font-secundaria);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         h1, h2, h3, .logo {
@@ -56,13 +67,14 @@
             font-weight: 900;
         }
 
+        /* cabecera */
         .amazon-header {
             background-color: var(--color-secundario);
             color: #ffffff;
             display: flex;
             align-items: center;
             padding: 10px 20px;
-            gap: 20px;
+            gap: 15px;
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -104,6 +116,7 @@
             border-radius: 4px;
             overflow: hidden;
             border: 1px solid var(--color-principal);
+            background-color: #ffffff;
         }
 
         .search-category {
@@ -120,10 +133,11 @@
         .search-input {
             flex: 1;
             border: none;
-            padding: 0 15px;
+            padding: 0 12px;
             font-size: 14px;
             outline: none;
             font-family: var(--font-secundaria);
+            min-width: 0;
         }
 
         .search-btn {
@@ -134,6 +148,10 @@
             font-size: 18px;
             cursor: pointer;
             transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
         .search-btn:hover {
@@ -144,6 +162,7 @@
             display: flex;
             align-items: center;
             gap: 15px;
+            margin-left: auto;
         }
 
         .user-dropdown-wrapper {
@@ -235,7 +254,7 @@
             background-color: var(--border-color);
         }
 
-        /* --- SUB-NAVEGACIÓN --- */
+        /* NAVEGACIÓN SUB-BAR */
         .sub-bar {
             background-color: #290f06;
             color: #fff;
@@ -259,10 +278,13 @@
             color: var(--color-terciario);
         }
 
+        /* SECCIÓN DEL CHAT */
         #app {
             max-width: 1100px;
+            width: 100%;
             margin: 20px auto 30px auto;
-            padding: 0 20px;
+            padding: 0 15px;
+            flex: 1;
         }
 
         .chat-layout {
@@ -271,15 +293,15 @@
             border-radius: var(--radius-md);
             border: 1px solid var(--border-color);
             overflow: hidden;
-            box-shadow: var(--shadow-sm);
+            box-shadow: var(--shadow-md);
             height: calc(100vh - 180px);
             min-height: 520px;
         }
 
         .chat-sidebar {
-            width: 300px;
+            width: 320px;
             border-right: 1px solid var(--border-color);
-            background: var(--bg-card);
+            background: #ffffff;
             display: flex;
             flex-direction: column;
         }
@@ -296,7 +318,7 @@
         }
 
         .contact-list {
-            background-color: rgba(255, 255, 255, 0.85);
+            background-color: #ffffff;
             overflow-y: auto;
             flex: 1;
         }
@@ -304,7 +326,7 @@
         .contact-item {
             display: flex;
             align-items: center;
-            padding: 12px 16px;
+            padding: 14px 16px;
             cursor: pointer;
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s ease;
@@ -319,9 +341,19 @@
             border-left: 4px solid var(--color-principal);
         }
 
+        .contact-item.kan-pinned-item {
+            background-color: #fff8f3;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .contact-item.kan-pinned-item.active {
+            background-color: #f7ebe1;
+            border-left: 4px solid var(--color-principal);
+        }
+
         .contact-avatar-side {
-            width: 38px;
-            height: 38px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: var(--color-principal);
             color: white;
@@ -333,14 +365,20 @@
             font-size: 15px;
             flex-shrink: 0;
             font-family: var(--font-principal);
+            overflow: hidden;
         }
 
-        /* ÁREA PRINCIPAL DEL CHAT */
+        .contact-avatar-side img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         .chat-main-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background-color: rgba(255, 255, 255, 0.85);
+            background-color: #ffffff;
         }
 
         .no-chat-placeholder {
@@ -350,7 +388,7 @@
             align-items: center;
             justify-content: center;
             color: var(--text-muted);
-            background-color: rgba(255, 255, 255, 0.85);
+            background-color: #ffffff;
             padding: 20px;
             text-align: center;
         }
@@ -360,11 +398,11 @@
             flex-direction: column;
             height: 100%;
             width: 100%;
-            background-color: rgba(255, 255, 255, 0.85);;
+            background-color: #ffffff;
         }
 
         .chat-header {
-            padding: 14px 20px;
+            padding: 12px 16px;
             background: var(--bg-card);
             border-bottom: 1px solid var(--border-color);
             display: flex;
@@ -372,6 +410,16 @@
             gap: 12px;
             box-shadow: var(--shadow-sm);
             z-index: 2;
+        }
+
+        .btn-back-chat {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--color-principal);
+            cursor: pointer;
+            padding: 4px;
         }
 
         .chat-avatar-sm {
@@ -386,6 +434,14 @@
             font-weight: 700;
             font-size: 14px;
             font-family: var(--font-principal);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .chat-avatar-sm img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .chat-hinfo {
@@ -405,6 +461,25 @@
             color: var(--text-muted);
         }
 
+        /* BANNER DE POSE DE KAN EN CHAT */
+        .kan-chat-banner {
+            background-color: #f4efe9;
+            border-bottom: 1px solid var(--border-color);
+            height: 110px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kan-chat-banner img {
+            height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            transition: opacity 0.25s ease;
+        }
+
         .chat-messages {
             flex: 1;
             padding: 20px;
@@ -418,7 +493,7 @@
         .msg {
             display: flex;
             flex-direction: column;
-            max-width: 68%;
+            max-width: 75%;
         }
 
         .msg.me {
@@ -447,8 +522,8 @@
         }
 
         .msg.them .msg-bubble {
-            background-color: #333333;
-            color: #ffffff;
+            background-color: #ffffff;
+            color: #1a1a1a;
             border: 1px solid var(--border-color);
             border-bottom-left-radius: 2px;
         }
@@ -458,6 +533,31 @@
             color: var(--text-muted);
             margin-top: 4px;
             padding: 0 2px;
+        }
+
+        .kan-quick-options-chat {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .kan-opt-btn-chat {
+            background-color: #f0e8e0;
+            color: var(--color-secundario);
+            border: 1px solid #dcd2c6;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .kan-opt-btn-chat:hover {
+            background-color: var(--color-principal);
+            color: white;
+            border-color: var(--color-principal);
         }
 
         .chat-input-bar {
@@ -496,75 +596,140 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s ease, transform 0.1s ease;
+            transition: background 0.2s ease;
         }
 
         .chat-send:hover {
             background-color: var(--color-terciario);
         }
 
-        .chat-send:active {
-            transform: scale(0.95);
+        footer {
+            background-color: var(--color-secundario);
+            color: #fff;
+            padding: 20px 30px;
+            font-size: 12px;
+            margin-top: auto;
+            border-top: 4px solid var(--color-principal);
         }
 
-footer {
-    background-color: var(--color-secundario);
-    color: #fff;
-    padding: 20px 30px;
-    font-size: 12px;
-    margin-top: auto; /* Mantiene el sticky footer */
-    border-top: 4px solid var(--color-principal);
-}
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
 
-.footer-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-}
+        .footer-brand {
+            font-family: var(--font-principal);
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            color: #ffffff;
+        }
 
-.footer-brand {
-    font-family: var(--font-principal);
-    font-size: 30px;
-    font-weight: 900;
-    letter-spacing: 1.5px;
-    color: #ffffff;
-}
+        .footer-brand span {
+            color: var(--color-terciario);
+        }
 
-.footer-brand span {
-    color: var(--color-terciario);
-}
+        .footer-center {
+            text-align: center;
+        }
 
-.footer-center {
-    text-align: center;
-}
+        footer a {
+            color: #d1c2b8;
+            text-decoration: none;
+            margin: 0 10px;
+        }
 
-footer a {
-    color: #d1c2b8;
-    text-decoration: none;
-    margin: 0 10px;
-}
+        footer a:hover {
+            color: #fff;
+        }
 
-footer a:hover {
-    color: #fff;
-}
-
-.footer-volcano img {
-    height: 70px;
-    width: auto;
-    display: block;
-}
+        .footer-volcano img {
+            height: 70px;
+            width: auto;
+            display: block;
+        }
 
         @media (max-width: 768px) {
-            .amazon-header { flex-wrap: wrap; }
-            .search-bar { order: 3; width: 100%; }
-            .chat-sidebar { width: 100px; }
-            .contact-item { justify-content: center; padding: 12px 8px; }
-            .contact-avatar-side { margin-right: 0; }
-            .contact-item div:nth-child(2) { display: none; }
+            .amazon-header {
+                flex-wrap: wrap;
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .logo {
+                font-size: 22px;
+            }
+
+            .search-bar {
+                order: 3;
+                width: 100%;
+                min-width: 100%;
+                display: flex !important;
+            }
+
+            .search-category {
+                max-width: 110px;
+                font-size: 11px;
+                padding: 0 4px;
+            }
+
+            #app {
+                padding: 0 5px;
+                margin: 10px auto;
+            }
+
+            .chat-layout {
+                height: calc(100vh - 210px);
+                min-height: 480px;
+            }
+
+            .chat-sidebar {
+                width: 100%;
+            }
+
+            .chat-main-area {
+                display: none;
+                width: 100%;
+            }
+
+            .chat-layout.mobile-active .chat-sidebar {
+                display: none;
+            }
+
+            .chat-layout.mobile-active .chat-main-area {
+                display: flex;
+            }
+
+            .btn-back-chat {
+                display: block;
+            }
+
+            .footer-container {
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .footer-brand, .footer-center {
+                text-align: center;
+            }
+
+            .footer-volcano {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+
+            .footer-volcano img {
+                margin: 0 auto;
+            }
         }
     </style>
 </head>
@@ -577,37 +742,36 @@ footer a:hover {
             <i class="ti ti-map-pin" style="font-size: 18px;"></i>
             <div>
                 <span class="location-label">Enviar a</span>
-                <strong id="user-location">Cargando...</strong>
+                <strong id="user-location">Nicaragua</strong>
             </div>
         </div>
 
-        <div class="search-bar">
-            <select class="search-category">
-                <option value="">Todos los insumos</option>
-                <option value="cuero">Pieles y Cueros</option>
-                <option value="herrajes">Herrajes y Cierres</option>
-                <option value="suelas">Suelas y Componentes</option>
+        <form id="searchForm" class="search-bar" onsubmit="ejecutarBusqueda(event)">
+            <select id="searchCategory" class="search-category">
+                <option value="todos">Todos</option>
+                <option value="Cuero Vacuno">Cuero Vacuno</option>
+                <option value="Suelas & Caucho">Suelas & Caucho</option>
+                <option value="Herrajes">Herrajes</option>
+                <option value="Herramientas">Herramientas</option>
             </select>
-            <input type="text" class="search-input" placeholder="Buscar conversaciones o proveedores...">
-            <button class="search-btn"><i class="ti ti-search"></i></button>
-        </div>
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar cuero, hebillas, suelas...">
+            <button type="submit" class="search-btn"><i class="ti ti-search"></i></button>
+        </form>
 
         <div class="nav-user">
-            <div id="authArea">
-            </div>
+            <div id="authArea"></div>
         </div>
     </header>
 
     <div class="sub-bar">
         <a href="index.html"><i class="ti ti-home"></i> Inicio</a>
         <a href="mercado.html"><i class="ti ti-building-store"></i> Mercado Completo</a>
-        <a href="chat.html" class="active"><i class="ti ti-message-circle"></i> Chat / Mensajes</a>
-        <a href="#"><i class="ti ti-tag"></i> Ofertas de la Semana</a>
-        <a href="#"><i class="ti ti-map-pin"></i> Proveedores de Masaya</a>
+        <a href="chat.html" class="active"><i class="ti ti-message-circle"></i> Chats</a>
+        <a href="dashboard.html" class="active"><i class="ti ti-chart-bar"></i> Dashboard</a>
     </div>
 
     <div id="app">
-        <div class="chat-layout">
+        <div class="chat-layout" id="chat-layout-box">
             
             <div class="chat-sidebar">
                 <div class="sidebar-header" id="rol-title">Mensajes</div>
@@ -621,11 +785,12 @@ footer a:hover {
                 <div class="no-chat-placeholder" id="pantalla-vacia">
                     <i class="ti ti-message-dots" style="font-size: 48px; margin-bottom: 12px; color: var(--color-principal);"></i>
                     <p style="font-size:15px; font-weight: 700; color: var(--color-secundario);">Tus Mensajes Directos</p>
-                    <p style="font-size:13px; color: var(--text-muted); margin-top: 4px;">Selecciona un usuario de la lista lateral para iniciar o continuar la conversación.</p>
+                    <p style="font-size:13px; color: var(--text-muted); margin-top: 4px;">Selecciona un usuario de la lista lateral para iniciar conversación.</p>
                 </div>
 
                 <div class="chat-container" id="pantalla-activa" style="display: none;">
                     <div class="chat-header">
+                        <button class="btn-back-chat" onclick="volverAContactos()"><i class="ti ti-arrow-left"></i></button>
                         <div class="chat-avatar-sm" id="chat-vendor-avatar">--</div>
                         <div class="chat-hinfo">
                             <div class="chat-hname" id="chat-vendor-name">Seleccione un chat</div>
@@ -633,11 +798,16 @@ footer a:hover {
                         </div>
                     </div>
                     
+                    <!-- BANNER DINÁMICO DE POSE PARA KAN -->
+                    <div class="kan-chat-banner" id="kanChatBanner" style="display: none;">
+                        <img src="randal saludando.png" alt="Kan Pose" id="imgKanChatPose">
+                    </div>
+
                     <div class="chat-messages" id="chat-msgs"></div>
                     
                     <div class="chat-input-bar">
-                        <input class="chat-input" id="chat-text" type="text" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') sendMsgMySQL()">
-                        <button class="chat-send" onclick="sendMsgMySQL()"><i class="ti ti-send"></i></button>
+                        <input class="chat-input" id="chat-text" type="text" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter') enviarMensajeGeneral()">
+                        <button class="chat-send" onclick="enviarMensajeGeneral()"><i class="ti ti-send"></i></button>
                     </div>
                 </div>
 
@@ -646,76 +816,102 @@ footer a:hover {
         </div>
     </div>
 
-<footer>
-    <div class="footer-container">
-        <div class="footer-brand">
-            NICA<span>RAGUA</span>
-        </div>
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">
+                NICA<span>RAGUA</span>
+            </div>
 
-        <div class="footer-center">
-            <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
-            <p style="margin-top: 8px;">
-                <a href="index.html">Inicio</a> | 
-                <a href="mercado.html">Mercado</a> | 
-                <a href="chat.html">Chat</a> | 
-                <a href="perfil.html">Mi Perfil</a>
-            </p>
-        </div>
+            <div class="footer-center">
+                <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+                <p style="margin-top: 8px;">
+                    <a href="index.html">Inicio</a> | 
+                    <a href="mercado.html">Mercado</a> | 
+                    <a href="dashboard.html">Dashboard</a> | 
+                    <a href="perfil.html">Mi Perfil</a>
+                </p>
+            </div>
 
-        <div class="footer-volcano">
-            <img src="volcan.png" alt="Volcán Nicaragua">
+            <div class="footer-volcano">
+                <img src="volcan.png" alt="Volcán Nicaragua">
+            </div>
         </div>
-    </div>
-</footer>
-
+    </footer>
 
     <script>
         const API_URL = window.location.origin;
         const miId = parseInt(localStorage.getItem('userId'));
-        const miRol = localStorage.getItem('userRol');
+        const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
 
         let contactoSeleccionadoId = null;
+        let esChatKanActivo = false;
         let bucleActualizacion = null;
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const userEmail = localStorage.getItem('userEmail');
+        const POSES_KAN = {
+            saludando: 'randal saludando.png',
+            telefono: 'randal con telefono.png',
+            dudando: 'randal dudando.png',
+            respondiendo: 'randal principal.png'
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const userNombre = localStorage.getItem('userNombre') || 'Usuario';
             const userRol = localStorage.getItem('userRol') || 'Miembro';
 
-           if (!userEmail || !miId) {
-                window.location.href = 'login.html';
-                return;
+            let departamento = localStorage.getItem('userDepartamento') || localStorage.getItem('userDepto');
+
+            if (!departamento && miId) {
+                try {
+                    const res = await fetch(`${API_URL}/api/perfil/${miId}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        departamento = data.NombreDepartamento || 'Managua';
+                        localStorage.setItem('userDepartamento', departamento);
+                    }
+                } catch (err) {
+                    console.error("Error al obtener ubicación:", err);
+                }
+            }
+
+            const locationElem = document.getElementById('user-location');
+            if (locationElem) {
+                locationElem.textContent = departamento || 'Managua';
             }
 
             const authArea = document.getElementById('authArea');
-            authArea.innerHTML = `
-                <div class="user-dropdown-wrapper">
-                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
-                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
-                        <div class="user-nav-text">
-                            <span class="user-nav-name">${userNombre}</span>
-                            <span class="user-nav-role">${userRol.toUpperCase()}</span>
+            if (authArea) {
+                authArea.innerHTML = `
+                    <div class="user-dropdown-wrapper">
+                        <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                            <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                            <div class="user-nav-text">
+                                <span class="user-nav-name">${userNombre}</span>
+                                <span class="user-nav-role">${userRol.toUpperCase()}</span>
+                            </div>
+                            <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                        </button>
+
+                        <div class="dropdown-menu-nav" id="userDropdownMenu">
+                            <a href="perfil.html" class="dropdown-item-nav">
+                                <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
+                                Ver mi perfil
+                            </a>
+                            <div class="dropdown-divider-nav"></div>
+                            <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                                <i class="ti ti-logout" style="font-size: 18px;"></i>
+                                Cerrar sesión
+                            </a>
                         </div>
-                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
-                    </button>
-
-                    <div class="dropdown-menu-nav" id="userDropdownMenu">
-                        <a href="perfil.html" class="dropdown-item-nav">
-                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
-                            Ver mi perfil
-                        </a>
-                        <div class="dropdown-divider-nav"></div>
-                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
-                            <i class="ti ti-logout" style="font-size: 18px;"></i>
-                            Cerrar sesión
-                        </a>
                     </div>
-                </div>
-            `;
+                `;
+            }
 
-            document.getElementById('rol-title').textContent = miRol === 'proveedor' ? '💬 Emprendedores Interesados' : '🏭 Proveedores de Materiales';
+            const rolTitleElem = document.getElementById('rol-title');
+            if (rolTitleElem) {
+                rolTitleElem.textContent = miRol === 'proveedor' ? '💬 Emprendedores Interesados' : '🏭 Proveedores de Materiales';
+            }
 
-            cargarContactosDesdeBD();
+            cargarContactos();
         });
 
         function toggleUserDropdown(event) {
@@ -734,58 +930,199 @@ footer a:hover {
         };
 
         async function cargarContactos() {
-            const listaContactos = document.getElementById('lista-contactos') || document.querySelector('.lista-contactos');
+            const listaContactos = document.getElementById('lista-contactos');
             const miUserId = localStorage.getItem('userId') || 0;
 
-            try {
-                const res = await fetch(`/api/chat/contactos?userId=${miUserId}`);
+            // 1. Inserción del contacto fijado Kan (Randal)
+            let htmlKan = `
+                <div class="contact-item kan-pinned-item" id="contacto-kan" onclick="seleccionarChatKan()">
+                    <div class="contact-avatar-side">
+                        <img src="randal saludando.png" alt="Kan Avatar">
+                    </div>
+                    <div style="overflow: hidden; flex: 1;">
+                        <strong style="display: flex; align-items: center; justify-content: space-between; color: var(--color-secundario); font-size: 14px;">
+                            Kan <span style="font-size: 10px; background-color: var(--color-principal); color: white; padding: 1px 6px; border-radius: 10px;">Asistente</span>
+                        </strong>
+                        <span style="font-size: 11px; color: var(--color-principal);">🟢 Asistente Virtual 24/7</span>
+                    </div>
+                </div>
+            `;
 
-                if (!res.ok) {
-                    throw new Error("Error en la respuesta del servidor");
-                }
+            try {
+                const res = await fetch(`${API_URL}/api/chat/contactos?userId=${miUserId}`);
+                if (!res.ok) throw new Error("Error en la respuesta del servidor");
 
                 const contactos = await res.json();
 
                 if (!contactos || contactos.length === 0) {
-                    listaContactos.innerHTML = `
-                <div style="padding: 15px; text-align: center; color: #777; font-size: 13px;">
-                    No hay otros usuarios registrados aún.
-                </div>`;
+                    listaContactos.innerHTML = htmlKan + `
+                        <div style="padding: 15px; text-align: center; color: #777; font-size: 13px;">
+                            No hay otros usuarios registrados aún.
+                        </div>`;
                     return;
                 }
 
-                listaContactos.innerHTML = contactos.map(c => `
-            <div class="contacto-item" onclick="seleccionarContacto(${c.UsuarioID}, '${c.NombreRazonSocial}')" style="padding: 12px; border-bottom: 1px solid #eee; cursor: pointer;">
-                <strong style="display: block; color: #3D170A; font-size: 14px;">${c.NombreRazonSocial}</strong>
-                <span style="font-size: 11px; color: #7D381B;">${c.TipoRol} - ${c.NombreDepartamento || 'Nicaragua'}</span>
-            </div>
-        `).join('');
+                listaContactos.innerHTML = htmlKan + contactos.map(c => `
+                    <div class="contact-item" id="contacto-${c.UsuarioID}" onclick="seleccionarContacto(${c.UsuarioID}, '${c.NombreRazonSocial}', '${c.NombreDepartamento || 'Nicaragua'}')">
+                        <div class="contact-avatar-side">${c.NombreRazonSocial.substring(0, 2).toUpperCase()}</div>
+                        <div style="overflow: hidden;">
+                            <strong style="display: block; color: var(--color-secundario); font-size: 14px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${c.NombreRazonSocial}</strong>
+                            <span style="font-size: 11px; color: var(--color-principal);">${c.TipoRol} · ${c.NombreDepartamento || 'Nicaragua'}</span>
+                        </div>
+                    </div>
+                `).join('');
 
             } catch (error) {
                 console.error("Error al cargar contactos:", error);
-                listaContactos.innerHTML = `
-            <div style="padding: 15px; text-align: center; color: red; font-size: 12px;">
-                Error al conectar con el chat.
-            </div>`;
+                listaContactos.innerHTML = htmlKan + `
+                    <div style="padding: 15px; text-align: center; color: red; font-size: 12px;">
+                        Error al conectar con la lista de usuarios.
+                    </div>`;
             }
         }
 
-        document.addEventListener('DOMContentLoaded', cargarContactos);
+        /* --- LÓGICA ESPECÍFICA PARA EL CHAT DE KAN --- */
+        function seleccionarChatKan() {
+            esChatKanActivo = true;
+            contactoSeleccionadoId = null;
 
-        function seleccionarContacto(id, nombre) {
+            if (bucleActualizacion) clearInterval(bucleActualizacion);
+
+            document.querySelectorAll('.contact-item').forEach(item => item.classList.remove('active'));
+            const itemKan = document.getElementById('contacto-kan');
+            if (itemKan) itemKan.classList.add('active');
+
+            document.getElementById('chat-layout-box').classList.add('mobile-active');
+
+            document.getElementById('pantalla-vacia').style.display = 'none';
+            document.getElementById('pantalla-activa').style.display = 'flex';
+
+            // Configurar Header
+            document.getElementById('chat-vendor-name').textContent = 'Kan (Asistente Virtual)';
+            document.getElementById('chat-vendor-avatar').innerHTML = `<img src="randal saludando.png" alt="Kan Avatar">`;
+            document.getElementById('chat-vendor-sub').textContent = 'Asistente del Sistema EntreLazados';
+
+            // Mostrar Banner de Poses
+            document.getElementById('kanChatBanner').style.display = 'flex';
+            cambiarPoseKanChat('saludando');
+
+            // Cargar mensaje inicial y opciones de Kan
+            const areaMensajes = document.getElementById('chat-msgs');
+
+            let saludoKan = "";
+            let opcionesHTML = "";
+
+            if (miRol === 'proveedor') {
+                saludoKan = "¡Hola! 👋 Soy <strong>Kan</strong>. ¿Quieres ayuda para saber cómo publicar ofertas de materia prima o abrir una subasta?";
+                opcionesHTML = `
+                    <div class="kan-quick-options-chat">
+                        <button class="kan-opt-btn-chat" onclick="responderKanChat('publicar')">➕ ¿Cómo publicar ofertas?</button>
+                        <button class="kan-opt-btn-chat" onclick="responderKanChat('subasta')">🔨 ¿Cómo crear subastas?</button>
+                        <button class="kan-opt-btn-chat" onclick="responderKanChat('envios')">📍 Envíos y entregas</button>
+                    </div>
+                `;
+            } else {
+                saludoKan = "¡Hola! 👋 Soy <strong>Kan</strong>. ¿Quieres ayuda para encontrar insumos de calzado, pujar en subastas o contactar proveedores?";
+                opcionesHTML = `
+                    <div class="kan-quick-options-chat">
+                        <button class="kan-opt-btn-chat" onclick="responderKanChat('comprar')">🛍️ ¿Cómo comprar insumos?</button>
+                        <button class="kan-opt-btn-chat" onclick="responderKanChat('pujar')">🔨 ¿Cómo pujar en subastas?</button>
+                        <button class="kan-opt-btn-chat" onclick="responderKanChat('mapa')">🗺️ Ver mapa de proveedores</button>
+                    </div>
+                `;
+            }
+
+            areaMensajes.innerHTML = `
+                <div class="msg them">
+                    <div class="msg-bubble">
+                        ${saludoKan}
+                        ${opcionesHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        function cambiarPoseKanChat(poseKey) {
+            const img = document.getElementById('imgKanChatPose');
+            const src = POSES_KAN[poseKey] || POSES_KAN.saludando;
+
+            if (img) {
+                img.style.opacity = '0';
+                setTimeout(() => {
+                    img.src = src;
+                    img.style.opacity = '1';
+                }, 150);
+            }
+        }
+
+        function responderKanChat(opcion) {
+            let textoUsuario = "";
+            let respuestaKan = "";
+
+            if (opcion === 'comprar') {
+                textoUsuario = "¿Cómo puedo comprar materiales de calzado?";
+                respuestaKan = "Para comprar, ingresa a la sección <strong>Mercado</strong>. Ahí verás los lotes e insumos publicados. Puedes seleccionar <strong>Contactar Proveedor</strong> para coordinar detalles directamente por este chat.";
+            } else if (opcion === 'pujar') {
+                textoUsuario = "¿Cómo realizo una puja en las subastas?";
+                respuestaKan = "Dirígete a la pestaña <strong>Subastas Activas</strong> dentro del Mercado, coloca un monto superior a la oferta actual y presiona <strong>Pujar</strong>.";
+            } else if (opcion === 'mapa') {
+                textoUsuario = "¿Cómo ubico curtiembres o talleres cercanos?";
+                respuestaKan = "Ingresa a la pestaña <strong>Mapa de Proveedores</strong> en el Mercado para ver los talleres y curtiembres verificados en Nicaragua.";
+            } else if (opcion === 'publicar') {
+                textoUsuario = "¿Cómo publico mi materia prima?";
+                respuestaKan = "Si eres proveedor, dirígete al <strong>Mercado</strong> y presiona el botón <strong>+ Publicar Oferta</strong> arriba a la derecha. Añade el título, precio, categoría y fotos.";
+            } else if (opcion === 'subasta') {
+                textoUsuario = "¿Cómo abro una subasta de lotes?";
+                respuestaKan = "En el Mercado, ve a la pestaña <strong>Subastas Activas</strong> y presiona <strong>+ Crear Subasta</strong> para ofrecer materiales al mejor postor.";
+            } else if (opcion === 'envios') {
+                textoUsuario = "¿Cómo se coordinan las entregas?";
+                respuestaKan = "El costo y método de entrega se negocia libremente entre emprendedor y proveedor mediante los mensajes privados.";
+            }
+
+            agregarMsgEmisor(textoUsuario);
+            procesarSecuenciaKan(respuestaKan);
+        }
+
+        function procesarSecuenciaKan(respuestaTexto) {
+            // 1. Mira el teléfono
+            cambiarPoseKanChat('telefono');
+
+            setTimeout(() => {
+                // 2. Responde
+                cambiarPoseKanChat('respondiendo');
+                agregarMsgReceptor(respuestaTexto);
+
+                // 3. Pausa de 3000 ms (3 segundos) -> Pregunta dudando
+                setTimeout(() => {
+                    cambiarPoseKanChat('dudando');
+                    agregarMsgReceptor("¿Tienes alguna otra pregunta o duda?");
+                }, 3000);
+
+            }, 700);
+        }
+
+        /* --- LÓGICA DE CHATS CON USUARIOS MYSQL --- */
+        function seleccionarContacto(id, nombre, departamento) {
+            esChatKanActivo = false;
             contactoSeleccionadoId = id;
 
             document.querySelectorAll('.contact-item').forEach(item => item.classList.remove('active'));
             const itemSeleccionado = document.getElementById(`contacto-${id}`);
             if (itemSeleccionado) itemSeleccionado.classList.add('active');
 
+            // Oculta banner de Kan
+            document.getElementById('kanChatBanner').style.display = 'none';
+
+            // Activa vista en teléfono
+            document.getElementById('chat-layout-box').classList.add('mobile-active');
+
             document.getElementById('pantalla-vacia').style.display = 'none';
             document.getElementById('pantalla-activa').style.display = 'flex';
 
             document.getElementById('chat-vendor-name').textContent = nombre;
             const iniciales = nombre.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-            document.getElementById('chat-vendor-avatar').textContent = iniciales;
-            document.getElementById('chat-vendor-sub').textContent = nombre.toLowerCase().includes('sol') ? "Verificado · León" : "Verificado · Masaya";
+            document.getElementById('chat-vendor-avatar').innerHTML = iniciales;
+            document.getElementById('chat-vendor-sub').textContent = `Ubicado en ${departamento}`;
 
             if (bucleActualizacion) clearInterval(bucleActualizacion);
 
@@ -793,8 +1130,12 @@ footer a:hover {
             bucleActualizacion = setInterval(cargarMensajesDeLaConversacion, 2000);
         }
 
+        function volverAContactos() {
+            document.getElementById('chat-layout-box').classList.remove('mobile-active');
+        }
+
         async function cargarMensajesDeLaConversacion() {
-            if (!contactoSeleccionadoId) return;
+            if (!contactoSeleccionadoId || esChatKanActivo) return;
 
             const areaMensajes = document.getElementById('chat-msgs');
             try {
@@ -826,7 +1167,49 @@ footer a:hover {
                 }
 
             } catch (error) {
-                console.error("Error en sincronización en vivo:", error);
+                console.error("Error sincronizando chat:", error);
+            }
+        }
+
+        async function enviarMensajeGeneral() {
+            const input = document.getElementById('chat-text');
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            if (esChatKanActivo) {
+                // Renderizamos el mensaje escrito por el usuario en la interfaz
+                agregarMsgEmisor(texto);
+                input.value = '';
+
+                // 1. Cambiamos la pose de Kan para indicar que está procesando
+                cambiarPoseKanChat('telefono');
+
+                try {
+                    // Obtenemos el rol actual guardado en localStorage o variable global
+                    const miRol = localStorage.getItem('usuarioRol') || 'emprendedor';
+
+                    // Petición al backend donde vive Gemini
+                    const res = await fetch(`${API_URL}/api/chat/ia`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mensajeUsuario: texto,
+                            rolUsuario: miRol
+                        })
+                    });
+
+                    const data = await res.json();
+
+                    // 2. Transición de poses de Kan con la respuesta devuelta por la IA
+                    procesarSecuenciaKan(data.respuesta || data.error);
+
+                } catch (err) {
+                    console.error("Error al conectar con Kan IA:", err);
+                    procesarSecuenciaKan("¡Ups! Ocurrió un error al intentar conectarme con mi servidor. Inténtalo de nuevo.");
+                }
+            } else {
+                // Si el chat activo es con otro usuario (humano), se usa MySQL
+                sendMsgMySQL();
             }
         }
 
@@ -853,15 +1236,46 @@ footer a:hover {
                     cargarMensajesDeLaConversacion();
                 }
             } catch (error) {
-                console.error("Error al publicar mensaje:", error);
+                console.error("Error al enviar mensaje:", error);
             }
+        }
+
+        function agregarMsgEmisor(txt) {
+            const area = document.getElementById('chat-msgs');
+            const hora = new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true });
+            area.innerHTML += `
+                <div class="msg me">
+                    <div class="msg-bubble">${txt}</div>
+                    <div class="msg-time">${hora}</div>
+                </div>
+            `;
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function agregarMsgReceptor(txt) {
+            const area = document.getElementById('chat-msgs');
+            const hora = new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true });
+            area.innerHTML += `
+                <div class="msg them">
+                    <div class="msg-bubble">${txt}</div>
+                    <div class="msg-time">${hora}</div>
+                </div>
+            `;
+            area.scrollTop = area.scrollHeight;
         }
 
         function cerrarSesion() {
             if (bucleActualizacion) clearInterval(bucleActualizacion);
             localStorage.clear();
-            alert("Sesión cerrada correctamente.");
-            window.location.href = 'login.html';
+            alert("Sesión cerrada.");
+            window.location.href = 'preview.html';
+        }
+
+        async function ejecutarBusqueda(event) {
+            event.preventDefault();
+            const query = document.getElementById('searchInput').value.trim();
+            const categoria = document.getElementById('searchCategory').value;
+            window.location.href = `mercado.html?q=${encodeURIComponent(query)}&categoria=${encodeURIComponent(categoria)}`;
         }
     </script>
 </body>

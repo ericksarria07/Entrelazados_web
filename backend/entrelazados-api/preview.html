@@ -407,11 +407,58 @@ footer a:hover {
     width: auto;
     display: block;
 }
-        @media (max-width: 768px) {
-            .amazon-header { flex-wrap: wrap; }
-            .search-bar { order: 3; width: 100%; }
+@media (max-width: 768px) {
+            .amazon-header {
+                flex-wrap: wrap;
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .logo {
+                font-size: 22px;
+            }
+
+            .nav-user {
+                margin-left: auto;
+            }
+
+            .search-bar {
+                order: 3;
+                width: 100%;
+                min-width: 100%;
+                display: flex !important;
+            }
+
+            .search-category {
+                max-width: 110px;
+                font-size: 11px;
+                padding: 0 4px;
+            }
+
             .hero-banner { height: 220px; }
             .main-content { margin-top: -60px; }
+
+            .footer-container {
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .footer-brand, .footer-center {
+                text-align: center;
+            }
+
+            .footer-volcano {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+
+            .footer-volcano img {
+                margin: 0 auto;
+            }
         }
     </style>
 </head>
@@ -449,12 +496,10 @@ footer a:hover {
     </header>
 
     <div class="sub-bar">
-        <a href="#"><i class="ti ti-menu-2"></i> Todo el Catálogo</a>
         <a href="mercado.html">Mercado Completo</a>
-        <a href="#">Ofertas de la Semana</a>
-        <a href="#">Proveedores de Masaya</a>
-        <a href="#">Suelaje & Tacones</a>
-        <a href="#">Herramientas de Zapatería</a>
+        <a href="chat.html">Chat</a>
+        <a href="dashboard.html">Dashboard</a>
+
     </div>
 
     <section class="hero-banner">
