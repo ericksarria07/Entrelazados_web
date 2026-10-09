@@ -5,19 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Mercado de Materia Prima</title>
     
-
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-    
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
-    <style>
+    <script>
+        (function () {
+            const userEmail = localStorage.getItem('userEmail');
+            const userId = localStorage.getItem('userId');
 
+            if (!userEmail || !userId) {
+                window.location.href = 'preview.html';
+            }
+        })();
+    </script>
+
+    <style>
         :root {
             --color-principal: #7D381B; 
             --color-secundario: #3D170A;
@@ -64,7 +70,6 @@
             font-family: var(--font-principal);
             font-weight: 900;
         }
-
 
         .amazon-header {
             background-color: var(--color-secundario);
@@ -144,6 +149,9 @@
             font-size: 18px;
             cursor: pointer;
             transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .search-btn:hover {
@@ -155,7 +163,6 @@
             align-items: center;
             gap: 15px;
         }
-
 
         .user-dropdown-wrapper {
             position: relative;
@@ -246,7 +253,6 @@
             background-color: var(--border-color);
         }
 
-
         .sub-bar {
             background-color: #290f06;
             color: #fff;
@@ -269,7 +275,6 @@
         .sub-bar a:hover, .sub-bar a.active {
             color: var(--color-terciario);
         }
-
 
         #app {
             max-width: 1100px;
@@ -308,7 +313,6 @@
             box-shadow: var(--shadow-sm);
         }
 
-
         .filter-bar {
             background: var(--bg-card);
             padding: 16px 20px;
@@ -342,7 +346,6 @@
             border-radius: 20px;
             border: 1px solid var(--border-color);
         }
-
 
         .btn-primary {
             background-color: var(--color-principal);
@@ -508,7 +511,6 @@
             border-top: 1px solid var(--border-color);
         }
 
-
         .auction-header {
             display: flex;
             justify-content: space-between;
@@ -582,7 +584,6 @@
             border-color: var(--color-principal);
         }
 
-
         #mapa-interactivo {
             width: 100%;
             height: 480px;
@@ -653,7 +654,6 @@
         .form-input:focus {
             border-color: var(--color-principal);
         }
-
 
         .upload-box {
             border: 2px dashed var(--border-color);
@@ -726,61 +726,358 @@
             font-weight: bold;
         }
 
- footer {
-    background-color: var(--color-secundario);
-    color: #fff;
-    padding: 20px 30px;
-    font-size: 12px;
-    margin-top: auto; /* Mantiene el sticky footer */
-    border-top: 4px solid var(--color-principal);
-}
+        footer {
+            background-color: var(--color-secundario);
+            color: #fff;
+            padding: 20px 30px;
+            font-size: 12px;
+            margin-top: auto;
+            border-top: 4px solid var(--color-principal);
+        }
 
-.footer-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-}
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
 
-.footer-brand {
-    font-family: var(--font-principal);
-    font-size: 30px;
-    font-weight: 900;
-    letter-spacing: 1.5px;
-    color: #ffffff;
-}
+        .footer-brand {
+            font-family: var(--font-principal);
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            color: #ffffff;
+        }
 
-.footer-brand span {
-    color: var(--color-terciario);
-}
+        .footer-brand span {
+            color: var(--color-terciario);
+        }
 
-.footer-center {
-    text-align: center;
-}
+        .footer-center {
+            text-align: center;
+        }
 
-footer a {
-    color: #d1c2b8;
-    text-decoration: none;
-    margin: 0 10px;
-}
+        footer a {
+            color: #d1c2b8;
+            text-decoration: none;
+            margin: 0 10px;
+        }
 
-footer a:hover {
-    color: #fff;
-}
+        footer a:hover {
+            color: #fff;
+        }
 
-.footer-volcano img {
-    height: 70px;
-    width: auto;
-    display: block;
-}
-
+        .footer-volcano img {
+            height: 70px;
+            width: auto;
+            display: block;
+        }
 
         @media (max-width: 768px) {
-            .amazon-header { flex-wrap: wrap; }
-            .search-bar { order: 3; width: 100%; }
+            .amazon-header {
+                flex-wrap: wrap;
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .logo {
+                font-size: 22px;
+            }
+
+            .nav-user {
+                margin-left: auto;
+            }
+
+            .search-bar {
+                order: 3;
+                width: 100%;
+                min-width: 100%;
+                display: flex !important;
+            }
+
+            .search-category {
+                max-width: 110px;
+                font-size: 11px;
+                padding: 0 4px;
+            }
+
+            .hero-banner { height: 220px; }
+            .main-content { margin-top: -60px; }
+
+            .footer-container {
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .footer-brand, .footer-center {
+                text-align: center;
+            }
+
+            .footer-volcano {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+
+            .footer-volcano img {
+                margin: 0 auto;
+            }
+        }
+
+        /* --- ESTILOS DE KAN --- */
+        .kan-widget-btn {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 75px;
+            height: 75px;
+            background-color: #ffffff;
+            border: 3px solid var(--color-principal);
+            border-radius: 50%;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            cursor: pointer;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease;
+            overflow: hidden;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .kan-widget-btn:hover {
+            transform: scale(1.12);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+        }
+
+        .kan-widget-btn img {
+            width: 88%;
+            height: 88%;
+            object-fit: contain;
+        }
+
+        .kan-badge {
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            background-color: #e03131;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .kan-chat-window {
+            position: fixed;
+            bottom: 110px;
+            right: 25px;
+            width: 360px;
+            max-width: calc(100vw - 30px);
+            height: 520px;
+            background-color: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.3);
+            border: 1px solid #e0d8ce;
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            animation: popupKan 0.25s ease-out forwards;
+        }
+
+        @keyframes popupKan {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .kan-chat-window.active {
+            display: flex;
+        }
+
+        .kan-header {
+            background: linear-gradient(135deg, var(--color-secundario), var(--color-principal));
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .kan-header-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .kan-avatar-header {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            border: 2px solid var(--color-terciario);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .kan-avatar-header img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .kan-title {
+            font-family: var(--font-principal);
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .kan-sub {
+            font-size: 11px;
+            color: #d1c2b8;
+        }
+
+        .kan-close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+
+        .kan-close-btn:hover { opacity: 1; }
+
+        .kan-display-banner {
+            background-color: #f4efe9;
+            border-bottom: 1px solid #e0d8ce;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 130px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kan-display-banner img {
+            height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .kan-body {
+            flex: 1;
+            padding: 12px 15px;
+            background-color: #fcfbf9;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .kan-msg {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .kan-msg.bot {
+            background-color: #ffffff;
+            color: #1a1a1a;
+            border: 1px solid #e0d8ce;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .kan-msg.user {
+            background-color: var(--color-principal);
+            color: #ffffff;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .kan-quick-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .kan-opt-btn {
+            background-color: #f0e8e0;
+            color: var(--color-secundario);
+            border: 1px solid #dcd2c6;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .kan-opt-btn:hover {
+            background-color: var(--color-principal);
+            color: white;
+            border-color: var(--color-principal);
+        }
+
+        .kan-footer {
+            padding: 10px;
+            background-color: #ffffff;
+            border-top: 1px solid #e0d8ce;
+            display: flex;
+            gap: 8px;
+        }
+
+        .kan-input {
+            flex: 1;
+            padding: 9px 14px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            font-size: 13px;
+            outline: none;
+            font-family: var(--font-secundaria);
+        }
+
+        .kan-send-btn {
+            background-color: var(--color-principal);
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .kan-send-btn:hover {
+            background-color: var(--color-terciario);
         }
     </style>
 </head>
@@ -793,40 +1090,33 @@ footer a:hover {
             <i class="ti ti-map-pin" style="font-size: 18px;"></i>
             <div>
                 <span class="location-label">Enviar a</span>
-                <strong id="user-location">Cargando...</strong>
+                <strong id="user-location">Nicaragua</strong>
             </div>
         </div>
 
-        <div class="search-bar">
-            <select class="search-category">
-                <option value="">Todos los insumos</option>
-                <option value="cuero">Pieles y Cueros</option>
-                <option value="herrajes">Herrajes y Cierres</option>
-                <option value="suelas">Suelas y Componentes</option>
-                <option value="hilos">Hilos y Pegamentos</option>
-                <option value="quimicos">Tintes y Acabados</option>
+        <form id="searchForm" class="search-bar" onsubmit="ejecutarBusqueda(event)">
+            <select id="searchCategory" class="search-category">
+                <option value="todos">Todos los insumos</option>
+                <option value="Cuero Vacuno">Cuero Vacuno</option>
+                <option value="Suelas & Caucho">Suelas & Caucho</option>
+                <option value="Herrajes">Herrajes</option>
+                <option value="Herramientas">Herramientas</option>
             </select>
-            <input type="text" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
-            <button class="search-btn"><i class="ti ti-search"></i></button>
-        </div>
-
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
+            <button type="submit" class="search-btn"><i class="ti ti-search"></i></button>
+        </form>
 
         <div class="nav-user">
-            <div id="authArea">
-
-            </div>
+            <div id="authArea"></div>
         </div>
     </header>
 
-
     <div class="sub-bar">
         <a href="index.html"><i class="ti ti-home"></i> Inicio</a>
-        <a href="mercado.html" class="active"><i class="ti ti-building-store"></i> Mercado Completo</a>
-        <a href="chat.html"><i class="ti ti-message-circle"></i> Chat / Mensajes</a>
-        <a href="#"><i class="ti ti-tag"></i> Ofertas de la Semana</a>
-        <a href="#"><i class="ti ti-map-pin"></i> Proveedores de Masaya</a>
+        <a href="mercado.html" class="active"><i class="ti ti-building-store"></i> Mercado</a>
+        <a href="chat.html"><i class="ti ti-message-circle"></i> Chats</a>
+        <a href="dashboard.html"><i class="ti ti-chart-bar"></i> Dashboard</a>
     </div>
-
 
     <div id="app">
 
@@ -842,13 +1132,12 @@ footer a:hover {
             </button>
         </div>
 
-
         <div id="tab-listings" class="section">
             <div class="filter-bar">
                 <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div style="display:flex; align-items:center; gap: 10px;">
                         <label><i class="ti ti-map-pin" style="font-size:16px; color: var(--color-principal);"></i> Radio de Cercanía:</label>
-                        <input type="range" id="range-km" min="5" max="100" value="30" step="5" oninput="actualizarFiltroKilometros(this.value)">
+                        <input type="range" id="range-km" min="5" max="200" value="30" step="5" oninput="actualizarFiltroKilometros(this.value)">
                         <span class="range-val" id="range-val">30km</span>
                     </div>
                     <button id="btn-publicar-modal" class="btn-primary" style="display: none;" onclick="abrirModal()">
@@ -860,7 +1149,6 @@ footer a:hover {
                 <p style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando materiales disponibles...</p>
             </div>
         </div>
-
 
         <div id="tab-auctions" class="section" style="display:none;">
             <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; border-top-color: var(--color-terciario);">
@@ -885,7 +1173,6 @@ footer a:hover {
             <div id="mapa-interactivo"></div>
         </div>
     </div>
-
 
     <div id="modalOferta" class="modal">
         <div class="modal-content">
@@ -999,28 +1286,70 @@ footer a:hover {
         </div>
     </div>
 
-<footer>
-    <div class="footer-container">
-        <div class="footer-brand">
-            NICA<span>RAGUA</span>
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">
+                NICA<span>RAGUA</span>
+            </div>
+
+            <div class="footer-center">
+                <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+                <p style="margin-top: 8px;">
+                    <a href="index.html">Inicio</a> | 
+                    <a href="mercado.html">Mercado</a> | 
+                    <a href="chat.html">Chat</a> | 
+                    <a href="perfil.html">Mi Perfil</a>
+                </p>
+            </div>
+
+            <div class="footer-volcano">
+                <img src="volcan.png" alt="Volcán Nicaragua">
+            </div>
+        </div>
+    </footer>
+
+    <!-- ASISTENTE FLOTANTE "KAN" - MERCADO -->
+    <div class="kan-widget-btn" id="kanBtn" onclick="toggleKanChat()">
+        <img src="randal saludando.png" alt="Kan Asistente" id="imgKanFlotante">
+        <div class="kan-badge" id="kanBadge">1</div>
+    </div>
+
+    <div class="kan-chat-window" id="kanChatWindow">
+        <!-- HEADER -->
+        <div class="kan-header">
+            <div class="kan-header-info">
+                <div class="kan-avatar-header">
+                    <img src="randal saludando.png" alt="Kan Avatar" id="imgKanAvatarHeader">
+                </div>
+                <div>
+                    <div class="kan-title">Kan <span style="font-size:11px; font-weight:normal;">(Asistente)</span></div>
+                    <div class="kan-sub" id="kanEstadoText">🟢 En línea</div>
+                </div>
+            </div>
+            <button class="kan-close-btn" onclick="toggleKanChat()">✕</button>
         </div>
 
-        <div class="footer-center">
-            <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
-            <p style="margin-top: 8px;">
-                <a href="index.html">Inicio</a> | 
-                <a href="mercado.html">Mercado</a> | 
-                <a href="chat.html">Chat</a> | 
-                <a href="perfil.html">Mi Perfil</a>
-            </p>
+        <!-- BANNER DE ILUSTRACIÓN DINÁMICA DE KAN -->
+        <div class="kan-display-banner">
+            <img src="randal saludando.png" alt="Kan Pose" id="imgKanDisplayBanner">
         </div>
 
-        <div class="footer-volcano">
-            <img src="volcan.png" alt="Volcán Nicaragua">
+        <!-- CUERPO DE MENSAJES -->
+        <div class="kan-body" id="kanBody">
+            <div class="kan-msg bot">
+                ¡Hola! 👋 Soy <strong>Kan</strong>, tu asistente del Mercado. ¿En qué puedo guiarte hoy?
+            </div>
+            
+            <div class="kan-quick-options" id="kanQuickOptions">
+            </div>
+        </div>
+
+        <!-- FOOTER INPUT -->
+        <div class="kan-footer">
+            <input type="text" class="kan-input" id="kanInput" placeholder="Pregúntale algo a Kan..." onkeydown="if(event.key==='Enter') enviarMensajeKan()">
+            <button class="kan-send-btn" onclick="enviarMensajeKan()"><i class="ti ti-send"></i></button>
         </div>
     </div>
-</footer>
-
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1030,49 +1359,102 @@ footer a:hover {
         let todasLasOfertas = [];
         let fotosPublicacion = [];
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const userEmail = localStorage.getItem('userEmail');
             const userNombre = localStorage.getItem('userNombre') || 'Usuario';
             const userRol = localStorage.getItem('userRol') || 'Miembro';
+            const userId = localStorage.getItem('userId');
 
-           if (!userEmail) {
+            if (!userEmail) {
                 window.location.href = 'login.html';
                 return;
             }
 
+            // ENLACE AL PANEL DE CONTROL SI EL USUARIO ES ADMINISTRADOR
+            const miRolLimpio = userRol.toLowerCase().trim();
+            const subBar = document.querySelector('.sub-bar');
+            if ((miRolLimpio === 'administrador' || miRolLimpio === 'admin') && subBar) {
+                if (!document.getElementById('nav-admin-link')) {
+                    const adminLink = document.createElement('a');
+                    adminLink.id = 'nav-admin-link';
+                    adminLink.href = 'admin.html';
+                    adminLink.style.color = '#f59f00';
+                    adminLink.innerHTML = '<i class="ti ti-shield-check"></i> Panel Admin';
+                    subBar.appendChild(adminLink);
+                }
+            }
+
+            let departamento = localStorage.getItem('userDepartamento') || localStorage.getItem('userDepto');
+
+            if (!departamento && userId) {
+                try {
+                    const res = await fetch(`${API_URL}/api/perfil/${userId}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        departamento = data.NombreDepartamento || 'Managua';
+                        localStorage.setItem('userDepartamento', departamento);
+                    }
+                } catch (err) {
+                    console.error("Error al obtener la ubicación del usuario:", err);
+                }
+            }
+
+            const locationElem = document.getElementById('user-location');
+            if (locationElem) {
+                locationElem.textContent = departamento || 'Managua';
+            }
+
             const authArea = document.getElementById('authArea');
-            authArea.innerHTML = `
-                <div class="user-dropdown-wrapper">
-                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
-                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
-                        <div class="user-nav-text">
-                            <span class="user-nav-name">${userNombre}</span>
-                            <span class="user-nav-role">${userRol.toUpperCase()}</span>
+            if (authArea) {
+                authArea.innerHTML = `
+                    <div class="user-dropdown-wrapper">
+                        <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                            <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                            <div class="user-nav-text">
+                                <span class="user-nav-name">${userNombre}</span>
+                                <span class="user-nav-role">${userRol.toUpperCase()}</span>
+                            </div>
+                            <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                        </button>
+
+                        <div class="dropdown-menu-nav" id="userDropdownMenu">
+                            <a href="perfil.html" class="dropdown-item-nav">
+                                <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
+                                Ver mi perfil
+                            </a>
+                            <div class="dropdown-divider-nav"></div>
+                            <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                                <i class="ti ti-logout" style="font-size: 18px;"></i>
+                                Cerrar sesión
+                            </a>
                         </div>
-                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
-                    </button>
-
-                    <div class="dropdown-menu-nav" id="userDropdownMenu">
-                        <a href="perfil.html" class="dropdown-item-nav">
-                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
-                            Ver mi perfil
-                        </a>
-                        <div class="dropdown-divider-nav"></div>
-                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
-                            <i class="ti ti-logout" style="font-size: 18px;"></i>
-                            Cerrar sesión
-                        </a>
                     </div>
-                </div>
-            `;
+                `;
+            }
 
-            if (userRol === 'proveedor') {
-                document.getElementById('btn-publicar-modal').style.display = 'inline-flex';
-                document.getElementById('btn-subasta-modal').style.display = 'inline-flex';
+            // PERMITIR CREACIÓN DE OFERTAS/SUBASTAS A PROVEEDORES Y ADMINISTRADORES
+            if (miRolLimpio === 'proveedor' || miRolLimpio === 'administrador' || miRolLimpio === 'admin') {
+                const btnPublicar = document.getElementById('btn-publicar-modal');
+                const btnSubasta = document.getElementById('btn-subasta-modal');
+                if (btnPublicar) btnPublicar.style.display = 'inline-flex';
+                if (btnSubasta) btnSubasta.style.display = 'inline-flex';
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const qParam = urlParams.get('q');
+            const catParam = urlParams.get('categoria');
+            const radioParam = urlParams.get('radio');
+
+            if (qParam) document.getElementById('searchInput').value = qParam;
+            if (catParam) document.getElementById('searchCategory').value = catParam;
+            if (radioParam) {
+                document.getElementById('range-km').value = radioParam;
+                document.getElementById('range-val').textContent = `${radioParam}km`;
             }
 
             cargarOfertasDesdeBD();
             cargarSubastasDesdeBD();
+            reiniciarTemporizadorInactividad();
         });
 
         function toggleUserDropdown(event) {
@@ -1137,19 +1519,47 @@ footer a:hover {
             }
         }
 
+        function limpiarTexto(str) {
+            return (str || '')
+                .toLowerCase()
+                .replace(/&/g, 'y')
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .trim();
+        }
+
         function renderizarOfertasFiltradas(maxKm) {
             const contenedor = document.getElementById('contenedor-ofertas');
             const miUserId = localStorage.getItem('userId');
-            const miRol = localStorage.getItem('userRol');
+            const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
+            const esAdmin = (miRol === 'administrador' || miRol === 'admin');
+
+            const queryInput = limpiarTexto(document.getElementById('searchInput').value);
+            const categoriaSelect = document.getElementById('searchCategory').value;
+            const catFiltroLimpia = limpiarTexto(categoriaSelect);
 
             const ofertasFiltradas = todasLasOfertas.filter(oferta => {
-                return parseInt(oferta.DistanciaSimuladaKm) <= parseInt(maxKm);
+                const dentroDelRadio = parseInt(oferta.DistanciaSimuladaKm || 0, 10) <= parseInt(maxKm, 10);
+
+                const tituloOfertaLimpio = limpiarTexto(oferta.TituloMaterial);
+                const catOfertaLimpia = limpiarTexto(oferta.NombreCategoria);
+
+                const coincideTexto = queryInput === '' || tituloOfertaLimpio.includes(queryInput);
+
+                let coincideCategoria = (categoriaSelect === 'todos');
+                if (!coincideCategoria) {
+                    const palabrasFiltro = catFiltroLimpia.split(/\s+/);
+                    coincideCategoria = catOfertaLimpia.includes(catFiltroLimpia) ||
+                        catFiltroLimpia.includes(catOfertaLimpia) ||
+                        palabrasFiltro.some(palabra => palabra.length > 3 && catOfertaLimpia.includes(palabra));
+                }
+
+                return dentroDelRadio && coincideTexto && coincideCategoria;
             });
 
             contenedor.innerHTML = '';
 
             if (ofertasFiltradas.length === 0) {
-                contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas dentro de un radio de ${maxKm}km.</p>`;
+                contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas disponibles que coincidan con tus filtros dentro de un radio de ${maxKm}km.</p>`;
                 return;
             }
 
@@ -1162,9 +1572,14 @@ footer a:hover {
                     : `<i class="ti ${iconoCat}"></i>`;
 
                 const esDueno = (miRol === 'proveedor' && parseInt(miUserId) === parseInt(oferta.ProveedorID));
-                const botonEliminar = esDueno
-                    ? `<button class="btn-sm" style="background-color: #c92a2a; color: white; border: none; margin-left: auto;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-trash"></i> Eliminar</button>`
-                    : '';
+
+                // BOTÓN DE ELIMINACIÓN HABILITADO TAMBIÉN PARA ADMINISTRADORES
+                let botonEliminar = '';
+                if (esDueno) {
+                    botonEliminar = `<button class="btn-sm" style="background-color: #c92a2a; color: white; border: none; margin-left: auto;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-trash"></i> Eliminar</button>`;
+                } else if (esAdmin) {
+                    botonEliminar = `<button class="btn-sm" style="background-color: #d9480f; color: white; border: none; margin-left: auto;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-shield-x"></i> Admin: Eliminar</button>`;
+                }
 
                 contenedor.innerHTML += `
                     <div class="listing-card">
@@ -1210,7 +1625,7 @@ footer a:hover {
                 });
                 const res = await response.json();
                 if (response.ok) {
-                    alert(res.message);
+                    alert(res.message || "Oferta eliminada exitosamente.");
                     cargarOfertasDesdeBD();
                 } else {
                     alert(res.message);
@@ -1223,7 +1638,8 @@ footer a:hover {
         async function cargarSubastasDesdeBD() {
             const contenedor = document.getElementById('contenedor-subastas');
             const miUserId = parseInt(localStorage.getItem('userId'));
-            const miRol = localStorage.getItem('userRol');
+            const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
+            const esAdmin = (miRol === 'administrador' || miRol === 'admin');
 
             try {
                 const response = await fetch(`${API_URL}/api/subastas`);
@@ -1258,7 +1674,7 @@ footer a:hover {
                                     <input class="bid-input" type="number" placeholder="Tu oferta en C$" id="subasta-input-${subasta.SubastaID}" ${deshabilitarPujas ? 'disabled style="background:#f4f1ea; cursor:not-allowed;"' : ''}>
                                     <button class="btn-sm cta" 
                                             style="${deshabilitarPujas ? 'background-color:#b0a8a0; cursor:not-allowed;' : ''}"
-                                            onclick="${deshabilitarPujas ? "alert('Los proveedores no pueden realizar ofertas en el sistema.')" : `ejecutarPujaReal(${subasta.SubastaID}, ${subasta.PrecioActual})`}"
+                                            onclick="${deshabilitarPujas ? "alert('Los proveedores o propietarios no pueden realizar ofertas en sus propias subastas.')" : `ejecutarPujaReal(${subasta.SubastaID},${subasta.PrecioActual})`}"
                                             ${deshabilitarPujas ? 'disabled' : ''}>
                                         ${deshabilitarPujas ? 'Bloqueado' : 'Pujar'}
                                     </button>
@@ -1276,7 +1692,7 @@ footer a:hover {
             const input = document.getElementById(`subasta-input-${subastaId}`);
             const montoPuja = parseFloat(input.value);
             const emprendedorId = localStorage.getItem('userId');
-            const miRol = localStorage.getItem('userRol');
+            const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
 
             if (miRol === 'proveedor') {
                 alert("Los proveedores no pueden realizar pujas.");
@@ -1308,7 +1724,6 @@ footer a:hover {
             }
         }
 
-        /* GUARDAR OFERTA DIRECTA */
         async function guardarOferta() {
             const titulo = document.getElementById('ofertaTitulo').value.trim();
             const precio = document.getElementById('ofertaPrecio').value.trim();
@@ -1317,7 +1732,7 @@ footer a:hover {
             const categoriaId = document.getElementById('ofertaCategoria').value;
             const proveedorId = localStorage.getItem('userId');
 
-            if (!proveedorId) { alert("Error de sesión."); return; }
+            if (!proveedorId) { alert("Error de sesión. Inicia sesión nuevamente."); return; }
             if (!titulo || !precio || !unidad || !categoriaId) { alert("Por favor llena todos los campos obligatorios."); return; }
 
             try {
@@ -1350,7 +1765,7 @@ footer a:hover {
             const categoriaId = document.getElementById('subastaCategoria').value;
             const proveedorId = localStorage.getItem('userId');
 
-            if (!proveedorId) { alert("Error de sesión."); return; }
+            if (!proveedorId) { alert("Error de sesión. Inicia sesión nuevamente."); return; }
             if (!tituloLote || !precioBase || !categoriaId) { alert("Por favor llena todos los campos de la subasta."); return; }
 
             try {
@@ -1408,6 +1823,15 @@ footer a:hover {
                 document.getElementById('tab-' + id).style.display = id === tab ? 'block' : 'none';
             });
 
+            // MANTENER VISIBILIDAD DE BOTONES PARA PROVEEDORES Y ADMINISTRADORES
+            const miRolLimpio = (localStorage.getItem('userRol') || '').toLowerCase().trim();
+            if (miRolLimpio === 'proveedor' || miRolLimpio === 'administrador' || miRolLimpio === 'admin') {
+                const btnPub = document.getElementById('btn-publicar-modal');
+                const btnSub = document.getElementById('btn-subasta-modal');
+                if (btnPub) btnPub.style.display = 'inline-flex';
+                if (btnSub) btnSub.style.display = 'inline-flex';
+            }
+
             if (tab === 'listings') cargarOfertasDesdeBD();
             if (tab === 'auctions') cargarSubastasDesdeBD();
             if (tab === 'map') {
@@ -1439,11 +1863,210 @@ footer a:hover {
             });
         }
 
+        async function ejecutarBusqueda(event) {
+            event.preventDefault();
+            const radioKm = document.getElementById('range-km').value;
+            renderizarOfertasFiltradas(radioKm);
+        }
+
         function cerrarSesion() {
             localStorage.clear();
             alert("Sesión cerrada.");
             window.location.href = 'login.html';
         }
+
+        /* --- LÓGICA DE KAN PARA MERCADO --- */
+        const POSES_KAN = {
+            saludando: 'randal saludando.png',
+            telefono: 'randal con telefono.png',
+            dudando: 'randal dudando.png',
+            respondiendo: 'randal principal.png',
+            durmiendo: 'randal durmiendo-03.png'
+        };
+
+        let temporizadorInactividad = null;
+
+        function obtenerConfigRolMercado() {
+            const rol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
+
+            if (rol === 'proveedor' || rol === 'administrador' || rol === 'admin') {
+                return {
+                    saludo: "¡Hola! 👋 Soy <strong>Kan</strong>. Te ayudo a gestionar ofertas, publicar subastas o administrar contenidos en el Mercado.",
+                    opciones: [
+                        { id: 'publicar_oferta', texto: '➕ ¿Cómo publicar una oferta?' },
+                        { id: 'crear_subasta', texto: '🔨 ¿Cómo crear una subasta?' },
+                        { id: 'filtro_radio_prov', texto: '📍 Distancia de envíos' }
+                    ]
+                };
+            } else {
+                return {
+                    saludo: "¡Hola! 👋 Soy <strong>Kan</strong>. ¿Quieres ayuda para encontrar ofertas, pujar en subastas o ubicar proveedores en el mapa?",
+                    opciones: [
+                        { id: 'comprar_ofertas', texto: '🛍️ ¿Cómo comprar insumos?' },
+                        { id: 'pujar_subasta', texto: '🔨 ¿Cómo pujar en subastas?' },
+                        { id: 'usar_mapa', texto: '🗺 Ver mapa de proveedores' }
+                    ]
+                };
+            }
+        }
+
+        function cargarMenuKanPorRolMercado() {
+            const config = obtenerConfigRolMercado();
+            const body = document.getElementById('kanBody');
+            const optionsContainer = document.getElementById('kanQuickOptions');
+
+            const primerMsg = body ? body.querySelector('.kan-msg.bot') : null;
+            if (primerMsg) primerMsg.innerHTML = config.saludo;
+
+            if (optionsContainer) {
+                optionsContainer.innerHTML = config.opciones.map(opt =>
+                    `<button class="kan-opt-btn" onclick="responderKan('${opt.id}')">${opt.texto}</button>`
+                ).join('');
+            }
+        }
+
+        function cambiarBannerKan(poseKey) {
+            const displayBanner = document.getElementById('imgKanDisplayBanner');
+            const imgFlotante = document.getElementById('imgKanFlotante');
+
+            const src = POSES_KAN[poseKey] || POSES_KAN.saludando;
+
+            if (displayBanner) {
+                displayBanner.style.opacity = '0';
+                setTimeout(() => {
+                    displayBanner.src = src;
+                    displayBanner.style.opacity = '1';
+                }, 150);
+            }
+
+            if (imgFlotante && !document.getElementById('kanChatWindow').classList.contains('active')) {
+                imgFlotante.src = src;
+            }
+        }
+
+        function toggleKanChat() {
+            const win = document.getElementById('kanChatWindow');
+            const badge = document.getElementById('kanBadge');
+            const isActive = win.classList.toggle('active');
+
+            if (badge) badge.style.display = 'none';
+
+            if (isActive) {
+                cargarMenuKanPorRolMercado();
+                cambiarBannerKan('saludando');
+                reiniciarTemporizadorInactividad();
+            } else {
+                cambiarBannerKan('saludando');
+            }
+        }
+
+        function procesarRespuestaKan(textoRespuesta) {
+            cambiarBannerKan('telefono');
+
+            setTimeout(() => {
+                cambiarBannerKan('respondiendo');
+                agregarMsgBot(textoRespuesta);
+
+                setTimeout(() => {
+                    cambiarBannerKan('dudando');
+                    agregarMsgBot("¿Tienes alguna otra pregunta o duda?");
+                }, 3000);
+
+            }, 700);
+        }
+
+        function responderKan(opcion) {
+            reiniciarTemporizadorInactividad();
+
+            if (opcion === 'comprar_ofertas') {
+                agregarMsgUsuario("¿Cómo compro o contacto por ofertas directas?");
+                procesarRespuestaKan("En la pestaña <strong>Ofertas Directas</strong> verás los productos. Haz clic en el botón <strong>Contactar Proveedor</strong> para iniciar una conversación privada.");
+            } else if (opcion === 'pujar_subasta') {
+                agregarMsgUsuario("¿Cómo puedo participar en una subasta?");
+                procesarRespuestaKan("Ingresa a la pestaña <strong>Subastas Activas</strong>, escribe un monto superior al precio actual y presiona <strong>Pujar</strong>.");
+            } else if (opcion === 'usar_mapa') {
+                agregarMsgUsuario("¿Cómo funciona el mapa de proveedores?");
+                procesarRespuestaKan("Ve a la pestaña <strong>Mapa de Proveedores</strong> para visualizar la ubicación geográfica y especialidades de las curtiembres y talleres en Nicaragua.");
+            } else if (opcion === 'publicar_oferta') {
+                agregarMsgUsuario("¿Cómo publico un nuevo material?");
+                procesarRespuestaKan("Haz clic en el botón <strong>+ Publicar Oferta</strong> arriba a la derecha. Completa el título, precio, categoría y sube fotos de tus materiales.");
+            } else if (opcion === 'crear_subasta') {
+                agregarMsgUsuario("¿Cómo puedo iniciar una subasta?");
+                procesarRespuestaKan("Selecciona la pestaña <strong>Subastas Activas</strong> y haz clic en <strong>+ Crear Subasta</strong> para ofrecer lotes al mejor postor.");
+            } else if (opcion === 'filtro_radio_prov') {
+                agregarMsgUsuario("¿Cómo se calcula el radio de distancia?");
+                procesarRespuestaKan("Los compradores filtran insumos usando el deslizable de kilómetros. Asegúrate de tener tu departamento actualizado en tu <strong>Perfil</strong>.");
+            }
+        }
+
+        async function enviarMensajeKanDirecto(textoMensaje) {
+            reiniciarTemporizadorInactividad();
+            if (!textoMensaje) return;
+
+            agregarMsgUsuario(textoMensaje);
+
+            cambiarBannerKan('telefono');
+
+            try {
+                const miRol = localStorage.getItem('userRol') || 'emprendedor';
+
+                const res = await fetch(`${API_URL}/api/chat/ia`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mensajeUsuario: textoMensaje,
+                        rolUsuario: miRol
+                    })
+                });
+
+                const data = await res.json();
+
+                cambiarBannerKan('respondiendo');
+                agregarMsgBot(data.respuesta || data.error);
+
+                setTimeout(() => {
+                    cambiarBannerKan('dudando');
+                }, 3000);
+
+            } catch (error) {
+                console.error("Error al conectar con Kan IA:", error);
+                cambiarBannerKan('respondiendo');
+                agregarMsgBot("Lo siento, no pude obtener los datos del mercado en este momento. Inténtalo nuevamente.");
+            }
+        }
+
+        function enviarMensajeKan() {
+            const input = document.getElementById('kanInput');
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            input.value = '';
+            enviarMensajeKanDirecto(texto);
+        }
+
+        function agregarMsgUsuario(txt) {
+            const body = document.getElementById('kanBody');
+            body.innerHTML += `<div class="kan-msg user">${txt}</div>`;
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function agregarMsgBot(txt) {
+            const body = document.getElementById('kanBody');
+            body.innerHTML += `<div class="kan-msg bot">${txt}</div>`;
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function reiniciarTemporizadorInactividad() {
+            if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
+            temporizadorInactividad = setTimeout(() => {
+                const win = document.getElementById('kanChatWindow');
+                if (!win.classList.contains('active')) {
+                    const imgFlotante = document.getElementById('imgKanFlotante');
+                    if (imgFlotante) imgFlotante.src = POSES_KAN.durmiendo;
+                }
+            }, 120000);
+        }
+
     </script>
 </body>
 </html>
