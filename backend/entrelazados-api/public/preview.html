@@ -1,7 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="sesion.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Tu Mercado de Materia Prima para Cuero</title>
     
@@ -133,93 +135,21 @@
             gap: 15px;
         }
 
-        .user-dropdown-wrapper {
-            position: relative;
-        }
-
-        .user-btn-nav {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            padding: 6px 14px;
-            border-radius: 4px;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-
-        .user-btn-nav:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .user-nav-text {
-            text-align: left;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .user-nav-name {
-            font-size: 13px;
-            font-weight: 700;
-            line-height: 1.1;
-            color: #ffffff;
-        }
-
-        .user-nav-role {
-            font-size: 10px;
-            color: #d1c2b8;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .dropdown-menu-nav {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: calc(100% + 8px);
-            background: #ffffff;
-            color: #1a1a1a;
-            min-width: 180px;
-            border-radius: 4px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-            z-index: 1000;
-            overflow: hidden;
-            border: 1px solid var(--color-principal);
-        }
-
-        .dropdown-menu-nav.show {
-            display: block;
-        }
-
-        .dropdown-item-nav {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 11px 16px;
-            color: var(--color-secundario);
+        .auth-box {
+            color: #fff;
             text-decoration: none;
-            font-size: 13px;
-            font-weight: 600;
-            transition: background 0.2s;
+            font-size: 12px;
+            line-height: 1.2;
         }
 
-        .dropdown-item-nav:hover {
-            background-color: #f4f1ea;
+        .auth-box span {
+            display: block;
+            color: #d1c2b8;
         }
 
-        .dropdown-item-nav.logout-item {
-            color: #c92a2a;
-        }
-
-        .dropdown-item-nav.logout-item:hover {
-            background-color: #fff0f0;
-        }
-
-        .dropdown-divider-nav {
-            height: 1px;
-            background-color: #e0d8ce;
+        .auth-box strong {
+            font-size: 14px;
+            color: #fff;
         }
 
         .btn-nav-login {
@@ -434,7 +364,7 @@ footer {
     color: #fff;
     padding: 20px 30px;
     font-size: 12px;
-    margin-top: auto; /* Mantiene el sticky footer */
+    margin-top: auto;
     border-top: 4px solid var(--color-principal);
 }
 
@@ -479,26 +409,71 @@ footer a:hover {
     width: auto;
     display: block;
 }
+@media (max-width: 768px) {
+            .amazon-header {
+                flex-wrap: wrap;
+                padding: 10px;
+                gap: 10px;
+            }
 
+            .logo {
+                font-size: 22px;
+            }
 
-        @media (max-width: 768px) {
-            .amazon-header { flex-wrap: wrap; }
-            .search-bar { order: 3; width: 100%; }
+            .nav-user {
+                margin-left: auto;
+            }
+
+            .search-bar {
+                order: 3;
+                width: 100%;
+                min-width: 100%;
+                display: flex !important;
+            }
+
+            .search-category {
+                max-width: 110px;
+                font-size: 11px;
+                padding: 0 4px;
+            }
+
             .hero-banner { height: 220px; }
             .main-content { margin-top: -60px; }
+
+            .footer-container {
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .footer-brand, .footer-center {
+                text-align: center;
+            }
+
+            .footer-volcano {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+
+            .footer-volcano img {
+                margin: 0 auto;
+            }
         }
     </style>
 </head>
 <body>
 
     <header class="amazon-header">
-        <a href="index.html" class="logo">Entre<span>Lazados</span></a>
+        <a href="preview.html" class="logo">Entre<span>Lazados</span></a>
 
         <div class="header-location">
             <i class="ti ti-map-pin" style="font-size: 18px;"></i>
             <div>
-                <span class="location-label">Enviar a</span>
-                <strong id="user-location">Cargando...</strong>
+                Enviar a
+                <strong>Managua</strong>
             </div>
         </div>
 
@@ -515,18 +490,18 @@ footer a:hover {
         </div>
 
         <div class="nav-user">
-            <div id="authArea">
+            <div id="authArea" style="display: flex; gap: 10px; align-items: center;">
+                <a href="login.html" class="btn-nav-login">Iniciar Sesión</a>
+                <a href="unirse.html" class="btn-nav-register">Registrarse</a>
             </div>
         </div>
     </header>
 
     <div class="sub-bar">
-        <a href="#"><i class="ti ti-menu-2"></i> Todo el Catálogo</a>
         <a href="mercado.html">Mercado Completo</a>
-        <a href="chat.html">Chat / Mensajes</a>
-        <a href="#">Ofertas de la Semana</a>
-        <a href="#">Proveedores de Masaya</a>
-        <a href="#">Suelaje & Tacones</a>
+        <a href="chat.html">Chat</a>
+        <a href="dashboard.html">Dashboard</a>
+
     </div>
 
     <section class="hero-banner">
@@ -538,12 +513,10 @@ footer a:hover {
         <div class="amazon-grid">
 
             <div class="amazon-card" id="loginCard">
-                <h2 id="card-welcome-title">Bienvenido a EntreLazados</h2>
+                <h2>Inicia sesión para ver tus cotizaciones</h2>
                 <img src="https://images.unsplash.com/photo-1605733160314-4fc7dac4bb16?q=80&w=1190&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="amazon-card-img" alt="Zapatos de Cuero">
-                <div id="card-actions">
-                    <a href="mercado.html" class="btn-nav-login" style="text-align: center; display: block; margin-bottom: 10px;">Explorar Mercado de Materiales</a>
-                    <a href="perfil.html" class="amazon-card-link">Ver mi Perfil de Negocio →</a>
-                </div>
+                <a href="login.html" class="btn-nav-login" style="text-align: center; display: block; margin-bottom: 10px;">Iniciar Sesión de Forma Segura</a>
+                <a href="unirse.html" class="amazon-card-link">¿Eres nuevo proveedor? Empieza aquí</a>
             </div>
 
             <div class="amazon-card">
@@ -640,74 +613,40 @@ footer a:hover {
     </div>
 </footer>
 
-
     <script>
         const API_URL = window.location.origin;
 
         document.addEventListener('DOMContentLoaded', () => {
-            const userEmail = localStorage.getItem('userEmail');
-            const userNombre = localStorage.getItem('userNombre') || 'Usuario';
-            const userRol = localStorage.getItem('userRol') || 'Miembro';
-
-            if (!userEmail) {
-                window.location.href = 'login.html';
-                return;
-            }
-
+            const userNombre = localStorage.getItem('userNombre');
+            const userRol = localStorage.getItem('userRol');
             const authArea = document.getElementById('authArea');
+            const loginCard = document.getElementById('loginCard');
 
-            authArea.innerHTML = `
-                <div class="user-dropdown-wrapper">
-                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
-                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
-                        <div class="user-nav-text">
-                            <span class="user-nav-name">${userNombre}</span>
-                            <span class="user-nav-role">${userRol.toUpperCase()}</span>
-                        </div>
-                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
-                    </button>
-
-                    <div class="dropdown-menu-nav" id="userDropdownMenu">
-                        <a href="perfil.html" class="dropdown-item-nav">
-                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i>
-                            Ver mi perfil
-                        </a>
-                        <div class="dropdown-divider-nav"></div>
-                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
-                            <i class="ti ti-logout" style="font-size: 18px;"></i>
-                            Cerrar sesión
-                        </a>
+            if (userNombre) {
+                authArea.innerHTML = `
+                    <div class="auth-box">
+                        <span>Hola, ${userNombre}</span>
+                        <strong>Cuenta (${userRol})</strong>
                     </div>
-                </div>
-            `;
+                    <button onclick="cerrarSesion()" class="btn-nav-register" style="cursor:pointer;">Salir</button>
+                `;
 
-            const cardWelcomeTitle = document.getElementById('card-welcome-title');
-            if (cardWelcomeTitle) {
-                cardWelcomeTitle.textContent = `¡Hola de nuevo, ${userNombre}!`;
+                if (loginCard) {
+                    loginCard.innerHTML = `
+                        <h2>¡Bienvenido de nuevo, ${userNombre}!</h2>
+                        <p style="font-size:13px; color:#555; margin-bottom: 15px;">
+                            Explora las cotizaciones recientes de tu cuenta de ${userRol}.
+                        </p>
+                        <a href="inicio.html" class="btn-nav-login" style="text-align: center; display: block; margin-bottom: 10px;">Ir a mi Panel de Control</a>
+                        <a href="mercado.html" class="amazon-card-link">Ver productos en el Mercado</a>
+                    `;
+                }
             }
         });
 
-        function toggleUserDropdown(event) {
-            event.stopPropagation();
-            const dropdown = document.getElementById('userDropdownMenu');
-            if (dropdown) {
-                dropdown.classList.toggle('show');
-            }
-        }
-
-        window.onclick = function (event) {
-            if (!event.target.closest('.user-dropdown-wrapper')) {
-                const dropdown = document.getElementById('userDropdownMenu');
-                if (dropdown && dropdown.classList.contains('show')) {
-                    dropdown.classList.remove('show');
-                }
-            }
-        };
-
         function cerrarSesion() {
             localStorage.clear();
-            alert("Sesión cerrada.");
-            window.location.href = 'login.html';
+            window.location.reload();
         }
     </script>
 </body>
