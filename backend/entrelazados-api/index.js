@@ -6,7 +6,7 @@ const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { crearServicioCorreo } = require('./correo');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { GoogleGenAI } = require('@google/genai');
@@ -69,17 +69,16 @@ db.on('error', (err) => {
 
 console.log('✅ Pool de conexiones MySQL inicializado correctamente.');
 
-// CORREO (recuperación de contraseña). Opcional: si EMAIL_USER / EMAIL_PASS
-// no están en el .env, el enlace se escribe en el log del servidor (pm2 logs).
-const CORREO_CONFIGURADO = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-const transporter = CORREO_CONFIGURADO
-    ? nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE || 'gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-    })
-    : null;
-if (!CORREO_CONFIGURADO) {
+// CORREO (recuperación de contraseña), ver correo.js. Opcional: si EMAIL_USER /
+// EMAIL_PASS no están en el .env, el enlace se escribe en el log (pm2 logs).
+const correo = crearServicioCorreo();
+if (!correo.configurado) {
     console.warn('⚠️ EMAIL_USER / EMAIL_PASS no están en el .env: los enlaces de recuperación solo se mostrarán en el log.');
+} else {
+    correo.verificar().then(({ ok, motivo }) => {
+        if (ok) console.log(`✅ Correo listo: los enlaces de recuperación se envían desde ${correo.remitente}.`);
+        else console.error(`❌ El correo de recuperación NO funciona: ${motivo}`);
+    });
 }
 
 /* ==========================================================================
@@ -559,23 +558,6 @@ function ocultarCorreo(correo) {
     return `${visible}@${dominio}`;
 }
 
-function correoRecuperacion(enlace, base) {
-    return `
-    <div style="background:#f5efe9;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
-      <div style="max-width:480px;margin:0 auto;background:#ffffff;border-top:4px solid #993D24;border-radius:8px;padding:28px 24px;color:#3D170A">
-        <img src="${base}/logo.png" alt="EntreLazados" height="48" style="display:block;margin:0 auto 16px">
-        <h1 style="font-size:20px;text-align:center;margin:0 0 12px">Restablece tu contraseña</h1>
-        <p style="font-size:15px;line-height:1.5;margin:0 0 20px">Recibimos una solicitud para cambiar la contraseña de tu cuenta en EntreLazados. Presiona el botón para elegir una nueva:</p>
-        <p style="text-align:center;margin:0 0 20px">
-          <a href="${enlace}" style="display:inline-block;background:#7D381B;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:4px">Restablecer contraseña</a>
-        </p>
-        <p style="font-size:13px;line-height:1.5;color:#6b5b53;margin:0 0 8px">El enlace vence en <strong>1 hora</strong> y solo se puede usar una vez.</p>
-        <p style="font-size:13px;line-height:1.5;color:#6b5b53;margin:0 0 8px">Si el botón no funciona, copia esta dirección en tu navegador:<br><span style="word-break:break-all">${enlace}</span></p>
-        <p style="font-size:13px;line-height:1.5;color:#6b5b53;margin:0">Si no pediste este cambio, ignora este correo: tu contraseña seguirá siendo la misma.</p>
-      </div>
-    </div>`;
-}
-
 app.post('/api/solicitar-recuperacion', async (req, res) => {
     const emailLimpio = typeof req.body.email === 'string' ? req.body.email.trim() : '';
 
@@ -611,21 +593,15 @@ app.post('/api/solicitar-recuperacion', async (req, res) => {
         const base = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
         const enlace = `${base}/restablecer.html?token=${token}`;
 
-        if (!CORREO_CONFIGURADO) {
+        if (!correo.configurado) {
             console.warn(`🔑 Enlace de recuperación para ${emailLimpio} (correo no configurado): ${enlace}`);
             return res.json({ message: MENSAJE_RECUPERACION });
         }
 
-        transporter.sendMail({
-            from: `"EntreLazados" <${process.env.EMAIL_USER}>`,
-            to: usuarios[0].CorreoElectronico,
-            subject: 'Restablece tu contraseña - EntreLazados',
-            text: `Para elegir una nueva contraseña abre este enlace (vence en 1 hora): ${enlace}\n\nSi no pediste este cambio, ignora este correo.`,
-            html: correoRecuperacion(enlace, base)
-        }, (errCorreo) => {
-            if (errCorreo) console.error(`❌ No se pudo enviar el correo de recuperación a ${emailLimpio}:`, errCorreo.message);
-            else console.log(`📧 Correo de recuperación enviado a ${emailLimpio}`);
-        });
+        // Se responde sin esperar al envío; el resultado queda en el log
+        correo.enviarRecuperacion(usuarios[0].CorreoElectronico, enlace, base)
+            .then(() => console.log(`📧 Correo de recuperación enviado a ${emailLimpio}`))
+            .catch((errCorreo) => console.error(`❌ No se pudo enviar el correo de recuperación a ${emailLimpio}: ${errCorreo.message}`));
         res.json({ message: MENSAJE_RECUPERACION });
     } catch (error) {
         console.error('Error en solicitar-recuperacion:', error.message);
