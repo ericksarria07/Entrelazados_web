@@ -23,6 +23,19 @@ node pruebas/cargar_esquema.js "$(pwd)" "$(pwd)/sql/esquema_mysql.sql" UNA_CLAVE
 Crea las tablas, un administrador (`admin@prueba.com` / `Admin123!`) y un usuario
 antiguo con contraseña sin cifrar (`antiguo@prueba.com` / `clave_vieja`).
 
+### (Opcional) Datos de demostración para el dashboard
+
+Para ver el dashboard con 8 meses de actividad (10 proveedores, 18 emprendedores,
+42 ofertas, ~160 pujas y mensajes), después del paso 2 ejecuta:
+
+```bash
+node pruebas/datos_demo.js "$(pwd)" UNA_CLAVE_DE_PRUEBA
+```
+
+Cuentas: `proveedor1@demo.com` … `proveedor10@demo.com` y `emprendedor1@demo.com` …
+`emprendedor18@demo.com`, todas con la contraseña `Demo1234`.
+(Si cargas los datos demo, `pruebas_api.js` ya no aplica: necesita la base vacía.)
+
 ## 3. Levantar el servidor apuntando a la base de pruebas
 
 Desde `backend/entrelazados-api` (las variables de la línea de comandos tienen

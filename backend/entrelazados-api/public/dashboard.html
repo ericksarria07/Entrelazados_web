@@ -13,6 +13,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
 
+    <!-- Gráficas (Chart.js). ExcelJS se carga solo al presionar "Exportar a Excel". -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
     <script>
         (function () {
             const userEmail = localStorage.getItem('userEmail');
@@ -264,190 +267,592 @@
             color: var(--color-terciario);
         }
 
-        .hero-banner {
-            height: 220px;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            padding-top: 30px;
-            text-align: center;
-            color: white;
+        /* ==========================================================
+           DASHBOARD - tokens de visualización
+           Paleta categórica validada (claridad, croma, daltonismo y
+           contraste >= 3:1 sobre blanco): terracota, verde azulado, ámbar.
+           ========================================================== */
+        .dash {
+            --surface: #ffffff;
+            --surface-2: #faf7f3;
+            --borde: #ebe3db;
+            --grid: #efe8e1;
+            --texto: #2a1a12;
+            --texto-2: #6b5a50;
+            --texto-3: #8d7d73;
+            --serie-1: #993D24;
+            --serie-2: #008f6b;
+            --serie-3: #c98500;
+            --estado-alerta: #fab219;
+            --estado-bien: #0ca30c;
+            --estado-critico: #d03b3b;
+            --radio: 10px;
+            --sombra: 0 1px 2px rgba(61, 23, 10, 0.06), 0 6px 18px rgba(61, 23, 10, 0.08);
+            flex: 1 0 auto;
         }
 
-        .hero-title {
-            font-size: 30px;
-            text-shadow: 0 2px 6px rgba(0,0,0,0.8);
-            letter-spacing: -0.5px;
+        .dash-hero {
+            padding: 34px 20px 26px;
+            color: #fff;
         }
+
+        .dash-hero-inner {
+            max-width: 1380px;
+            margin: 0 auto;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .eyebrow {
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #f0c9b5;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .dash-hero h1 {
+            font-size: 32px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .hero-sub {
+            margin-top: 6px;
+            font-size: 14px;
+            color: #eadfd8;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 8px;
+            border-radius: var(--radio);
+            box-shadow: var(--sombra);
+        }
+
+        .toolbar label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--texto-2);
+            padding-left: 6px;
+        }
+
+        .toolbar select {
+            height: 36px;
+            border: 1px solid var(--borde);
+            border-radius: 6px;
+            padding: 0 10px;
+            font: inherit;
+            font-size: 13px;
+            color: var(--texto);
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .btn {
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+
+        .btn i { font-size: 17px; }
+        .btn:disabled { opacity: 0.6; cursor: wait; }
+
+        .btn-ghost {
+            background: #fff;
+            border-color: var(--borde);
+            color: var(--color-secundario);
+        }
+
+        .btn-ghost:hover { background: var(--surface-2); }
+
+        .btn-excel {
+            background: #1d6f42;
+            color: #fff;
+        }
+
+        .btn-excel:hover { background: #155a35; }
+
+        .btn-principal {
+            background: var(--color-principal);
+            color: #fff;
+            width: 100%;
+            justify-content: center;
+            height: 40px;
+        }
+
+        .btn-principal:hover { background: var(--color-terciario); }
 
         .main-content {
             max-width: 1380px;
-            margin: -90px auto 30px auto;
+            margin: 0 auto 36px auto;
             padding: 0 20px;
             position: relative;
             z-index: 10;
             flex: 1;
             width: 100%;
+            min-width: 0;
         }
 
-        /* ESTILOS DEL DASHBOARD */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 6px;
-            box-shadow: 0 3px 8px rgba(61, 23, 10, 0.08);
-            border-top: 3px solid var(--color-principal);
+        .alerta {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+            background: #fff4f2;
+            border: 1px solid #f3c7bd;
+            color: #8a2a17;
+            padding: 12px 16px;
+            border-radius: var(--radio);
+            margin-bottom: 18px;
+            font-size: 14px;
         }
 
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background-color: #f4f1ea;
+        .alerta[hidden] { display: none; }
+        .alerta .btn { margin-left: auto; }
+
+        .cargando-capa { transition: opacity 0.2s; }
+        .cargando-capa.recargando { opacity: 0.55; pointer-events: none; }
+
+        /* --- KPIs --- */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .kpi {
+            background: var(--surface);
+            border-radius: var(--radio);
+            padding: 16px 18px;
+            box-shadow: var(--sombra);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .kpi-cabecera {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: var(--texto-2);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .kpi-icono {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #f6ece6;
             color: var(--color-principal);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 17px;
+            flex-shrink: 0;
         }
 
-        .stat-info h3 {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 4px;
-            text-transform: uppercase;
+        .kpi-valor {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 30px;
+            font-weight: 800;
+            color: var(--texto);
+            line-height: 1.1;
+            letter-spacing: -0.5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        .stat-info span {
-            font-size: 24px;
-            font-weight: 900;
-            color: var(--color-secundario);
-            font-family: var(--font-principal);
+        .kpi-pie {
+            font-size: 12.5px;
+            color: var(--texto-3);
         }
 
-        .dashboard-grid {
+        .kpi-pie strong { color: var(--texto-2); }
+
+        .delta-sube { color: #0a7a0a; font-weight: 700; }
+
+        /* --- Mi actividad --- */
+        .mi-actividad {
+            background: linear-gradient(135deg, var(--color-secundario), #5a2512);
+            border-radius: var(--radio);
+            padding: 18px 20px;
+            margin-bottom: 18px;
+            color: #fff;
+            box-shadow: var(--sombra);
+        }
+
+        .mi-actividad[hidden] { display: none; }
+
+        .mi-actividad h2 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #f6e3d8;
+        }
+
+        .mini-kpis {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
         }
 
-        @media (max-width: 900px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
+        .mini-kpi {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            padding: 12px 14px;
         }
 
-        .dash-card {
-            background: #ffffff;
-            padding: 24px;
-            border-radius: 6px;
-            box-shadow: 0 3px 8px rgba(61, 23, 10, 0.08);
-            border-top: 3px solid var(--color-terciario);
+        .mini-kpi .etq { font-size: 12px; color: #e3cfc4; }
+        .mini-kpi .val { font-size: 24px; font-weight: 800; margin-top: 2px; font-family: 'Source Sans 3', sans-serif; }
+
+        /* --- Tarjetas y cuadrícula --- */
+        .fila {
+            display: grid;
+            gap: 18px;
+            margin-bottom: 18px;
         }
 
-        .dash-card h2 {
-            font-size: 18px;
-            color: var(--color-secundario);
-            margin-bottom: 16px;
+        .fila-2-1 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+        .fila-1-1 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+        @media (max-width: 1000px) {
+            .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .fila-2-1, .fila-1-1 { grid-template-columns: minmax(0, 1fr); }
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: var(--radio);
+            box-shadow: var(--sombra);
+            padding: 18px 20px 20px;
+            min-width: 0;
+        }
+
+        .card-cabecera {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            color: var(--texto);
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .admin-card-highlight {
-            border-top: 3px solid #f59f00;
-            background: #fffdf9;
+        .card h2 i { color: var(--color-principal); font-size: 19px; }
+
+        .card-sub {
+            font-size: 12.5px;
+            color: var(--texto-3);
+            margin-top: 3px;
         }
 
-        .form-group {
-            margin-bottom: 14px;
+        .btn-vista {
+            background: none;
+            border: 1px solid var(--borde);
+            color: var(--texto-2);
+            border-radius: 6px;
+            height: 30px;
+            padding: 0 10px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
         }
+
+        .btn-vista:hover { background: var(--surface-2); }
+
+        .leyenda {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 10px;
+            font-size: 12.5px;
+            color: var(--texto-2);
+        }
+
+        .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+        .leyenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+        .grafica { position: relative; width: 100%; }
+        .grafica-alta { height: 300px; }
+        .grafica-media { height: 260px; }
+
+        .vacio {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            color: var(--texto-3);
+            font-size: 13px;
+            text-align: center;
+            padding: 30px 10px;
+            height: 100%;
+        }
+
+        .vacio i { font-size: 28px; color: #cdbdb2; }
+
+        /* --- Tablas --- */
+        .tabla-wrap { overflow-x: auto; }
+
+        .tabla {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .tabla th {
+            text-align: left;
+            font-size: 11.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--texto-3);
+            font-weight: 700;
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--borde);
+            white-space: nowrap;
+            background: var(--surface-2);
+        }
+
+        .tabla td {
+            padding: 10px;
+            border-bottom: 1px solid var(--grid);
+            color: var(--texto);
+            vertical-align: middle;
+        }
+
+        .tabla tr:last-child td { border-bottom: none; }
+        .tabla tbody tr:hover td { background: #fcf9f6; }
+        .tabla .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .tabla .lote { font-weight: 700; }
+        .tabla .secundario { color: var(--texto-3); font-size: 12px; }
+
+        .barra-inc {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+        }
+
+        .barra-inc .pista {
+            flex: 1;
+            height: 6px;
+            background: var(--grid);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .barra-inc .relleno {
+            height: 100%;
+            background: var(--serie-2);
+            border-radius: 3px;
+        }
+
+        .barra-inc span { font-size: 12px; color: var(--texto-2); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .chip-pronto { background: #fff3d6; color: #8a5a00; }
+        .chip-normal { background: #f1ece7; color: var(--texto-2); }
+        .chip-mia { background: #f6e3d8; color: var(--color-principal); }
+
+        .enlace {
+            color: var(--color-principal);
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .enlace:hover { text-decoration: underline; }
+
+        .buscador-tabla {
+            height: 32px;
+            border: 1px solid var(--borde);
+            border-radius: 6px;
+            padding: 0 10px;
+            font: inherit;
+            font-size: 13px;
+            width: 220px;
+            max-width: 100%;
+        }
+
+        /* --- Pujas recientes --- */
+        .lista-pujas { list-style: none; }
+
+        .lista-pujas li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--grid);
+        }
+
+        .lista-pujas li:last-child { border-bottom: none; }
+
+        .puja-icono {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #e6f4ef;
+            color: var(--serie-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .puja-info { flex: 1; min-width: 0; }
+        .puja-info strong { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .puja-info span { font-size: 12px; color: var(--texto-3); }
+        .puja-monto { font-weight: 800; color: var(--texto); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+        /* --- Formularios --- */
+        .form-group { margin-bottom: 12px; }
 
         .form-group label {
             display: block;
             font-size: 13px;
             font-weight: 600;
             margin-bottom: 5px;
-            color: #444;
+            color: var(--texto-2);
         }
 
         .form-control {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid #d9cec5;
+            border-radius: 6px;
             font-size: 14px;
-            font-family: var(--font-secundaria);
+            font-family: inherit;
             outline: none;
+            background: #fff;
         }
 
-        .form-control:focus {
-            border-color: var(--color-principal);
-        }
+        .form-control:focus { border-color: var(--color-principal); box-shadow: 0 0 0 3px rgba(125, 56, 27, 0.12); }
 
-        .btn-primary-custom {
-            background-color: var(--color-principal);
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            width: 100%;
-            transition: background 0.2s;
-            font-family: var(--font-secundaria);
-            display: inline-flex;
+        .form-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .accesos { display: grid; gap: 10px; }
+
+        .acceso {
+            display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 6px;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid var(--borde);
+            border-radius: 8px;
             text-decoration: none;
+            color: var(--texto);
+            transition: background 0.15s, border-color 0.15s;
         }
 
-        .btn-primary-custom:hover {
-            background-color: var(--color-terciario);
-        }
+        .acceso:hover { background: var(--surface-2); border-color: #dccbbd; }
+        .acceso i { font-size: 22px; color: var(--color-principal); }
+        .acceso strong { display: block; font-size: 14px; }
+        .acceso span { font-size: 12px; color: var(--texto-3); }
+        .acceso-admin { border-color: #f3d39a; background: #fffaf0; }
+        .acceso-admin i { color: #b46e00; }
 
-        .btn-admin-custom {
-            background-color: #f59f00;
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 26px;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--color-secundario);
             color: #fff;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 10000;
+            max-width: calc(100vw - 32px);
         }
 
-        .btn-admin-custom:hover {
-            background-color: #d97706;
+        .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.error { background: #a12a1a; }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
         }
 
-        .table-responsive {
-            overflow-x: auto;
-        }
-
-        .custom-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .custom-table th, .custom-table td {
-            padding: 10px 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0d8ce;
-        }
-
-        .custom-table th {
-            background-color: #f8f6f2;
-            color: var(--color-secundario);
-            font-weight: 700;
+        @media (max-width: 768px) {
+            .dash-hero { padding: 22px 16px 18px; }
+            .dash-hero h1 { font-size: 24px; }
+            .toolbar { width: 100%; }
+            .toolbar label { flex: 1; }
+            .toolbar .btn { flex: 1; justify-content: center; }
+            .main-content { padding: 0 12px; }
+            .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .kpi { padding: 12px 14px; }
+            .kpi-valor { font-size: 22px; }
+            .mini-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+            .mini-kpi { padding: 10px 12px; }
+            .mini-kpi .val { font-size: 20px; }
+            .card { padding: 14px; }
+            .card-cabecera { flex-wrap: wrap; }
+            .buscador-tabla { width: 100%; }
+            .form-fila { grid-template-columns: 1fr; }
         }
 
         /* ESTILOS DE KAN FLOTANTE */
@@ -799,100 +1204,171 @@
         <a href="dashboard.html" class="active">Dashboard</a>
     </div>
 
-    <section class="hero-banner">
-        <h1 class="hero-title">Panel de Control General</h1>
+    <div class="dash">
+    <section class="dash-hero">
+        <div class="dash-hero-inner">
+            <div>
+                <p class="eyebrow">Panel de control</p>
+                <h1>Hola, <span id="saludoNombre">bienvenido</span></h1>
+                <p class="hero-sub">Resumen de la actividad de EntreLazados · <span id="ultimaActualizacion">cargando datos…</span></p>
+            </div>
+            <div class="toolbar" role="toolbar" aria-label="Opciones del dashboard">
+                <label for="filtroPeriodo"><i class="ti ti-calendar"></i> Periodo
+                    <select id="filtroPeriodo">
+                        <option value="3">Últimos 3 meses</option>
+                        <option value="6" selected>Últimos 6 meses</option>
+                        <option value="12">Últimos 12 meses</option>
+                    </select>
+                </label>
+                <button class="btn btn-ghost" id="btnActualizar" type="button"><i class="ti ti-refresh"></i> Actualizar</button>
+                <button class="btn btn-excel" id="btnExportar" type="button" disabled><i class="ti ti-file-spreadsheet"></i> Exportar a Excel</button>
+            </div>
+        </div>
     </section>
 
     <main class="main-content">
-        <!-- ESTADÍSTICAS EN TIEMPO REAL -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="ti ti-building-factory"></i></div>
-                <div class="stat-info">
-                    <h3>Proveedores Activos</h3>
-                    <span id="stat-proveedores">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="ti ti-shoe"></i></div>
-                <div class="stat-info">
-                    <h3>Emprendedores</h3>
-                    <span id="stat-emprendedores">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="ti ti-gavel"></i></div>
-                <div class="stat-info">
-                    <h3>Subastas Activas</h3>
-                    <span id="stat-subastas">0</span>
-                </div>
-            </div>
+        <div class="alerta" id="alertaError" role="alert" hidden>
+            <i class="ti ti-alert-triangle" style="font-size: 20px;"></i>
+            <span id="alertaTexto">No se pudieron cargar las estadísticas.</span>
+            <button class="btn btn-ghost" type="button" onclick="cargarDashboard()"><i class="ti ti-refresh"></i> Reintentar</button>
         </div>
 
-        <!-- ACCESOS Y GESTIÓN -->
-        <div class="dashboard-grid">
-            <!-- Acceso exclusivo de administración -->
-            <div class="dash-card admin-card-highlight" id="adminControlCard" style="display: none;">
-                <h2 style="color: #d97706;"><i class="ti ti-shield-check"></i> Herramientas de Administrador</h2>
-                <p style="font-size: 13px; color: #555; margin-bottom: 16px; line-height: 1.4;">
-                    Tienes privilegios globales en el sistema. Puedes moderar contenidos, gestionar la base de usuarios y monitorear la plataforma en tiempo real.
-                </p>
-                <a href="admin.html" class="btn-primary-custom btn-admin-custom">
-                    <i class="ti ti-layout-dashboard"></i> Ir al Panel de Administración Principal
-                </a>
+        <div class="cargando-capa" id="contenidoDashboard">
+            <!-- INDICADORES PRINCIPALES -->
+            <section class="kpi-grid" id="kpiGrid" aria-label="Indicadores principales"></section>
+
+            <!-- ACTIVIDAD PROPIA SEGÚN EL ROL -->
+            <section class="mi-actividad" id="seccionMiActividad" hidden>
+                <h2><i class="ti ti-user-star"></i> <span id="tituloMiActividad">Mi actividad</span></h2>
+                <div class="mini-kpis" id="miActividadGrid"></div>
+            </section>
+
+            <!-- ACTIVIDAD EN EL TIEMPO + DEPARTAMENTOS -->
+            <div class="fila fila-2-1">
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-chart-line"></i> Actividad de la plataforma</h2>
+                            <p class="card-sub" id="subActividad">Nuevos registros, ofertas publicadas y pujas por mes</p>
+                        </div>
+                        <button class="btn-vista" type="button" data-vista="actividad" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                    </div>
+                    <div class="leyenda" id="leyendaActividad"></div>
+                    <div class="grafica grafica-alta" id="graficaActividadWrap"><canvas id="graficaActividad" aria-label="Gráfica de actividad mensual" role="img"></canvas></div>
+                    <div class="tabla-wrap" id="tablaActividad" hidden></div>
+                </article>
+
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-map-2"></i> Usuarios por departamento</h2>
+                            <p class="card-sub">Proveedores y emprendedores registrados</p>
+                        </div>
+                        <button class="btn-vista" type="button" data-vista="departamentos" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                    </div>
+                    <div class="leyenda" id="leyendaDepartamentos"></div>
+                    <div class="grafica grafica-alta" id="graficaDepartamentosWrap"><canvas id="graficaDepartamentos" aria-label="Gráfica de usuarios por departamento" role="img"></canvas></div>
+                    <div class="tabla-wrap" id="tablaDepartamentos" hidden></div>
+                </article>
             </div>
 
-            <!-- Formulario de Publicación (Proveedores y Administradores) -->
-            <div class="dash-card" id="cardPublicacion">
-                <h2><i class="ti ti-package-import"></i> Publicar Nueva Materia Prima</h2>
-                <form id="formPublicar" onsubmit="publicarMaterial(event)">
-                    <div class="form-group">
-                        <label>Título del Material</label>
-                        <input type="text" id="pubTitulo" class="form-control" placeholder="Ej. Cuero Vacuno Castaño" required>
+            <!-- CATEGORÍAS -->
+            <div class="fila fila-1-1">
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-category"></i> Ofertas por categoría</h2>
+                            <p class="card-sub">Materiales publicados en cada categoría</p>
+                        </div>
+                        <button class="btn-vista" type="button" data-vista="categorias" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
                     </div>
-                    <div class="form-group">
-                        <label>Categoría</label>
-                        <select id="pubCategoria" class="form-control">
-                            <option value="1">Cuero Vacuno</option>
-                            <option value="2">Suelas y Caucho</option>
-                            <option value="3">Herrajes</option>
-                            <option value="4">Insumos y Adhesivos</option>
-                        </select>
+                    <div class="grafica grafica-media" id="graficaCategoriasWrap"><canvas id="graficaCategorias" aria-label="Gráfica de ofertas por categoría" role="img"></canvas></div>
+                    <div class="tabla-wrap" id="tablaCategoriasConteo" hidden></div>
+                </article>
+
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-receipt-2"></i> Precios de referencia</h2>
+                            <p class="card-sub">Mínimo, promedio y máximo por categoría (C$)</p>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Precio (C$ NIO)</label>
-                        <input type="number" id="pubPrecio" class="form-control" placeholder="120" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Unidad de Medida</label>
-                        <input type="text" id="pubUnidad" class="form-control" placeholder="Pie cuadrado / Litro / Par" required>
-                    </div>
-                    <button type="submit" class="btn-primary-custom">Publicar Oferta y Subasta</button>
-                </form>
+                    <div class="tabla-wrap" id="tablaPrecios"></div>
+                </article>
             </div>
 
-            <!-- Listado Rápido de Subastas Activas -->
-            <div class="dash-card">
-                <h2><i class="ti ti-gavel"></i> Subastas en Curso</h2>
-                <div class="table-responsive">
-                    <table class="custom-table">
-                        <thead>
-                            <tr>
-                                <th>Lote</th>
-                                <th>Puja Actual</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaSubastasDashboard">
-                            <tr>
-                                <td colspan="3" style="text-align: center; color: #777;">Cargando subastas...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- SUBASTAS EN CURSO -->
+            <article class="card" style="margin-bottom: 18px;">
+                <div class="card-cabecera">
+                    <div>
+                        <h2><i class="ti ti-gavel"></i> Subastas en curso</h2>
+                        <p class="card-sub" id="subSubastas">Lotes activos ordenados por número de pujas</p>
+                    </div>
+                    <label class="sr-only" for="buscarSubasta">Buscar subasta</label>
+                    <input type="search" id="buscarSubasta" class="buscador-tabla" placeholder="Buscar lote o proveedor…">
                 </div>
+                <div class="tabla-wrap" id="tablaSubastas"></div>
+            </article>
+
+            <!-- PUJAS RECIENTES + ACCIONES -->
+            <div class="fila fila-1-1">
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-activity"></i> Pujas recientes</h2>
+                            <p class="card-sub">Últimos movimientos en las subastas</p>
+                        </div>
+                    </div>
+                    <ul class="lista-pujas" id="listaPujas"></ul>
+                </article>
+
+                <article class="card" id="cardPublicacion" hidden>
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-package-import"></i> Publicar nueva materia prima</h2>
+                            <p class="card-sub">Se crea la oferta y su lote en subasta por 7 días</p>
+                        </div>
+                    </div>
+                    <form id="formPublicar" onsubmit="publicarMaterial(event)">
+                        <div class="form-group">
+                            <label for="pubTitulo">Título del material</label>
+                            <input type="text" id="pubTitulo" class="form-control" placeholder="Ej. Cuero vacuno castaño" maxlength="150" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pubCategoria">Categoría</label>
+                            <select id="pubCategoria" class="form-control" required>
+                                <option value="">Cargando categorías…</option>
+                            </select>
+                        </div>
+                        <div class="form-fila">
+                            <div class="form-group">
+                                <label for="pubPrecio">Precio (C$)</label>
+                                <input type="number" id="pubPrecio" class="form-control" placeholder="120" min="1" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pubUnidad">Unidad de medida</label>
+                                <input type="text" id="pubUnidad" class="form-control" placeholder="Pie² / Litro / Par" maxlength="30" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-principal" id="btnPublicar"><i class="ti ti-upload"></i> Publicar oferta y subasta</button>
+                    </form>
+                </article>
+
+                <article class="card" id="cardAccesos" hidden>
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-bolt"></i> Accesos rápidos</h2>
+                            <p class="card-sub">Lo que más usas en EntreLazados</p>
+                        </div>
+                    </div>
+                    <div class="accesos" id="listaAccesos"></div>
+                </article>
             </div>
         </div>
     </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <footer>
         <div class="footer-container">
@@ -955,134 +1431,602 @@
     <script>
         const API_URL = window.location.origin;
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        /* ==========================================================
+           UTILIDADES
+           ========================================================== */
+        // Escapa texto antes de insertarlo como HTML (evita XSS)
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+        const fmtEntero = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 0 });
+        const fmtDecimal = new Intl.NumberFormat('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const entero = (n) => fmtEntero.format(Number(n) || 0);
+        const dinero = (n) => 'C$ ' + fmtDecimal.format(Number(n) || 0);
+        const dineroCorto = (n) => 'C$ ' + fmtEntero.format(Math.round(Number(n) || 0));
+        const porcentaje = (n) => (Number(n) || 0).toLocaleString('es-NI', { maximumFractionDigits: 1 }) + '%';
+
+        function nombreMes(clave, largo = false) {
+            const [a, m] = clave.split('-').map(Number);
+            const f = new Date(a, m - 1, 1);
+            const txt = f.toLocaleDateString('es-NI', largo ? { month: 'long', year: 'numeric' } : { month: 'short', year: '2-digit' });
+            return txt.charAt(0).toUpperCase() + txt.slice(1).replace('.', '');
+        }
+
+        function tiempoRestante(fecha) {
+            const ms = new Date(fecha) - new Date();
+            if (ms <= 0) return 'Finalizada';
+            const min = Math.floor(ms / 60000);
+            const d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+            if (d > 0) return `${d} d ${h} h`;
+            if (h > 0) return `${h} h ${m} min`;
+            return `${m} min`;
+        }
+
+        function haceCuanto(fecha) {
+            const seg = Math.max(0, (new Date() - new Date(fecha)) / 1000);
+            if (seg < 60) return 'hace un momento';
+            if (seg < 3600) return `hace ${Math.floor(seg / 60)} min`;
+            if (seg < 86400) return `hace ${Math.floor(seg / 3600)} h`;
+            if (seg < 604800) return `hace ${Math.floor(seg / 86400)} d`;
+            return new Date(fecha).toLocaleDateString('es-NI', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function mostrarToast(texto, esError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = texto;
+            t.classList.toggle('error', esError);
+            t.classList.add('visible');
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.remove('visible'), 3500);
+        }
+
+        function colorVar(nombre) {
+            return getComputedStyle(document.querySelector('.dash')).getPropertyValue(nombre).trim();
+        }
+
+        // "Lote Subasta: Cuero vacuno" → "Cuero vacuno"
+        const nombreLote = (t) => String(t || '').replace(/^Lote Subasta:\s*/i, '');
+
+        const vacioHTML = (icono, texto) => `<div class="vacio"><i class="ti ti-${icono}"></i><span>${texto}</span></div>`;
+
+        /* ==========================================================
+           ESTADO
+           ========================================================== */
+        const estado = {
+            datos: null,
+            graficas: {},
+            vistaTabla: { actividad: false, departamentos: false, categorias: false },
+            verTodasSubastas: false
+        };
+
+        const rolActual = () => (localStorage.getItem('userRol') || '').toLowerCase().trim();
+        const esAdminActual = () => ['administrador', 'admin'].includes(rolActual());
+
+        /* ==========================================================
+           INICIO
+           ========================================================== */
+        document.addEventListener('DOMContentLoaded', () => {
             const userEmail = localStorage.getItem('userEmail');
             const userNombre = localStorage.getItem('userNombre') || 'Usuario';
             const userRol = localStorage.getItem('userRol') || 'Miembro';
-            const userId = localStorage.getItem('userId');
 
             if (!userEmail) {
                 window.location.href = 'login.html';
                 return;
             }
 
-            const miRolLimpio = userRol.toLowerCase().trim();
-            const esAdmin = (miRolLimpio === 'administrador' || miRolLimpio === 'admin');
+            const rol = rolActual();
+            const esAdmin = esAdminActual();
 
-            // Habilitar enlace en la sub-bar para Administradores
+            // Enlace al panel admin en la sub-barra
             const subBar = document.querySelector('.sub-bar');
-            if (esAdmin && subBar) {
-                if (!document.getElementById('nav-admin-link')) {
-                    const adminLink = document.createElement('a');
-                    adminLink.id = 'nav-admin-link';
-                    adminLink.href = 'admin.html';
-                    adminLink.style.color = '#f59f00';
-                    adminLink.innerHTML = '<i class="ti ti-shield-check"></i> Panel Admin';
-                    subBar.appendChild(adminLink);
-                }
-
-                // Mostrar tarjeta especial de administración en el Dashboard
-                const cardAdmin = document.getElementById('adminControlCard');
-                if (cardAdmin) cardAdmin.style.display = 'block';
+            if (esAdmin && subBar && !document.getElementById('nav-admin-link')) {
+                const adminLink = document.createElement('a');
+                adminLink.id = 'nav-admin-link';
+                adminLink.href = 'admin.html';
+                adminLink.style.color = '#f59f00';
+                adminLink.innerHTML = '<i class="ti ti-shield-check"></i> Panel Admin';
+                subBar.appendChild(adminLink);
             }
 
-            // Ocultar formulario de publicación a Emprendedores simples (mantener para Proveedor o Admin)
-            if (miRolLimpio === 'emprendedor') {
-                const cardPub = document.getElementById('cardPublicacion');
-                if (cardPub) cardPub.style.display = 'none';
-            }
+            document.getElementById('user-location').textContent = localStorage.getItem('userDepartamento') || 'Managua';
+            document.getElementById('saludoNombre').textContent = userNombre;
 
-            // Cargar ubicación
-            let departamento = localStorage.getItem('userDepartamento') || 'Managua';
-            const locationElem = document.getElementById('user-location');
-            if (locationElem) locationElem.textContent = departamento;
-
-            // Render usuario header
-            const authArea = document.getElementById('authArea');
-            if (authArea) {
-                authArea.innerHTML = `
-                    <div class="user-dropdown-wrapper">
-                        <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
-                            <i class="ti ti-user-circle" style="font-size: 22px;"></i>
-                            <div class="user-nav-text">
-                                <span class="user-nav-name">${userNombre}</span>
-                                <span class="user-nav-role">${userRol.toUpperCase()}</span>
-                            </div>
-                            <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
-                        </button>
-                        <div class="dropdown-menu-nav" id="userDropdownMenu">
-                            <a href="perfil.html" class="dropdown-item-nav">
-                                <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i> Ver mi perfil
-                            </a>
-                            <div class="dropdown-divider-nav"></div>
-                            <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
-                                <i class="ti ti-logout" style="font-size: 18px;"></i> Cerrar sesión
-                            </a>
+            document.getElementById('authArea').innerHTML = `
+                <div class="user-dropdown-wrapper">
+                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                        <div class="user-nav-text">
+                            <span class="user-nav-name">${esc(userNombre)}</span>
+                            <span class="user-nav-role">${esc(userRol.toUpperCase())}</span>
                         </div>
+                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                    </button>
+                    <div class="dropdown-menu-nav" id="userDropdownMenu">
+                        <a href="perfil.html" class="dropdown-item-nav">
+                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i> Ver mi perfil
+                        </a>
+                        <div class="dropdown-divider-nav"></div>
+                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                            <i class="ti ti-logout" style="font-size: 18px;"></i> Cerrar sesión
+                        </a>
                     </div>
-                `;
+                </div>`;
+
+            // Tarjeta de acción según el rol
+            if (rol === 'proveedor') {
+                document.getElementById('cardPublicacion').hidden = false;
+                cargarCategorias();
+            } else {
+                document.getElementById('cardAccesos').hidden = false;
+                renderAccesos(esAdmin);
             }
 
-            cargarEstadisticas();
-            cargarSubastasDashboard();
+            // Estilo base de las gráficas
+            if (window.Chart) {
+                Chart.defaults.font.family = "'Source Sans 3', 'Leelawadee', sans-serif";
+                Chart.defaults.font.size = 12;
+                Chart.defaults.color = colorVar('--texto-2');
+            }
+
+            document.getElementById('filtroPeriodo').addEventListener('change', cargarDashboard);
+            document.getElementById('btnActualizar').addEventListener('click', cargarDashboard);
+            document.getElementById('btnExportar').addEventListener('click', exportarExcel);
+            document.getElementById('buscarSubasta').addEventListener('input', () => renderSubastas());
+            document.querySelectorAll('.btn-vista').forEach(b => b.addEventListener('click', () => alternarVista(b)));
+
+            cargarDashboard();
         });
 
-        async function cargarEstadisticas() {
+        /* ==========================================================
+           CARGA DE DATOS
+           ========================================================== */
+        async function cargarDashboard() {
+            const meses = document.getElementById('filtroPeriodo').value;
+            const capa = document.getElementById('contenidoDashboard');
+            const btnAct = document.getElementById('btnActualizar');
+            const alerta = document.getElementById('alertaError');
+
+            // Al recargar se conserva lo anterior atenuado (sin parpadeos)
+            if (estado.datos) capa.classList.add('recargando');
+            btnAct.disabled = true;
+
             try {
-                const res = await fetch(`${API_URL}/api/estadisticas`);
-                if (res.ok) {
-                    const data = await res.json();
-                    document.getElementById('stat-proveedores').textContent = data.proveedores;
-                    document.getElementById('stat-emprendedores').textContent = data.emprendedores;
-                    document.getElementById('stat-subastas').textContent = data.subastas;
+                const res = await fetch(`${API_URL}/api/dashboard?meses=${encodeURIComponent(meses)}`);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.message || 'Error del servidor');
                 }
+                estado.datos = await res.json();
+                alerta.hidden = true;
+                renderTodo();
+                document.getElementById('btnExportar').disabled = false;
+                const hora = new Date(estado.datos.generado).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('ultimaActualizacion').textContent = `actualizado hoy a las ${hora}`;
             } catch (err) {
-                console.error("Error al cargar estadísticas:", err);
+                console.error('Error al cargar el dashboard:', err);
+                document.getElementById('alertaTexto').textContent = estado.datos
+                    ? 'No se pudieron actualizar las estadísticas. Se muestran los últimos datos cargados.'
+                    : 'No se pudieron cargar las estadísticas. Revisa tu conexión e inténtalo de nuevo.';
+                alerta.hidden = false;
+                if (!estado.datos) document.getElementById('ultimaActualizacion').textContent = 'sin datos';
+            } finally {
+                capa.classList.remove('recargando');
+                btnAct.disabled = false;
             }
         }
 
-        async function cargarSubastasDashboard() {
-            try {
-                const res = await fetch(`${API_URL}/api/subastas`);
-                if (res.ok) {
-                    const subastas = await res.json();
-                    const tbody = document.getElementById('tablaSubastasDashboard');
-                    tbody.innerHTML = '';
+        function renderTodo() {
+            const d = estado.datos;
+            renderKPIs(d.resumen);
+            renderMiActividad(d.miActividad);
+            renderActividad(d.actividad, d.periodoMeses);
+            renderDepartamentos(d.departamentos);
+            renderCategorias(d.categorias);
+            renderPrecios(d.categorias);
+            renderSubastas();
+            renderPujas(d.pujasRecientes, d.esAdmin);
+        }
 
-                    if (subastas.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #777;">No hay subastas activas.</td></tr>`;
-                        return;
-                    }
+        /* ==========================================================
+           INDICADORES
+           ========================================================== */
+        function renderKPIs(r) {
+            const totalUsuarios = r.proveedores + r.emprendedores;
+            const pctProv = totalUsuarios ? (r.proveedores / totalUsuarios) * 100 : 0;
+            const nuevo = (n, texto) => n > 0
+                ? `<span class="delta-sube">+${entero(n)}</span> ${texto}`
+                : `Sin cambios ${texto}`;
 
-                    subastas.forEach(s => {
-                        tbody.innerHTML += `
-                            <tr>
-                                <td><strong>${s.TituloLote}</strong></td>
-                                <td style="color: var(--color-terciario); font-weight: bold;">C$${s.PrecioActual}</td>
-                                <td><a href="mercado.html" style="color: var(--color-principal); text-decoration: none; font-weight: 600;">Ver lote →</a></td>
-                            </tr>
-                        `;
-                    });
+            const tarjetas = [
+                { icono: 'building-factory', titulo: 'Proveedores', valor: entero(r.proveedores), pie: `${porcentaje(pctProv)} de los usuarios` },
+                { icono: 'shoe', titulo: 'Emprendedores', valor: entero(r.emprendedores), pie: nuevo(r.nuevosUsuarios30d, 'usuarios en 30 días') },
+                { icono: 'package', titulo: 'Ofertas publicadas', valor: entero(r.ofertas), pie: nuevo(r.ofertas30d, 'en 30 días') },
+                { icono: 'tag', titulo: 'Precio promedio', valor: dinero(r.precioPromedio), pie: 'por unidad, todas las categorías' },
+                { icono: 'gavel', titulo: 'Subastas activas', valor: entero(r.subastasActivas), pie: `<strong>${entero(r.subastasCerradas)}</strong> finalizadas` },
+                { icono: 'coins', titulo: 'Valor en subasta', valor: dineroCorto(r.valorEnSubasta), pie: 'suma de las pujas actuales' },
+                { icono: 'hand-click', titulo: 'Pujas realizadas', valor: entero(r.pujas), pie: nuevo(r.pujas30d, 'en 30 días') },
+                { icono: 'messages', titulo: 'Mensajes', valor: entero(r.mensajes), pie: nuevo(r.mensajes30d, 'en 30 días') }
+            ];
+
+            document.getElementById('kpiGrid').innerHTML = tarjetas.map(t => `
+                <div class="kpi">
+                    <div class="kpi-cabecera"><span>${t.titulo}</span><span class="kpi-icono"><i class="ti ti-${t.icono}"></i></span></div>
+                    <div class="kpi-valor" title="${esc(t.valor)}">${t.valor}</div>
+                    <div class="kpi-pie">${t.pie}</div>
+                </div>`).join('');
+        }
+
+        function datosMiActividad(m) {
+            if (m.rol === 'proveedor') return {
+                titulo: 'Mi actividad como proveedor',
+                filas: [
+                    ['Mis ofertas publicadas', entero(m.misOfertas), m.misOfertas],
+                    ['Mis subastas activas', entero(m.misSubastasActivas), m.misSubastasActivas],
+                    ['Pujas recibidas', entero(m.pujasRecibidas), m.pujasRecibidas],
+                    ['Valor actual de mis lotes', dineroCorto(m.valorMisSubastas), m.valorMisSubastas],
+                    ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos]
+                ]
+            };
+            if (m.rol === 'emprendedor') return {
+                titulo: 'Mi actividad como emprendedor',
+                filas: [
+                    ['Pujas realizadas', entero(m.misPujas), m.misPujas],
+                    ['Subastas en las que participo', entero(m.subastasParticipando), m.subastasParticipando],
+                    ['Subastas que voy ganando', entero(m.subastasLiderando), m.subastasLiderando],
+                    ['Monto de los lotes que lidero', dineroCorto(m.montoLiderando), m.montoLiderando],
+                    ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos]
+                ]
+            };
+            return null;
+        }
+
+        function renderMiActividad(m) {
+            const sec = document.getElementById('seccionMiActividad');
+            const info = datosMiActividad(m);
+            if (!info) { sec.hidden = true; return; }
+            document.getElementById('tituloMiActividad').textContent = info.titulo;
+            document.getElementById('miActividadGrid').innerHTML = info.filas.map(([etq, val]) =>
+                `<div class="mini-kpi"><div class="etq">${etq}</div><div class="val">${val}</div></div>`).join('');
+            sec.hidden = false;
+        }
+
+        /* ==========================================================
+           GRÁFICAS
+           ========================================================== */
+        function destruirGrafica(clave) {
+            if (estado.graficas[clave]) { estado.graficas[clave].destroy(); delete estado.graficas[clave]; }
+        }
+
+        function leyendaHTML(series) {
+            return series.map(s => `<span><i style="background:${s.color}"></i>${s.nombre}</span>`).join('');
+        }
+
+        function tablaHTML(columnas, filas) {
+            if (!filas.length) return vacioHTML('table-off', 'Sin datos para mostrar.');
+            return `<table class="tabla"><thead><tr>${columnas.map(c => `<th class="${c.num ? 'num' : ''}">${c.titulo}</th>`).join('')}</tr></thead>
+                <tbody>${filas.map(f => `<tr>${columnas.map((c, i) => `<td class="${c.num ? 'num' : ''}">${f[i]}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+        }
+
+        const opcionesEjes = (horizontal = false) => {
+            const grid = colorVar('--grid');
+            const valor = { beginAtZero: true, grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { precision: 0, padding: 6 } };
+            const categoria = { grid: { display: false }, border: { color: grid }, ticks: { padding: 6 } };
+            return horizontal ? { x: valor, y: categoria } : { x: categoria, y: valor };
+        };
+
+        const tooltipBase = () => ({
+            backgroundColor: '#2a1a12',
+            titleColor: '#fff',
+            bodyColor: '#f3e9e3',
+            padding: 10,
+            cornerRadius: 6,
+            boxPadding: 4,
+            usePointStyle: true
+        });
+
+        // Etiqueta directa al final de cada línea (evita que se encimen)
+        const etiquetasFinales = {
+            id: 'etiquetasFinales',
+            afterDatasetsDraw(chart) {
+                const { ctx, chartArea } = chart;
+                const items = chart.data.datasets.map((ds, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    const p = meta.data[meta.data.length - 1];
+                    return (!meta.hidden && p) ? { texto: ds.label, color: ds.borderColor, x: p.x, y: p.y } : null;
+                }).filter(Boolean).sort((a, b) => a.y - b.y);
+                const SEP = 14;
+                // Se separan hacia abajo…
+                for (let i = 1; i < items.length; i++) {
+                    if (items[i].y - items[i - 1].y < SEP) items[i].y = items[i - 1].y + SEP;
                 }
-            } catch (err) {
-                console.error("Error al cargar subastas:", err);
+                // …y si la última se sale del área, se empujan todas hacia arriba
+                if (items.length && items[items.length - 1].y > chartArea.bottom) {
+                    items[items.length - 1].y = chartArea.bottom;
+                    for (let i = items.length - 2; i >= 0; i--) {
+                        if (items[i + 1].y - items[i].y < SEP) items[i].y = items[i + 1].y - SEP;
+                    }
+                }
+                ctx.save();
+                ctx.font = `600 12px ${Chart.defaults.font.family}`;
+                ctx.textBaseline = 'middle';
+                items.forEach(it => {
+                    ctx.fillStyle = colorVar('--texto-2');
+                    ctx.fillText(it.texto, Math.min(it.x + 10, chartArea.right + 10), it.y);
+                });
+                ctx.restore();
+            }
+        };
+
+        function renderActividad(actividad, meses) {
+            destruirGrafica('actividad');
+            const series = [
+                { clave: 'registros', nombre: 'Registros', color: colorVar('--serie-1') },
+                { clave: 'ofertas', nombre: 'Ofertas', color: colorVar('--serie-2') },
+                { clave: 'pujas', nombre: 'Pujas', color: colorVar('--serie-3') }
+            ];
+            document.getElementById('subActividad').textContent =
+                `Nuevos registros, ofertas publicadas y pujas por mes · últimos ${meses} meses`;
+            document.getElementById('leyendaActividad').innerHTML = leyendaHTML(series);
+
+            document.getElementById('tablaActividad').innerHTML = tablaHTML(
+                [{ titulo: 'Mes' }, ...series.map(s => ({ titulo: s.nombre, num: true }))],
+                actividad.map(a => [nombreMes(a.mes, true), ...series.map(s => entero(a[s.clave]))])
+            );
+
+            const wrap = document.getElementById('graficaActividadWrap');
+            const total = actividad.reduce((t, a) => t + a.registros + a.ofertas + a.pujas, 0);
+            if (!window.Chart || total === 0) {
+                wrap.innerHTML = vacioHTML('chart-line', total === 0 ? 'Sin actividad registrada en este periodo.' : 'No se pudo cargar la librería de gráficas.');
+                return;
+            }
+            if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="graficaActividad" role="img" aria-label="Gráfica de actividad mensual"></canvas>';
+
+            estado.graficas.actividad = new Chart(document.getElementById('graficaActividad'), {
+                type: 'line',
+                data: {
+                    labels: actividad.map(a => nombreMes(a.mes)),
+                    datasets: series.map(s => ({
+                        label: s.nombre,
+                        data: actividad.map(a => a[s.clave]),
+                        borderColor: s.color,
+                        backgroundColor: s.color,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        cubicInterpolationMode: 'monotone'   // curva suave sin bajar de 0
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 70, top: 8 } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { ...tooltipBase(), callbacks: { title: (it) => nombreMes(actividad[it[0].dataIndex].mes, true) } }
+                    },
+                    scales: opcionesEjes()
+                },
+                plugins: [etiquetasFinales]
+            });
+        }
+
+        function renderDepartamentos(deps) {
+            destruirGrafica('departamentos');
+            const c1 = colorVar('--serie-1'), c2 = colorVar('--serie-2');
+            document.getElementById('leyendaDepartamentos').innerHTML = leyendaHTML([
+                { nombre: 'Proveedores', color: c1 }, { nombre: 'Emprendedores', color: c2 }
+            ]);
+            document.getElementById('tablaDepartamentos').innerHTML = tablaHTML(
+                [{ titulo: 'Departamento' }, { titulo: 'Proveedores', num: true }, { titulo: 'Emprendedores', num: true }, { titulo: 'Total', num: true }],
+                deps.map(d => [esc(d.departamento), entero(d.proveedores), entero(d.emprendedores), `<strong>${entero(d.proveedores + d.emprendedores)}</strong>`])
+            );
+
+            const wrap = document.getElementById('graficaDepartamentosWrap');
+            if (!window.Chart || !deps.length) {
+                wrap.style.height = '';
+                wrap.innerHTML = vacioHTML('map-off', 'Todavía no hay usuarios registrados.');
+                return;
+            }
+            wrap.style.height = Math.max(220, deps.length * 34 + 50) + 'px';
+            if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="graficaDepartamentos" role="img" aria-label="Gráfica de usuarios por departamento"></canvas>';
+
+            estado.graficas.departamentos = new Chart(document.getElementById('graficaDepartamentos'), {
+                type: 'bar',
+                data: {
+                    labels: deps.map(d => d.departamento),
+                    datasets: [
+                        { label: 'Proveedores', data: deps.map(d => d.proveedores), backgroundColor: c1, borderColor: '#fff', borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 0, maxBarThickness: 18 },
+                        { label: 'Emprendedores', data: deps.map(d => d.emprendedores), backgroundColor: c2, borderRadius: { topRight: 4, bottomRight: 4 }, borderSkipped: false, maxBarThickness: 18 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', axis: 'y', intersect: false },
+                    plugins: { legend: { display: false }, tooltip: tooltipBase() },
+                    scales: (() => { const s = opcionesEjes(true); s.x.stacked = true; s.y.stacked = true; return s; })()
+                }
+            });
+        }
+
+        function renderCategorias(cats) {
+            destruirGrafica('categorias');
+            document.getElementById('tablaCategoriasConteo').innerHTML = tablaHTML(
+                [{ titulo: 'Categoría' }, { titulo: 'Ofertas', num: true }, { titulo: 'Precio promedio', num: true }],
+                cats.map(c => [esc(c.categoria), entero(c.ofertas), dinero(c.precioPromedio)])
+            );
+
+            const wrap = document.getElementById('graficaCategoriasWrap');
+            if (!window.Chart || !cats.length) {
+                wrap.style.height = '';
+                wrap.innerHTML = vacioHTML('package-off', 'Todavía no hay ofertas publicadas.');
+                return;
+            }
+            wrap.style.height = Math.max(200, cats.length * 32 + 50) + 'px';
+            if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="graficaCategorias" role="img" aria-label="Gráfica de ofertas por categoría"></canvas>';
+
+            // En pantallas angostas los nombres largos se recortan más (el nombre completo sale en el tooltip y en la tabla)
+            const recortar = (t, ancho) => { const max = ancho < 520 ? 15 : 28; return t.length > max ? t.slice(0, max - 1) + '…' : t; };
+            estado.graficas.categorias = new Chart(document.getElementById('graficaCategorias'), {
+                type: 'bar',
+                data: {
+                    labels: cats.map(c => c.categoria),
+                    datasets: [{ label: 'Ofertas', data: cats.map(c => c.ofertas), backgroundColor: colorVar('--serie-1'), borderRadius: 4, borderSkipped: 'start', maxBarThickness: 16 }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            ...tooltipBase(),
+                            callbacks: {
+                                label: (it) => ` ${entero(it.raw)} ${it.raw === 1 ? 'oferta' : 'ofertas'}`,
+                                afterLabel: (it) => ` Precio promedio: ${dinero(cats[it.dataIndex].precioPromedio)}`
+                            }
+                        }
+                    },
+                    scales: (() => { const s = opcionesEjes(true); s.y.ticks.callback = function (v) { return recortar(this.getLabelForValue(v), this.chart.width); }; return s; })()
+                }
+            });
+        }
+
+        function renderPrecios(cats) {
+            document.getElementById('tablaPrecios').innerHTML = cats.length
+                ? tablaHTML(
+                    [{ titulo: 'Categoría' }, { titulo: 'Ofertas', num: true }, { titulo: 'Mínimo', num: true }, { titulo: 'Promedio', num: true }, { titulo: 'Máximo', num: true }],
+                    cats.map(c => [esc(c.categoria), entero(c.ofertas), dinero(c.precioMinimo), `<strong>${dinero(c.precioPromedio)}</strong>`, dinero(c.precioMaximo)])
+                )
+                : vacioHTML('receipt-off', 'Los precios aparecerán cuando haya ofertas publicadas.');
+        }
+
+        function alternarVista(boton) {
+            const clave = boton.dataset.vista;
+            const ids = {
+                actividad: ['graficaActividadWrap', 'tablaActividad', 'leyendaActividad'],
+                departamentos: ['graficaDepartamentosWrap', 'tablaDepartamentos', 'leyendaDepartamentos'],
+                categorias: ['graficaCategoriasWrap', 'tablaCategoriasConteo', null]
+            }[clave];
+            const tabla = !estado.vistaTabla[clave];
+            estado.vistaTabla[clave] = tabla;
+            document.getElementById(ids[0]).hidden = tabla;
+            document.getElementById(ids[1]).hidden = !tabla;
+            if (ids[2]) document.getElementById(ids[2]).hidden = tabla;
+            boton.setAttribute('aria-pressed', String(tabla));
+            boton.innerHTML = tabla ? '<i class="ti ti-chart-bar"></i> Ver gráfica' : '<i class="ti ti-table"></i> Ver tabla';
+        }
+
+        /* ==========================================================
+           SUBASTAS Y PUJAS
+           ========================================================== */
+        function renderSubastas() {
+            if (!estado.datos) return;
+            const cont = document.getElementById('tablaSubastas');
+            const filtro = document.getElementById('buscarSubasta').value.trim().toLowerCase();
+            const todas = estado.datos.subastas;
+            const filtradas = todas.filter(s => !filtro || nombreLote(s.lote).toLowerCase().includes(filtro) || s.proveedor.toLowerCase().includes(filtro));
+            const LIMITE = 8;
+            const visibles = estado.verTodasSubastas ? filtradas : filtradas.slice(0, LIMITE);
+
+            document.getElementById('subSubastas').textContent =
+                `${entero(todas.length)} ${todas.length === 1 ? 'lote activo' : 'lotes activos'} · ordenados por número de pujas`;
+
+            if (!todas.length) { cont.innerHTML = vacioHTML('gavel', 'No hay subastas activas en este momento.'); return; }
+            if (!filtradas.length) { cont.innerHTML = vacioHTML('search-off', 'Ningún lote coincide con la búsqueda.'); return; }
+
+            const maxInc = Math.max(1, ...filtradas.map(s => s.precioBase > 0 ? (s.precioActual - s.precioBase) / s.precioBase * 100 : 0));
+            cont.innerHTML = `
+                <table class="tabla">
+                    <thead><tr>
+                        <th>Lote</th><th class="num">Precio base</th><th class="num">Puja actual</th>
+                        <th>Incremento</th><th class="num">Pujas</th><th>Cierra en</th><th></th>
+                    </tr></thead>
+                    <tbody>${visibles.map(s => {
+                        const inc = s.precioBase > 0 ? (s.precioActual - s.precioBase) / s.precioBase * 100 : 0;
+                        const horas = (new Date(s.fechaFin) - new Date()) / 3600000;
+                        const pronto = horas < 24;
+                        return `<tr>
+                            <td><div class="lote">${esc(nombreLote(s.lote))} ${s.esMia ? '<span class="chip chip-mia">Tu lote</span>' : ''}</div>
+                                <div class="secundario">${esc(s.proveedor)}</div></td>
+                            <td class="num">${dinero(s.precioBase)}</td>
+                            <td class="num"><strong>${dinero(s.precioActual)}</strong></td>
+                            <td><div class="barra-inc" title="Incremento sobre el precio base">
+                                <div class="pista"><div class="relleno" style="width:${Math.max(0, inc) / maxInc * 100}%"></div></div>
+                                <span>+${porcentaje(inc)}</span></div></td>
+                            <td class="num">${entero(s.pujas)}</td>
+                            <td><span class="chip ${pronto ? 'chip-pronto' : 'chip-normal'}">
+                                <i class="ti ti-${pronto ? 'alarm' : 'clock'}"></i>${pronto ? 'Cierra pronto · ' : ''}${tiempoRestante(s.fechaFin)}</span></td>
+                            <td><a class="enlace" href="mercado.html">Ver lote →</a></td>
+                        </tr>`;
+                    }).join('')}</tbody>
+                </table>
+                ${filtradas.length > LIMITE ? `<div style="text-align:center; margin-top:12px;">
+                    <button class="btn btn-ghost" type="button" onclick="estado.verTodasSubastas = !estado.verTodasSubastas; renderSubastas();">
+                        ${estado.verTodasSubastas ? 'Mostrar menos' : `Mostrar las ${entero(filtradas.length)} subastas`}</button></div>` : ''}`;
+        }
+
+        function renderPujas(pujas, esAdmin) {
+            const ul = document.getElementById('listaPujas');
+            if (!pujas.length) { ul.innerHTML = `<li style="border:none">${vacioHTML('hand-off', 'Todavía no hay pujas registradas.')}</li>`; return; }
+            ul.innerHTML = pujas.slice(0, 8).map(p => `
+                <li>
+                    <span class="puja-icono"><i class="ti ti-gavel"></i></span>
+                    <div class="puja-info">
+                        <strong title="${esc(nombreLote(p.lote))}">${esc(nombreLote(p.lote))}</strong>
+                        <span>${haceCuanto(p.fecha)}${p.esMia ? ' · <span class="chip chip-mia">Tu puja</span>' : ''}${esAdmin && p.postor ? ' · ' + esc(p.postor) : ''}</span>
+                    </div>
+                    <span class="puja-monto">${dinero(p.monto)}</span>
+                </li>`).join('');
+        }
+
+        function renderAccesos(esAdmin) {
+            const accesos = [
+                ...(esAdmin ? [{ href: 'admin.html', icono: 'shield-check', titulo: 'Panel de administración', texto: 'Usuarios, moderación y categorías', clase: 'acceso-admin' }] : []),
+                { href: 'mercado.html', icono: 'building-store', titulo: 'Mercado y subastas', texto: 'Explora materiales y puja por lotes' },
+                { href: 'chat.html', icono: 'messages', titulo: 'Mensajes', texto: 'Conversa con proveedores y talleres' },
+                { href: 'perfil.html', icono: 'id', titulo: 'Mi perfil', texto: 'Revisa y actualiza tus datos' }
+            ];
+            document.getElementById('listaAccesos').innerHTML = accesos.map(a => `
+                <a class="acceso ${a.clase || ''}" href="${a.href}">
+                    <i class="ti ti-${a.icono}"></i>
+                    <div><strong>${a.titulo}</strong><span>${a.texto}</span></div>
+                </a>`).join('');
+        }
+
+        /* ==========================================================
+           PUBLICAR MATERIAL (proveedores)
+           ========================================================== */
+        async function cargarCategorias() {
+            const sel = document.getElementById('pubCategoria');
+            try {
+                const res = await fetch(`${API_URL}/api/categorias`);
+                const cats = res.ok ? await res.json() : [];
+                sel.innerHTML = cats.length
+                    ? '<option value="">Selecciona una categoría</option>' + cats.map(c => `<option value="${Number(c.CategoriaID)}">${esc(c.NombreCategoria)}</option>`).join('')
+                    : '<option value="">No hay categorías disponibles</option>';
+            } catch (e) {
+                sel.innerHTML = '<option value="">No se pudieron cargar las categorías</option>';
             }
         }
 
         async function publicarMaterial(event) {
             event.preventDefault();
-            const userId = localStorage.getItem('userId');
-
+            const boton = document.getElementById('btnPublicar');
             const datos = {
-                proveedorId: userId,
-                titulo: document.getElementById('pubTitulo').value,
-                categoriaId: document.getElementById('pubCategoria').value,
+                titulo: document.getElementById('pubTitulo').value.trim(),
+                categoriaId: Number(document.getElementById('pubCategoria').value),
                 precio: parseFloat(document.getElementById('pubPrecio').value),
-                unidad: document.getElementById('pubUnidad').value,
+                unidad: document.getElementById('pubUnidad').value.trim(),
                 distancia: 0,
                 fotos: []
             };
 
+            boton.disabled = true;
             try {
                 const res = await fetch(`${API_URL}/api/ofertas`, {
                     method: 'POST',
@@ -1091,14 +2035,203 @@
                 });
                 const result = await res.json();
                 if (res.ok) {
-                    alert(result.message || "¡Material publicado con éxito!");
-                    location.reload();
+                    mostrarToast(result.message || '¡Material publicado con éxito!');
+                    document.getElementById('formPublicar').reset();
+                    cargarDashboard();
                 } else {
-                    alert(result.message || "Error al publicar material.");
+                    mostrarToast(result.message || 'Error al publicar el material.', true);
                 }
             } catch (err) {
-                console.error("Error:", err);
-                alert("Error de conexión con el servidor.");
+                mostrarToast('Error de conexión con el servidor.', true);
+            } finally {
+                boton.disabled = false;
+            }
+        }
+
+        /* ==========================================================
+           EXPORTAR A EXCEL (ExcelJS, se carga solo cuando se usa)
+           ========================================================== */
+        function cargarScript(url) {
+            return new Promise((ok, falla) => {
+                if (window.ExcelJS) return ok();
+                const s = document.createElement('script');
+                s.src = url;
+                s.onload = ok;
+                s.onerror = () => falla(new Error('No se pudo descargar la librería de Excel'));
+                document.head.appendChild(s);
+            });
+        }
+
+        // Excel guarda las fechas sin zona horaria: se ajustan para que se vean en hora local
+        const fechaExcel = (f) => { const d = new Date(f); return new Date(d.getTime() - d.getTimezoneOffset() * 60000); };
+
+        const FORMATO = {
+            dinero: '"C$" #,##0.00',
+            entero: '#,##0',
+            porcentaje: '0.0%',
+            fecha: 'dd/mm/yyyy hh:mm'
+        };
+
+        function agregarHoja(libro, nombre, titulo, columnas, filas, { total = null, nota = '' } = {}) {
+            const hoja = libro.addWorksheet(nombre, { views: [{ state: 'frozen', ySplit: 4 }], properties: { tabColor: { argb: 'FF7D381B' } } });
+            hoja.columns = columnas.map(c => ({ key: c.clave, width: c.ancho || 16 }));
+            const ultimaCol = columnas.length;
+
+            hoja.mergeCells(1, 1, 1, ultimaCol);
+            const t = hoja.getCell(1, 1);
+            t.value = titulo;
+            t.font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+            t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3D170A' } };
+            t.alignment = { vertical: 'middle', indent: 1 };
+            hoja.getRow(1).height = 28;
+
+            hoja.mergeCells(2, 1, 2, ultimaCol);
+            const sub = hoja.getCell(2, 1);
+            sub.value = nota || `EntreLazados · Generado el ${new Date(estado.datos.generado).toLocaleString('es-NI')}`;
+            sub.font = { italic: true, size: 10, color: { argb: 'FF6B5A50' } };
+            sub.alignment = { indent: 1 };
+
+            const cabecera = hoja.getRow(4);
+            columnas.forEach((c, i) => {
+                const celda = cabecera.getCell(i + 1);
+                celda.value = c.titulo;
+                celda.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF993D24' } };
+                celda.alignment = { vertical: 'middle', horizontal: c.formato && c.formato !== 'texto' ? 'right' : 'left', wrapText: true };
+                celda.border = { bottom: { style: 'thin', color: { argb: 'FF7D381B' } } };
+            });
+            cabecera.height = 22;
+
+            filas.forEach((f, idx) => {
+                const fila = hoja.addRow(f);
+                fila.eachCell({ includeEmpty: true }, (celda, n) => {
+                    const col = columnas[n - 1];
+                    if (col && col.formato && FORMATO[col.formato]) celda.numFmt = FORMATO[col.formato];
+                    celda.border = { bottom: { style: 'hair', color: { argb: 'FFE6DDD4' } } };
+                    if (idx % 2 === 1) celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAF6F2' } };
+                });
+            });
+
+            if (!filas.length) {
+                const fila = hoja.addRow([]);
+                fila.getCell(1).value = 'Sin datos para este periodo.';
+                fila.getCell(1).font = { italic: true, color: { argb: 'FF8D7D73' } };
+            } else {
+                hoja.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + filas.length, column: ultimaCol } };
+                if (total) {
+                    const fila = hoja.addRow(total);
+                    fila.eachCell({ includeEmpty: true }, (celda, n) => {
+                        const col = columnas[n - 1];
+                        if (col && col.formato && FORMATO[col.formato]) celda.numFmt = FORMATO[col.formato];
+                        celda.font = { bold: true };
+                        celda.border = { top: { style: 'thin', color: { argb: 'FF3D170A' } } };
+                        celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1E7DF' } };
+                    });
+                }
+            }
+            return hoja;
+        }
+
+        async function exportarExcel() {
+            const d = estado.datos;
+            if (!d) return;
+            const boton = document.getElementById('btnExportar');
+            const original = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = '<i class="ti ti-loader-2"></i> Generando…';
+
+            try {
+                await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+                const libro = new ExcelJS.Workbook();
+                libro.creator = 'EntreLazados';
+                libro.created = new Date();
+                const r = d.resumen;
+                const usuario = localStorage.getItem('userNombre') || 'Usuario';
+
+                // 1. RESUMEN
+                const filasResumen = [
+                    ['Proveedores registrados', r.proveedores, null],
+                    ['Emprendedores registrados', r.emprendedores, null],
+                    ['Usuarios nuevos', null, r.nuevosUsuarios30d],
+                    ['Ofertas publicadas', r.ofertas, r.ofertas30d],
+                    ['Precio promedio de las ofertas (C$)', r.precioPromedio, null],
+                    ['Subastas activas', r.subastasActivas, null],
+                    ['Subastas finalizadas', r.subastasCerradas, null],
+                    ['Valor total en subasta (C$)', r.valorEnSubasta, null],
+                    ['Pujas realizadas', r.pujas, r.pujas30d],
+                    ['Mensajes enviados', r.mensajes, r.mensajes30d]
+                ];
+                const hojaResumen = agregarHoja(libro, 'Resumen', 'Reporte del Dashboard · EntreLazados',
+                    [{ clave: 'a', titulo: 'Indicador', ancho: 40 }, { clave: 'b', titulo: 'Total', ancho: 18, formato: 'entero' }, { clave: 'c', titulo: 'Últimos 30 días', ancho: 18, formato: 'entero' }],
+                    filasResumen,
+                    { nota: `Generado por ${usuario} el ${new Date(d.generado).toLocaleString('es-NI')} · periodo de actividad: últimos ${d.periodoMeses} meses` });
+                // Los montos en córdobas llevan formato de moneda
+                [5, 8].forEach(i => { hojaResumen.getRow(4 + i).getCell(2).numFmt = FORMATO.dinero; });
+
+                const mia = datosMiActividad(d.miActividad);
+                if (mia) {
+                    hojaResumen.addRow([]);
+                    const tit = hojaResumen.addRow([mia.titulo]);
+                    tit.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF3D170A' } };
+                    mia.filas.forEach(([etq, , valor]) => {
+                        const fila = hojaResumen.addRow([etq, Number(valor) || 0]);
+                        fila.getCell(2).numFmt = /Valor|Monto/.test(etq) ? FORMATO.dinero : FORMATO.entero;
+                    });
+                }
+
+                // 2. ACTIVIDAD MENSUAL
+                const act = d.actividad;
+                agregarHoja(libro, 'Actividad mensual', `Actividad mensual · últimos ${d.periodoMeses} meses`,
+                    [{ clave: 'mes', titulo: 'Mes', ancho: 22 }, { clave: 'r', titulo: 'Registros', formato: 'entero' }, { clave: 'o', titulo: 'Ofertas', formato: 'entero' }, { clave: 'p', titulo: 'Pujas', formato: 'entero' }],
+                    act.map(a => [nombreMes(a.mes, true), a.registros, a.ofertas, a.pujas]),
+                    { total: ['Total', ...['registros', 'ofertas', 'pujas'].map(k => act.reduce((t, a) => t + a[k], 0))] });
+
+                // 3. CATEGORÍAS
+                const cats = d.categorias;
+                agregarHoja(libro, 'Categorías', 'Ofertas y precios por categoría',
+                    [{ clave: 'c', titulo: 'Categoría', ancho: 40 }, { clave: 'n', titulo: 'Ofertas', formato: 'entero', ancho: 12 },
+                     { clave: 'min', titulo: 'Precio mínimo', formato: 'dinero' }, { clave: 'avg', titulo: 'Precio promedio', formato: 'dinero' }, { clave: 'max', titulo: 'Precio máximo', formato: 'dinero' }],
+                    cats.map(c => [c.categoria, c.ofertas, c.precioMinimo, c.precioPromedio, c.precioMaximo]),
+                    { total: ['Total', cats.reduce((t, c) => t + c.ofertas, 0), null, r.precioPromedio, null] });
+
+                // 4. DEPARTAMENTOS
+                const deps = d.departamentos;
+                agregarHoja(libro, 'Departamentos', 'Usuarios por departamento',
+                    [{ clave: 'd', titulo: 'Departamento', ancho: 28 }, { clave: 'p', titulo: 'Proveedores', formato: 'entero' }, { clave: 'e', titulo: 'Emprendedores', formato: 'entero' }, { clave: 't', titulo: 'Total', formato: 'entero' }],
+                    deps.map(x => [x.departamento, x.proveedores, x.emprendedores, x.proveedores + x.emprendedores]),
+                    { total: ['Total', ...['proveedores', 'emprendedores'].map(k => deps.reduce((t, x) => t + x[k], 0)), deps.reduce((t, x) => t + x.proveedores + x.emprendedores, 0)] });
+
+                // 5. SUBASTAS EN CURSO
+                agregarHoja(libro, 'Subastas en curso', 'Subastas activas',
+                    [{ clave: 'id', titulo: 'N.º', ancho: 8, formato: 'entero' }, { clave: 'l', titulo: 'Lote', ancho: 40 }, { clave: 'pr', titulo: 'Proveedor', ancho: 28 },
+                     { clave: 'b', titulo: 'Precio base', formato: 'dinero' }, { clave: 'a', titulo: 'Puja actual', formato: 'dinero' }, { clave: 'i', titulo: 'Incremento', formato: 'porcentaje', ancho: 13 },
+                     { clave: 'n', titulo: 'Pujas', formato: 'entero', ancho: 10 }, { clave: 'f', titulo: 'Cierra el', formato: 'fecha', ancho: 18 }],
+                    d.subastas.map(s => [s.id, nombreLote(s.lote), s.proveedor, s.precioBase, s.precioActual, s.precioBase > 0 ? (s.precioActual - s.precioBase) / s.precioBase : 0, s.pujas, fechaExcel(s.fechaFin)]),
+                    { total: ['', 'Total', '', d.subastas.reduce((t, s) => t + s.precioBase, 0), d.subastas.reduce((t, s) => t + s.precioActual, 0), null, d.subastas.reduce((t, s) => t + s.pujas, 0), null] });
+
+                // 6. PUJAS RECIENTES
+                const colsPujas = [{ clave: 'f', titulo: 'Fecha', formato: 'fecha', ancho: 18 }, { clave: 'l', titulo: 'Lote', ancho: 40 }, { clave: 'm', titulo: 'Monto', formato: 'dinero' }];
+                if (d.esAdmin) colsPujas.push({ clave: 'p', titulo: 'Postor', ancho: 28 });
+                agregarHoja(libro, 'Pujas recientes', 'Últimas pujas registradas', colsPujas,
+                    d.pujasRecientes.map(p => [fechaExcel(p.fecha), nombreLote(p.lote), p.monto, ...(d.esAdmin ? [p.postor] : [])]));
+
+                const buffer = await libro.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const hoy = new Date();
+                const nombre = `EntreLazados_Dashboard_${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}.xlsx`;
+                const enlace = document.createElement('a');
+                enlace.href = URL.createObjectURL(blob);
+                enlace.download = nombre;
+                document.body.appendChild(enlace);
+                enlace.click();
+                setTimeout(() => { URL.revokeObjectURL(enlace.href); enlace.remove(); }, 1000);
+                mostrarToast(`Reporte descargado: ${nombre}`);
+            } catch (err) {
+                console.error('Error al exportar:', err);
+                mostrarToast('No se pudo generar el archivo de Excel. Inténtalo de nuevo.', true);
+            } finally {
+                boton.disabled = false;
+                boton.innerHTML = original;
             }
         }
 

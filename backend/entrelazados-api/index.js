@@ -1127,6 +1127,177 @@ app.post('/api/admin/categorias', verificarAdmin, (req, res) => {
     });
 });
 
+/* ==========================================================================
+   CATEGORÍAS (pública): lista para los formularios de publicación
+   ========================================================================== */
+app.get('/api/categorias', async (req, res) => {
+    try {
+        const [filas] = await db.promise().query(
+            'SELECT CategoriaID, NombreCategoria FROM CategoriasMateriales ORDER BY NombreCategoria'
+        );
+        res.json(filas);
+    } catch (err) {
+        console.error('❌ Error en GET /api/categorias:', err.message);
+        res.status(500).json([]);
+    }
+});
+
+/* ==========================================================================
+   DASHBOARD: estadísticas agregadas de la plataforma + actividad propia
+   ?meses=3|6|12 define el periodo de la gráfica de actividad
+   ========================================================================== */
+app.get('/api/dashboard', verificarToken, async (req, res) => {
+    const PERIODOS = [3, 6, 12];
+    const meses = PERIODOS.includes(Number(req.query.meses)) ? Number(req.query.meses) : 6;
+    const q = async (sql, params = []) => (await db.promise().query(sql, params))[0];
+
+    // Primer día del mes de inicio del periodo (ej. 6 meses = mes actual + 5 anteriores)
+    const inicio = new Date();
+    inicio.setDate(1);
+    inicio.setHours(0, 0, 0, 0);
+    inicio.setMonth(inicio.getMonth() - (meses - 1));
+
+    try {
+        const [resumen] = await q(`
+            SELECT
+                (SELECT COUNT(*) FROM Usuarios WHERE LOWER(TipoRol) = 'proveedor') AS proveedores,
+                (SELECT COUNT(*) FROM Usuarios WHERE LOWER(TipoRol) = 'emprendedor') AS emprendedores,
+                (SELECT COUNT(*) FROM Usuarios WHERE FechaRegistro >= NOW() - INTERVAL 30 DAY) AS nuevosUsuarios30d,
+                (SELECT COUNT(*) FROM Ofertas) AS ofertas,
+                (SELECT COUNT(*) FROM Ofertas WHERE FechaPublicacion >= NOW() - INTERVAL 30 DAY) AS ofertas30d,
+                (SELECT COALESCE(AVG(Precio), 0) FROM Ofertas) AS precioPromedio,
+                (SELECT COUNT(*) FROM Subastas WHERE Estado = 'Activa' AND FechaFin > NOW()) AS subastasActivas,
+                (SELECT COUNT(*) FROM Subastas WHERE Estado <> 'Activa' OR FechaFin <= NOW()) AS subastasCerradas,
+                (SELECT COALESCE(SUM(PrecioActual), 0) FROM Subastas WHERE Estado = 'Activa' AND FechaFin > NOW()) AS valorEnSubasta,
+                (SELECT COUNT(*) FROM Pujas) AS pujas,
+                (SELECT COUNT(*) FROM Pujas WHERE FechaPuja >= NOW() - INTERVAL 30 DAY) AS pujas30d,
+                (SELECT COUNT(*) FROM MensajesChat) AS mensajes,
+                (SELECT COUNT(*) FROM MensajesChat WHERE FechaEnvio >= NOW() - INTERVAL 30 DAY) AS mensajes30d
+        `);
+
+        const categorias = await q(`
+            SELECT c.NombreCategoria AS categoria,
+                   COUNT(o.OfertaID) AS ofertas,
+                   COALESCE(AVG(o.Precio), 0) AS precioPromedio,
+                   COALESCE(MIN(o.Precio), 0) AS precioMinimo,
+                   COALESCE(MAX(o.Precio), 0) AS precioMaximo
+            FROM CategoriasMateriales c
+            JOIN Ofertas o ON o.CategoriaID = c.CategoriaID
+            GROUP BY c.CategoriaID, c.NombreCategoria
+            ORDER BY ofertas DESC, categoria
+        `);
+
+        const departamentos = await q(`
+            SELECT d.NombreDepartamento AS departamento,
+                   SUM(LOWER(u.TipoRol) = 'proveedor') AS proveedores,
+                   SUM(LOWER(u.TipoRol) = 'emprendedor') AS emprendedores
+            FROM PerfilesUsuarios p
+            JOIN Usuarios u ON u.UsuarioID = p.UsuarioID
+            JOIN Departamentos d ON d.DepartamentoID = p.DepartamentoID
+            WHERE LOWER(u.TipoRol) IN ('proveedor', 'emprendedor')
+            GROUP BY d.DepartamentoID, d.NombreDepartamento
+            ORDER BY (proveedores + emprendedores) DESC, departamento
+        `);
+
+        const filasActividad = await q(`
+            SELECT 'registros' AS tipo, DATE_FORMAT(FechaRegistro, '%Y-%m') AS mes, COUNT(*) AS total
+              FROM Usuarios WHERE FechaRegistro >= ? GROUP BY mes
+            UNION ALL
+            SELECT 'ofertas', DATE_FORMAT(FechaPublicacion, '%Y-%m'), COUNT(*)
+              FROM Ofertas WHERE FechaPublicacion >= ? GROUP BY 2
+            UNION ALL
+            SELECT 'pujas', DATE_FORMAT(FechaPuja, '%Y-%m'), COUNT(*)
+              FROM Pujas WHERE FechaPuja >= ? GROUP BY 2
+        `, [inicio, inicio, inicio]);
+
+        // Se arma la serie mes a mes (incluye los meses sin actividad, en 0)
+        const actividad = [];
+        for (let i = 0; i < meses; i++) {
+            const f = new Date(inicio.getFullYear(), inicio.getMonth() + i, 1);
+            const clave = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`;
+            const fila = { mes: clave, registros: 0, ofertas: 0, pujas: 0 };
+            filasActividad.filter(a => a.mes === clave).forEach(a => { fila[a.tipo] = Number(a.total); });
+            actividad.push(fila);
+        }
+
+        const subastas = await q(`
+            SELECT s.SubastaID AS id, s.TituloLote AS lote,
+                   COALESCE(pr.NombreRazonSocial, 'Proveedor') AS proveedor,
+                   s.PrecioBase AS precioBase, s.PrecioActual AS precioActual,
+                   s.FechaFin AS fechaFin, COUNT(pj.PujaID) AS pujas,
+                   (s.ProveedorID = ?) AS esMia
+            FROM Subastas s
+            LEFT JOIN Pujas pj ON pj.SubastaID = s.SubastaID
+            LEFT JOIN PerfilesUsuarios pr ON pr.UsuarioID = s.ProveedorID
+            WHERE s.Estado = 'Activa' AND s.FechaFin > NOW()
+            GROUP BY s.SubastaID
+            ORDER BY pujas DESC, s.FechaFin ASC
+            LIMIT 100
+        `, [req.usuario.id]);
+
+        // Los nombres de los postores solo los ve el administrador
+        const pujasRecientes = await q(`
+            SELECT pj.MontoPuja AS monto, pj.FechaPuja AS fecha, s.TituloLote AS lote,
+                   ${req.usuario.esAdmin ? "COALESCE(pe.NombreRazonSocial, 'Emprendedor')" : 'NULL'} AS postor,
+                   (pj.EmprendedorID = ?) AS esMia
+            FROM Pujas pj
+            JOIN Subastas s ON s.SubastaID = pj.SubastaID
+            LEFT JOIN PerfilesUsuarios pe ON pe.UsuarioID = pj.EmprendedorID
+            ORDER BY pj.FechaPuja DESC, pj.PujaID DESC
+            LIMIT 15
+        `, [req.usuario.id]);
+
+        // ACTIVIDAD PROPIA SEGÚN EL ROL
+        const yo = req.usuario.id;
+        let miActividad = { rol: req.usuario.rol };
+        if (req.usuario.rol === 'proveedor') {
+            const [m] = await q(`
+                SELECT
+                    (SELECT COUNT(*) FROM Ofertas WHERE ProveedorID = ?) AS misOfertas,
+                    (SELECT COUNT(*) FROM Subastas WHERE ProveedorID = ? AND Estado = 'Activa' AND FechaFin > NOW()) AS misSubastasActivas,
+                    (SELECT COUNT(*) FROM Pujas pj JOIN Subastas s ON s.SubastaID = pj.SubastaID WHERE s.ProveedorID = ?) AS pujasRecibidas,
+                    (SELECT COALESCE(SUM(PrecioActual), 0) FROM Subastas WHERE ProveedorID = ? AND Estado = 'Activa' AND FechaFin > NOW()) AS valorMisSubastas,
+                    (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos
+            `, [yo, yo, yo, yo, yo]);
+            miActividad = { ...miActividad, ...m };
+        } else if (req.usuario.rol === 'emprendedor') {
+            const [m] = await q(`
+                SELECT
+                    (SELECT COUNT(*) FROM Pujas WHERE EmprendedorID = ?) AS misPujas,
+                    (SELECT COUNT(DISTINCT SubastaID) FROM Pujas WHERE EmprendedorID = ?) AS subastasParticipando,
+                    (SELECT COUNT(*) FROM Subastas s
+                       WHERE s.Estado = 'Activa' AND s.FechaFin > NOW()
+                         AND s.PrecioActual = (SELECT MAX(MontoPuja) FROM Pujas WHERE SubastaID = s.SubastaID AND EmprendedorID = ?)) AS subastasLiderando,
+                    (SELECT COALESCE(SUM(s.PrecioActual), 0) FROM Subastas s
+                       WHERE s.Estado = 'Activa' AND s.FechaFin > NOW()
+                         AND s.PrecioActual = (SELECT MAX(MontoPuja) FROM Pujas WHERE SubastaID = s.SubastaID AND EmprendedorID = ?)) AS montoLiderando,
+                    (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos
+            `, [yo, yo, yo, yo, yo]);
+            miActividad = { ...miActividad, ...m };
+        }
+
+        // mysql2 devuelve DECIMAL y SUM como texto: se convierten a número
+        const num = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) =>
+            [k, (typeof v === 'string' && v !== '' && !isNaN(v) && !['categoria', 'departamento', 'lote', 'proveedor', 'mes', 'rol', 'postor'].includes(k)) ? Number(v) : v]));
+
+        res.json({
+            generado: new Date().toISOString(),
+            periodoMeses: meses,
+            esAdmin: req.usuario.esAdmin,
+            resumen: num(resumen),
+            categorias: categorias.map(num),
+            departamentos: departamentos.map(num),
+            actividad,
+            subastas: subastas.map(s => ({ ...num(s), esMia: !!s.esMia })),
+            pujasRecientes: pujasRecientes.map(p => ({ ...num(p), esMia: !!p.esMia })),
+            miActividad: num(miActividad)
+        });
+    } catch (err) {
+        console.error('❌ Error en GET /api/dashboard:', err.message);
+        res.status(500).json({ message: 'No se pudieron calcular las estadísticas del dashboard.' });
+    }
+});
+
 // SERVIR ARCHIVOS ESTÁTICOS
 // Solo se publica la carpeta "public": así index.js, .env y web.config
 // nunca se pueden descargar desde el navegador.
