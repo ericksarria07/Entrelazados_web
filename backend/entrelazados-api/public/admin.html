@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
+    <script src="sesion.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Panel de Administración</title>
 
@@ -519,15 +520,13 @@
         // Token JWT firmado por el servidor al iniciar sesión (ver /api/login)
         const tokenSesion = localStorage.getItem('token') || '';
 
-        // Si el servidor rechaza el token (expiró o no es admin), volver al login
-        const fetchOriginal = window.fetch.bind(window);
+        // sesion.js ya agrega el token y maneja la sesión vencida (401).
+        // Aquí solo se atiende el caso de un usuario que NO es administrador (403).
+        const fetchConSesion = window.fetch;
         window.fetch = async (...args) => {
-            const res = await fetchOriginal(...args);
-            const url = String(args[0]);
-            if (url.includes('/api/admin/') && (res.status === 401 || res.status === 403)) {
-                alert('Tu sesión de administrador expiró o no es válida. Inicia sesión nuevamente.');
-                localStorage.clear();
-                window.location.href = 'login.html';
+            const res = await fetchConSesion(...args);
+            if (String(args[0]).includes('/api/admin/') && res.status === 403) {
+                window.cerrarSesionEntrelazados('Esta sección es solo para administradores.');
             }
             return res;
         };

@@ -81,39 +81,59 @@ const transporter = nodemailer.createTransport({
 // El token JWT se entrega en /api/login y el navegador lo envía como
 // "Authorization: Bearer <token>". Al estar firmado con JWT_SECRET,
 // el usuario no puede falsificar su ID ni su rol.
-const verificarAdmin = (req, res, next) => {
+// Después se consulta la BD para tener el rol y estado actuales
+// (si el admin suspende o elimina la cuenta, el token deja de servir al instante).
+const verificarToken = (req, res, next) => {
     const encabezado = req.headers['authorization'] || '';
     const token = encabezado.startsWith('Bearer ') ? encabezado.slice(7) : null;
 
     if (!token) {
-        return res.status(401).json({ message: "Acceso denegado. Inicia sesión nuevamente." });
+        return res.status(401).json({ message: "Debes iniciar sesión para continuar." });
     }
 
-    let adminId;
+    let usuarioId;
     try {
-        adminId = jwt.verify(token, JWT_SECRET).id;
+        usuarioId = jwt.verify(token, JWT_SECRET).id;
     } catch (e) {
         return res.status(401).json({ message: "Tu sesión expiró o no es válida. Inicia sesión nuevamente." });
     }
 
-    // Se vuelve a consultar el rol en la BD por si fue cambiado después del login
-    const sqlCheckAdmin = `
-        SELECT u.UsuarioID, u.TipoRol
-        FROM Usuarios u
-        WHERE u.UsuarioID = ? AND LOWER(u.TipoRol) IN ('administrador', 'admin')
-    `;
-
-    db.query(sqlCheckAdmin, [adminId], (err, results) => {
+    db.query('SELECT UsuarioID, TipoRol, EstadoCuenta FROM Usuarios WHERE UsuarioID = ?', [usuarioId], (err, results) => {
         if (err) {
-            return res.status(500).json({ message: "Error al verificar permisos del usuario." });
+            return res.status(500).json({ message: "Error al verificar la sesión." });
         }
         if (!results || results.length === 0) {
-            return res.status(403).json({ message: "Acceso denegado. Se requieren permisos de Administrador." });
+            return res.status(401).json({ message: "La cuenta ya no existe. Inicia sesión nuevamente." });
         }
-        req.adminUsuario = results[0];
+        const usuario = results[0];
+        if ((usuario.EstadoCuenta || '').toLowerCase() === 'suspendido') {
+            return res.status(403).json({ message: "Tu cuenta ha sido suspendida por el administrador." });
+        }
+        const rol = (usuario.TipoRol || '').toLowerCase();
+        req.usuario = {
+            id: usuario.UsuarioID,
+            rol,
+            esAdmin: rol === 'administrador' || rol === 'admin'
+        };
         next();
     });
 };
+
+// Para usar después de verificarToken: limita la ruta a ciertos roles (el admin siempre pasa)
+const soloRoles = (...roles) => (req, res, next) => {
+    if (req.usuario.esAdmin || roles.includes(req.usuario.rol)) return next();
+    return res.status(403).json({ message: "Tu tipo de cuenta no tiene permiso para esta acción." });
+};
+
+const verificarAdmin = [
+    verificarToken,
+    (req, res, next) => {
+        if (!req.usuario.esAdmin) {
+            return res.status(403).json({ message: "Acceso denegado. Se requieren permisos de Administrador." });
+        }
+        next();
+    }
+];
 
 // RUTA DE PRUEBA DE SALUD DE LA API
 app.get('/api/ping', (req, res) => {
@@ -630,11 +650,17 @@ app.get('/api/ofertas', (req, res) => {
     });
 });
 
-app.post('/api/ofertas', (req, res) => {
-    const { proveedorId, titulo, precio, unidad, distancia, categoriaId, fotos } = req.body;
+app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), (req, res) => {
+    const { titulo, precio, unidad, distancia, categoriaId, fotos } = req.body;
+    // El proveedor es SIEMPRE el usuario de la sesión, nunca el que envíe el navegador
+    const proveedorId = req.usuario.id;
 
-    if (!proveedorId || !titulo || !precio || !unidad || !categoriaId) {
+    if (!titulo || !precio || !unidad || !categoriaId) {
         return res.status(400).json({ message: "Por favor, llena todos los campos obligatorios." });
+    }
+
+    if (!(Number(precio) > 0)) {
+        return res.status(400).json({ message: "El precio debe ser un número mayor que 0." });
     }
 
     db.getConnection((errConn, connection) => {
@@ -697,17 +723,16 @@ app.post('/api/ofertas', (req, res) => {
     });
 });
 
-app.delete('/api/ofertas/:id', (req, res) => {
+app.delete('/api/ofertas/:id', verificarToken, (req, res) => {
     const ofertaId = req.params.id;
-    const { proveedorId } = req.body;
 
-    if (!proveedorId) {
-        return res.status(400).json({ message: "Identificador de proveedor requerido." });
-    }
+    // Un proveedor solo puede borrar sus propias ofertas; el admin puede borrar cualquiera
+    const queryBorrarOferta = req.usuario.esAdmin
+        ? `DELETE FROM Ofertas WHERE OfertaID = ?`
+        : `DELETE FROM Ofertas WHERE OfertaID = ? AND ProveedorID = ?`;
+    const parametros = req.usuario.esAdmin ? [ofertaId] : [ofertaId, req.usuario.id];
 
-    const queryBorrarOferta = `DELETE FROM Ofertas WHERE OfertaID = ? AND ProveedorID = ?`;
-
-    db.query(queryBorrarOferta, [ofertaId, proveedorId], (errOferta, resultOferta) => {
+    db.query(queryBorrarOferta, parametros, (errOferta, resultOferta) => {
         if (errOferta) {
             return res.status(500).json({ message: "Error al remover la oferta." });
         }
@@ -736,49 +761,82 @@ app.get('/api/subastas', (req, res) => {
     });
 });
 
-app.post('/api/pujas', (req, res) => {
-    const { subastaId, emprendedorId, montoPuja } = req.body;
+app.post('/api/pujas', verificarToken, soloRoles('emprendedor'), (req, res) => {
+    const { subastaId } = req.body;
+    const montoPuja = Number(req.body.montoPuja);
+    const emprendedorId = req.usuario.id;
 
-    if (!subastaId || !emprendedorId || !montoPuja) {
+    if (!subastaId || !(montoPuja > 0)) {
         return res.status(400).json({ message: "Datos de puja incompletos." });
     }
 
-    const sqlInsertarPuja = `INSERT INTO Pujas (SubastaID, EmprendedorID, MontoPuja) VALUES (?, ?, ?)`;
+    // Se valida y actualiza en UNA sola consulta (atómica): la subasta debe estar activa,
+    // no vencida, no ser propia y la puja debe superar el precio actual.
+    // Así dos pujas simultáneas no pueden dejar un precio menor.
+    const sqlActualizarSubasta = `
+        UPDATE Subastas
+        SET PrecioActual = ?
+        WHERE SubastaID = ? AND Estado = 'Activa' AND FechaFin > NOW()
+          AND PrecioActual < ? AND ProveedorID <> ?
+    `;
 
-    db.query(sqlInsertarPuja, [subastaId, emprendedorId, montoPuja], (err) => {
-        if (err) return res.status(500).json({ message: "No se pudo registrar la puja." });
+    db.query(sqlActualizarSubasta, [montoPuja, subastaId, montoPuja, emprendedorId], (errUpdate, resultado) => {
+        if (errUpdate) return res.status(500).json({ message: "No se pudo registrar la puja." });
 
-        const sqlActualizarSubasta = `UPDATE Subastas SET PrecioActual = ? WHERE SubastaID = ?`;
-        db.query(sqlActualizarSubasta, [montoPuja, subastaId], (errUpdate) => {
-            if (errUpdate) return res.status(500).json({ message: "Puja registrada, pero no se actualizó el lote." });
+        if (!resultado || resultado.affectedRows === 0) {
+            return db.query('SELECT PrecioActual, Estado, FechaFin, ProveedorID FROM Subastas WHERE SubastaID = ?', [subastaId], (errS, filas) => {
+                if (errS || !filas || filas.length === 0) {
+                    return res.status(404).json({ message: "La subasta no existe." });
+                }
+                const s = filas[0];
+                if (s.ProveedorID === emprendedorId) {
+                    return res.status(403).json({ message: "No puedes pujar en tu propia subasta." });
+                }
+                if (s.Estado !== 'Activa' || new Date(s.FechaFin) <= new Date()) {
+                    return res.status(409).json({ message: "Esta subasta ya finalizó." });
+                }
+                return res.status(409).json({
+                    message: `Tu puja debe ser mayor al precio actual de C$${Number(s.PrecioActual).toLocaleString('es-NI')}.`,
+                    precioActual: Number(s.PrecioActual)
+                });
+            });
+        }
+
+        const sqlInsertarPuja = `INSERT INTO Pujas (SubastaID, EmprendedorID, MontoPuja) VALUES (?, ?, ?)`;
+        db.query(sqlInsertarPuja, [subastaId, emprendedorId, montoPuja], (err) => {
+            if (err) return res.status(500).json({ message: "El precio se actualizó, pero no se guardó el historial de la puja." });
             res.json({ message: "¡Tu puja ha sido aceptada exitosamente!" });
         });
     });
 });
 
 // CHAT Y ESTADÍSTICAS GENERALES
-app.get('/api/chat/contactos', (req, res) => {
+app.get('/api/chat/contactos', verificarToken, (req, res) => {
+    // Se excluye al propio usuario de su lista de contactos
     const query = `
-        SELECT 
-            p.UsuarioID, 
-            p.NombreRazonSocial, 
-            COALESCE(u.TipoRol, 'Usuario') AS TipoRol, 
+        SELECT
+            p.UsuarioID,
+            p.NombreRazonSocial,
+            COALESCE(u.TipoRol, 'Usuario') AS TipoRol,
             COALESCE(d.NombreDepartamento, 'Nicaragua') AS NombreDepartamento
         FROM PerfilesUsuarios p
         LEFT JOIN Usuarios u ON p.UsuarioID = u.UsuarioID
         LEFT JOIN Departamentos d ON p.DepartamentoID = d.DepartamentoID
+        WHERE p.UsuarioID <> ?
     `;
 
-    db.query(query, (err, results) => {
+    db.query(query, [req.usuario.id], (err, results) => {
         if (err) return res.status(500).json([]);
         res.json(results || []);
     });
 });
 
-app.get('/api/chat/mensajes', (req, res) => {
-    const { remitenteId, destinatarioId } = req.query;
+app.get('/api/chat/mensajes', verificarToken, (req, res) => {
+    // Solo se pueden leer conversaciones en las que participa el usuario de la sesión
+    const remitenteId = req.usuario.id;
+    const { destinatarioId } = req.query;
 
-    if (!remitenteId || !destinatarioId) {
+    if (!destinatarioId) {
         return res.status(400).json({ message: "Faltan identificadores de usuario." });
     }
 
@@ -796,11 +854,21 @@ app.get('/api/chat/mensajes', (req, res) => {
     });
 });
 
-app.post('/api/chat/enviar', (req, res) => {
-    const { remitenteId, destinatarioId, texto } = req.body;
+app.post('/api/chat/enviar', verificarToken, (req, res) => {
+    // El remitente es siempre el usuario de la sesión (nadie puede escribir "a nombre de" otro)
+    const remitenteId = req.usuario.id;
+    const { destinatarioId, texto } = req.body;
 
-    if (!remitenteId || !destinatarioId || !texto) {
+    if (!destinatarioId || typeof texto !== 'string' || !texto.trim()) {
         return res.status(400).json({ message: "Contenido del mensaje incompleto." });
+    }
+
+    if (texto.length > 2000) {
+        return res.status(400).json({ message: "El mensaje es demasiado largo (máximo 2000 caracteres)." });
+    }
+
+    if (Number(destinatarioId) === remitenteId) {
+        return res.status(400).json({ message: "No puedes enviarte mensajes a ti mismo." });
     }
 
     const query = `
@@ -838,8 +906,13 @@ app.get('/api/estadisticas', (req, res) => {
     });
 });
 
-app.get('/api/perfil/:id', (req, res) => {
+app.get('/api/perfil/:id', verificarToken, (req, res) => {
     const usuarioId = req.params.id;
+
+    // Cada usuario solo puede ver su propio perfil completo (correo, teléfono, RUC...)
+    if (Number(usuarioId) !== req.usuario.id && !req.usuario.esAdmin) {
+        return res.status(403).json({ message: "No tienes permiso para ver este perfil." });
+    }
 
     const query = `
         SELECT 
@@ -908,7 +981,7 @@ app.get('/api/admin/usuarios', verificarAdmin, (req, res) => {
             u.CorreoElectronico,
             u.TipoRol,
             COALESCE(u.EstadoCuenta, 'Activo') AS EstadoCuenta,
-            u.FechaCreacion,
+            u.FechaRegistro AS FechaCreacion,
             p.NombreRazonSocial,
             p.TelefonoWhatsApp,
             d.NombreDepartamento
@@ -953,19 +1026,60 @@ app.put('/api/admin/usuarios/:id/estado', verificarAdmin, (req, res) => {
 
 // 4. ELIMINAR USUARIO POR COMPLETO (SOLO ADMIN)
 app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
-    const usuarioIdTarget = req.params.id;
+    const usuarioIdTarget = Number(req.params.id);
 
-    const sqlBorrar = `DELETE FROM Usuarios WHERE UsuarioID = ?`;
+    if (usuarioIdTarget === req.usuario.id) {
+        return res.status(400).json({ message: "No puedes eliminar tu propia cuenta de administrador." });
+    }
 
-    db.query(sqlBorrar, [usuarioIdTarget], (err, result) => {
-        if (err) {
+    // Ofertas, Subastas, Pujas, MensajesChat y TratosCerrados apuntan al usuario SIN
+    // "ON DELETE CASCADE", así que MySQL no deja borrarlo directamente.
+    // Se eliminan primero sus registros, todo dentro de una transacción
+    // (si algo falla no se borra nada).
+    const pasos = [
+        ['DELETE FROM MensajesChat WHERE RemitenteID = ? OR DestinatarioID = ?', [usuarioIdTarget, usuarioIdTarget]],
+        ['DELETE FROM TratosCerrados WHERE ProveedorID = ? OR EmprendedorID = ?', [usuarioIdTarget, usuarioIdTarget]],
+        ['DELETE FROM Pujas WHERE EmprendedorID = ?', [usuarioIdTarget]],
+        ['DELETE FROM Subastas WHERE ProveedorID = ?', [usuarioIdTarget]],   // sus pujas se borran en cascada
+        ['DELETE FROM Ofertas WHERE ProveedorID = ?', [usuarioIdTarget]],    // sus fotos se borran en cascada
+        ['DELETE FROM Usuarios WHERE UsuarioID = ?', [usuarioIdTarget]]      // perfil, roles, etc. en cascada
+    ];
+
+    db.getConnection((errConn, conn) => {
+        if (errConn) return res.status(500).json({ message: "Error al conectar con la base de datos." });
+
+        const fallar = (err) => conn.rollback(() => {
+            conn.release();
             console.error("❌ Error al eliminar usuario:", err.message);
-            return res.status(500).json({ message: "Error al eliminar usuario del sistema." });
-        }
-        if (!result || result.affectedRows === 0) {
-            return res.status(404).json({ message: "El usuario a eliminar no existe." });
-        }
-        res.json({ success: true, message: "Usuario y sus registros asociados eliminados correctamente." });
+            res.status(500).json({ message: "Error al eliminar usuario del sistema." });
+        });
+
+        conn.beginTransaction((errTx) => {
+            if (errTx) { conn.release(); return res.status(500).json({ message: "Error al eliminar usuario del sistema." }); }
+
+            const ejecutar = (i) => {
+                const [sql, params] = pasos[i];
+                conn.query(sql, params, (err, result) => {
+                    if (err) return fallar(err);
+
+                    if (i < pasos.length - 1) return ejecutar(i + 1);
+
+                    // Último paso: el usuario en sí
+                    if (!result || result.affectedRows === 0) {
+                        return conn.rollback(() => {
+                            conn.release();
+                            res.status(404).json({ message: "El usuario a eliminar no existe." });
+                        });
+                    }
+                    conn.commit((errCommit) => {
+                        if (errCommit) return fallar(errCommit);
+                        conn.release();
+                        res.json({ success: true, message: "Usuario y sus registros asociados eliminados correctamente." });
+                    });
+                });
+            };
+            ejecutar(0);
+        });
     });
 });
 
