@@ -1,4 +1,6 @@
-require('dotenv').config();
+// El .env se busca junto a este archivo, sin importar desde qué carpeta
+// se inicie el servidor (PM2, systemd, IIS...)
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
