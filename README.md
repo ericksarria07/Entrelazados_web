@@ -1,140 +1,238 @@
-# 🧵 Entrelazados - Plataforma Web y Asistente Virtual IA
+# 🧵 EntreLazados
 
-**Entrelazados** es una plataforma web integral diseñada para la gestión, interacción y optimización de servicios mediante un backend estructurado en **Node.js/Express**, persistencia de datos relacional con **MySQL** y soporte de inteligencia artificial generativa con el SDK oficial de **Google GenAI**.
+**EntreLazados** es un mercado en línea de **insumos y materia prima para artesanos del cuero y el calzado en Nicaragua**. Conecta a **proveedores** de cuero, herrajes, suelas, pegamentos y otros materiales con **emprendedores** que fabrican calzado y artículos de cuero.
 
----
+Los proveedores publican sus materiales, y cada publicación abre una subasta. Los emprendedores comparan precios por cercanía, pujan y negocian por chat. **Kan**, el asistente virtual (con Google Gemini), orienta a los usuarios dentro de la plataforma.
 
-## 🚀 Características Principales y Funcionalidades
-
-* **Autenticación y Gestión de Usuarios:** Sistema completo de registro, inicio de sesión y control de sesiones seguras.
-* **Perfiles Personalizados:** Adaptación de interfaz y datos según el rol del usuario dentro de la plataforma.
-* **Panel de Control (Dashboard):** Visualización centralizada de estadísticas, actividades recientes y gestión de contenido en tiempo real.
-* **Integración con Asistente Virtual "Kan":** Asistente IA interactivo impulsado por **Google GenAI** capaz de resolver dudas, orientar flujos de trabajo y brindar asistencia contextualizada dentro del sistema.
-* **API RESTful:** Arquitectura modular desacoplada con endpoints optimizados para el intercambio de información JSON entre el frontend web y el backend.
+> Sitio en producción: `http://57.156.69.249:3000` (VM de Azure)
 
 ---
 
-## 👥 Perfiles de Usuario
+## Funcionalidades
 
-1. **Usuario / Cliente:**
-   * Acceso a la interfaz principal y catálogo de servicios.
-   * Gestión de información de perfil y preferencias.
-   * Interacción directa con el asistente virtual Kan para soporte y consultas.
+### Proveedor
+- Publica materiales con título, precio, unidad y categoría. Cada publicación crea automáticamente una **subasta** con el mismo precio base.
+- Elimina sus publicaciones (las subastas y pujas asociadas se borran juntas).
+- Ve su actividad en el dashboard: ofertas, subastas y pujas recibidas.
 
-2. **Administrador:**
-   * Gestión total sobre la base de datos de usuarios y registros de la plataforma.
-   * Monitoreo de la actividad del sistema y gestión de integraciones de la API.
+### Emprendedor
+- **Mercado** con filtros por categoría y radio de cercanía (km), y mapa interactivo.
+- **Subastas**: puja por encima del precio actual. La validación es atómica: dos pujas simultáneas nunca dejan un precio menor.
+- **Chat** directo con los proveedores.
 
----
+### Administrador
+- Métricas de la plataforma, lista de usuarios, suspender o reactivar cuentas, eliminar usuarios o publicaciones y crear categorías.
 
-## 🤖 Asistente Virtual: Kan (Google GenAI)
-
-**Kan** es el asistente virtual integrado en el ecosistema Entrelazados, construido utilizando `@google/genai`. 
-
-* **Funciones:**
-  * Respuestas en tiempo real para guía de usuarios.
-  * Análisis contextual dentro de las rutas del backend.
-  * Integración segura mediante clave API configurada en las variables de entorno (`.env`).
-
----
-
-## 🛠️ Tecnologías Utilizadas
-
-* **Frontend:** HTML5, CSS3, JavaScript (ES6+).
-* **Backend:** Node.js, Express.js.
-* **Base de Datos:** MySQL (`db_acd8d6_entrelazados`).
-* **Inteligencia Artificial:** SDK `@google/genai` (Google Gemini API).
-* **Gestor de Procesos:** PM2.
-* **Servidor Nube / Infraestructura:** Microsoft Azure (Ubuntu Linux VM).
+### Para todos
+- **Dashboard** con 8 indicadores, gráficas (Chart.js), precios de referencia por categoría, subastas en curso y **exportación a Excel** (6 hojas).
+- **Kan**, el asistente virtual con IA.
+- **Recuperación de contraseña por correo**: enlace de un solo uso que vence en 1 hora.
+- Diseño adaptado a celular.
 
 ---
 
-## ☁️ Arquitectura y Despliegue en Microsoft Azure
+## Tecnologías
 
-El proyecto fue desplegado en una máquina virtual Linux en la nube de Azure para garantizar disponibilidad continua y alto rendimiento.
-
-### Configuración del Servidor:
-* **Sistema Operativo:** Ubuntu Server en Azure VM.
-* **IP Pública:** `57.156.69.249`
-* **Puerto de Servicio:** `3000`
-
-### Estructura de Red y Seguridad (Azure NSG / UFW):
-* **Reglas del Grupo de Seguridad de Red (NSG) en Azure:**
-  * **SSH (Puerto 22):** Permitido para la administración remota de la infraestructura.
-  * **HTTP (Puerto 80):** Permitido para tráfico web estándar.
-  * **API / Web (Puerto 3000):** Regla de entrada TCP agregada para dar acceso público a la aplicación Node.js.
-* **Firewall Local (`ufw`):** Habilitados los puertos 22, 80 y 3000 TCP para comunicación bidireccional.
-
-### Gestión de Procesos en Producción:
-* **PM2 Process Manager:** Administra la aplicación Node.js (`entrelazados-backend`) en segundo plano, gestionando reinicios automáticos ante cualquier fallo imprevisto y persistencia en reinicios del servidor mediante `pm2 save`.
+| Parte | Tecnología |
+|---|---|
+| Frontend | HTML, CSS y JavaScript sin frameworks; Chart.js, ExcelJS, Leaflet, Tabler Icons |
+| Backend | Node.js 22 + Express 5 |
+| Base de datos | MySQL 8 (`mysql2`) |
+| Seguridad | `bcrypt` (contraseñas), `jsonwebtoken` (sesiones), `dotenv` (claves) |
+| Correo | `nodemailer` (Gmail con contraseña de aplicación u otro SMTP) |
+| IA | `@google/genai` (Gemini) |
+| Producción | VM Ubuntu 24.04 en Azure, PM2 y MySQL en la misma máquina |
 
 ---
 
-## 📂 Estructura del Proyecto
+## Estructura del proyecto
 
 ```text
 Entrelazados_web/
-├── backend/
-│   ├── package.json
-│   ├── package-lock.json
-│   └── entrelazados-api/
-│       ├── .env                  # Variables de entorno (puerto, BD, API Keys)
-│       ├── index.js              # Servidor principal Express + API
-│       └── node_modules/
-├── frontend/
-│   ├── index.html                # Vista principal de la aplicación
-│   ├── css/                      # Hojas de estilo
-│   └── js/                       # Lógica de cliente e integración de la API
-└── README.md                     # Documentación general del proyecto
-# EntreLazados
-
-**EntreLazados** es una plataforma web e industrial diseñada para conectar a **Proveedores** de materiales y residuos reciclables con **Emprendedores** que buscan darles una segunda vida útil a través del supra-reciclaje. 
-
-El sistema optimiza el mercado permitiendo publicaciones tradicionales, subastas interactivas en tiempo real basadas en la cercanía geográfica y comunicación directa mediante mensajería integrada.
-
----
-
-## Funcionalidades Principales
-
-### Perfil Proveedor
-* **Publicación Sincronizada:** Al crear una oferta de material, el sistema genera automáticamente un lote de subasta activa iniciando con el mismo precio base.
-* **Eliminación en Cascada:** Al remover una oferta, el backend limpia de forma segura las pujas y subastas asociadas para evitar inconsistencias en la base de datos.
-* **Gestión de Inventario:** Control total sobre el mercado y los materiales ofertados.
-
-### Perfil Emprendedor
-* **Mercado Geolocalizado:** Filtro avanzado de materiales basado en un control deslizante por rango de distancia en kilómetros (Km).
-* **Sistema de Subastas:** Participación activa mediante pujas incrementales sobre lotes verificados en tiempo real.
-* **Chat Directo:** Comunicación instantánea incorporada para negociar los detalles de entrega con los proveedores.
+├── README.md
+└── backend/
+    ├── package.json              # dependencias (npm install se ejecuta aquí)
+    ├── entrelazados-api/
+    │   ├── index.js              # servidor Express: API + archivos de public/
+    │   ├── correo.js             # envío de correos (recuperar contraseña)
+    │   ├── .env.example          # plantilla de variables de entorno
+    │   ├── .env                  # claves reales (NO se sube a git)
+    │   └── public/               # lo único que ve el navegador
+    │       ├── preview.html      # portada pública (página de inicio)
+    │       ├── login.html, unirse.html, restablecer.html
+    │       ├── index.html        # inicio con sesión
+    │       ├── mercado.html, chat.html, perfil.html
+    │       ├── dashboard.html, admin.html
+    │       ├── sesion.js         # agrega el token a cada petición /api
+    │       ├── styles.css
+    │       └── *.webp, logo.png  # imágenes
+    ├── sql/
+    │   ├── esquema_mysql.sql     # crea la base completa desde cero
+    │   └── migracion_v7.sql      # actualiza una base existente
+    └── pruebas/
+        ├── LEEME.md              # cómo correr las pruebas
+        ├── pruebas_api.js        # 89 pruebas de integración
+        ├── cargar_esquema.js
+        └── datos_demo.js         # datos de ejemplo para el dashboard
+```
 
 ---
 
-## Tecnologías Utilizadas
+## Instalación local
 
-* **Frontend:** HTML5, CSS3 (Diseño responsivo y estético), JavaScript Moderno (Fetch API).
-* **Backend:** Node.js, Express.js.
-* **Base de Datos:** MySQL (Gestión relacional con transacciones seguras de integridad).
-* **Protocolo de Comunicación:** CORS, JSON.
+### Requisitos
+- [Node.js](https://nodejs.org) 20 o superior
+- MySQL 8
 
----
+### 1. Clonar e instalar dependencias
 
-## Arquitectura de la Base de Datos
-
-La persistencia de los datos en **EntreLazadosDB** se gestiona mediante el motor `InnoDB` utilizando las siguientes entidades clave:
-
-* `Usuarios`: Almacena las credenciales y define el rol del usuario (`Proveedor` / `Emprendedor`).
-* `Departamentos`: Ubicación geográfica para calcular rutas y disponibilidad regional.
-* `Ofertas`: Catálogo de materiales publicados con precio por unidad de medida.
-* `Subastas`: Lotes activos vinculados directamente a una oferta con control de `PrecioBase` y `PrecioActual`.
-* `Pujas`: Historial de ofertas económicas realizadas por los emprendedores.
-* `MensajesChat`: Registro de comunicaciones directas e interacciones bilaterales.
-
----
-
-## Instalación y Configuración
-
-Sigue estos pasos para levantar el proyecto en tu entorno local:
-
-### 1. Clonar el repositorio e instalar dependencias
 ```bash
-# Instalar los módulos necesarios de Node.js
-npm install express mysql2 cors
+git clone https://github.com/ericksarria07/Entrelazados_web.git
+cd Entrelazados_web/backend
+npm install
+```
+
+### 2. Crear la base de datos
+
+En MySQL (Workbench o consola), como root:
+
+```sql
+CREATE DATABASE entrelazadosdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'entrelazados_app'@'localhost' IDENTIFIED BY 'una_contraseña_segura';
+GRANT ALL PRIVILEGES ON entrelazadosdb.* TO 'entrelazados_app'@'localhost';
+```
+
+Después carga las tablas y las 15 categorías de materiales (los departamentos se crean solos cuando alguien se registra):
+
+```bash
+mysql -u entrelazados_app -p entrelazadosdb < sql/esquema_mysql.sql
+```
+
+Si ya tienes una base de una versión anterior, usa `sql/migracion_v7.sql` en lugar del esquema completo.
+
+### 3. Configurar el `.env`
+
+Copia la plantilla y llena los valores:
+
+```bash
+cp entrelazados-api/.env.example entrelazados-api/.env
+```
+
+| Variable | Obligatoria | Para qué |
+|---|---|---|
+| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Sí | Conexión a MySQL |
+| `JWT_SECRET` | Sí | Firma las sesiones. Genera una con `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
+| `GEMINI_API_KEY` | No | Clave de Google AI Studio para Kan. Sin ella, Kan solo contesta sus preguntas frecuentes predefinidas |
+| `EMAIL_USER`, `EMAIL_PASS` | No | Cuenta de Gmail y [contraseña de aplicación](https://myaccount.google.com/apppasswords) para enviar los correos de recuperación |
+| `EMAIL_HOST`, `EMAIL_PORT` | No | Solo si usas otro servidor SMTP en lugar de Gmail |
+| `APP_URL` | No | Dirección pública del sitio para los enlaces del correo |
+
+Si falta una variable obligatoria, el servidor no arranca y dice cuál falta. Si no configuras el correo, el enlace de recuperación se escribe en el log del servidor.
+
+> ⚠️ Nunca subas el `.env` a GitHub. Ya está en el `.gitignore`.
+
+### 4. Arrancar
+
+```bash
+cd entrelazados-api
+node index.js
+```
+
+Abre http://localhost:3000.
+
+Para crear el primer administrador, registra una cuenta normal y cambia su rol en MySQL:
+
+```sql
+UPDATE Usuarios SET TipoRol = 'Administrador' WHERE CorreoElectronico = 'tu_correo@ejemplo.com';
+```
+
+Para comprobar el envío de correos sin usar la página:
+
+```bash
+node correo.js tu_correo@gmail.com
+```
+
+---
+
+## Pruebas
+
+Hay 89 pruebas de integración que recorren registro, login, ofertas, subastas, pujas, chat, perfil, panel de administrador y recuperación de contraseña. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+
+Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
+
+---
+
+## Seguridad
+
+- **Contraseñas** cifradas con bcrypt. Las cuentas antiguas en texto plano se cifran solas al iniciar sesión.
+- **Sesiones con JWT** (8 horas). En cada petición se consulta el rol y el estado actuales, así que una cuenta suspendida pierde el acceso al instante.
+- Las rutas usan el usuario del token, **nunca un id enviado por el navegador**. Solo los proveedores publican y solo los emprendedores pujan.
+- **Consultas SQL parametrizadas** contra inyección SQL, y **escape de HTML** contra XSS.
+- Recuperación de contraseña: 1 solicitud por minuto por correo, la misma respuesta exista o no la cuenta, y enlace de un solo uso.
+- Solo la carpeta `public/` es accesible desde el navegador.
+
+---
+
+## API
+
+Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer <token>` (lo agrega `sesion.js` automáticamente).
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| POST | `/registro` | Crear cuenta (Proveedor o Emprendedor) |
+| POST | `/api/login` | Iniciar sesión; devuelve el token |
+| POST | `/api/solicitar-recuperacion` | Enviar el enlace para restablecer la contraseña |
+| GET | `/api/validar-token-recuperacion` | Comprobar si un enlace sigue vigente |
+| POST | `/api/restablecer-password` | Guardar la nueva contraseña |
+| GET | `/api/ofertas`, `/api/subastas`, `/api/categorias`, `/api/estadisticas` | Datos públicos del mercado |
+| POST | `/api/ofertas` 🔒 | Publicar material (proveedor) |
+| DELETE | `/api/ofertas/:id` 🔒 | Eliminar una publicación propia |
+| POST | `/api/pujas` 🔒 | Pujar en una subasta (emprendedor) |
+| GET | `/api/chat/contactos`, `/api/chat/mensajes` 🔒 | Conversaciones propias |
+| POST | `/api/chat/enviar` 🔒 | Enviar un mensaje |
+| POST | `/api/chat/ia` | Preguntar a Kan |
+| GET | `/api/perfil/:id` 🔒 | Perfil propio (o cualquiera si eres admin) |
+| GET | `/api/dashboard` 🔒 | Datos del dashboard según el rol |
+| GET/PUT/DELETE/POST | `/api/admin/...` 🔒 | Panel de administrador (solo admin) |
+
+---
+
+## Despliegue en Azure
+
+| | |
+|---|---|
+| Servidor | VM Ubuntu 24.04 en Microsoft Azure |
+| Carpeta | `~/entrelazados` (clon de este repositorio) |
+| Proceso | PM2, proceso `0`, puerto `3000` |
+| Base de datos | MySQL en la misma VM (`entrelazadosdb`, usuario `entrelazados_app`) |
+| Puertos abiertos | 22 (SSH) y 3000 (web), en el NSG de Azure y en `ufw` |
+
+### Actualizar producción
+
+```bash
+ssh <usuario>@57.156.69.249
+cd ~/entrelazados
+git pull
+cd backend && npm install          # solo si cambiaron las dependencias
+pm2 restart 0 --update-env
+pm2 logs 0 --lines 30              # revisar que arrancó bien
+```
+
+Si un cambio trae un archivo nuevo en `sql/`, aplícalo antes de reiniciar:
+
+```bash
+mysql -u entrelazados_app -p entrelazadosdb < backend/sql/<archivo>.sql
+```
+
+---
+
+## Flujo de trabajo con git
+
+- Se trabaja en la rama **`main`** y se pasa a **`master`** (rama principal) con un *pull request*.
+- Antes de subir cambios, corre las pruebas (`backend/pruebas/LEEME.md`).
+
+---
+
+## Autor
+
+**Erick Sarria** · [@ericksarria07](https://github.com/ericksarria07)
