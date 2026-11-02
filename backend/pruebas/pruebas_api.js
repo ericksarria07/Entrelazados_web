@@ -95,6 +95,7 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     const ofP1 = ofertas.find(o => o.TituloMaterial === 'Cuero vacuno curtido');
     const ofP2 = ofertas.find(o => o.TituloMaterial === 'Suela de hule');
     check('La oferta quedó a nombre del proveedor 1 (se ignoró el ID falso)', ofP1 && ofP1.ProveedorID === p1.id, JSON.stringify(ofP1));
+    check('/api/ofertas incluye el CategoriaID (para filtrar por categoría)', ofP1 && ofP1.CategoriaID === 1 && ofP1.NombreCategoria === 'Cuero Bovino / Vacuno', JSON.stringify(ofP1));
     await q("UPDATE Ofertas SET Fotos = '{no es json' WHERE OfertaID = ?", [ofP2.OfertaID]);
     r = await api('GET', '/api/ofertas');
     check('Fotos con JSON dañado no tumban /api/ofertas', r.status === 200 && r.data.length === 2);
@@ -104,6 +105,8 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     const subastas = (await api('GET', '/api/subastas')).data;
     check('Cada oferta creó su subasta', subastas.length === 2);
     const subP1 = subastas.find(s => s.ProveedorID === p1.id);
+    check('…ligada a su publicación y a su categoría (OfertaID, CategoriaID)', subP1 && subP1.OfertaID === ofP1.OfertaID && subP1.CategoriaID === 1 && subP1.NombreCategoria === 'Cuero Bovino / Vacuno', JSON.stringify(subP1));
+    check('…con el número de pujas y sin foto (la publicación no tiene)', subP1 && subP1.TotalPujas === 0 && subP1.Foto === null, JSON.stringify(subP1));
     r = await api('POST', '/api/pujas', { body: { subastaId: subP1.SubastaID, montoPuja: 500 } });
     check('Pujar sin sesión → 401', r.status === 401);
     r = await api('POST', '/api/pujas', { token: p2.token, body: { subastaId: subP1.SubastaID, montoPuja: 500 } });
@@ -135,8 +138,16 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     check('Proveedor 2 intenta borrar oferta del proveedor 1 (con ID falso) → 403', r.status === 403);
     r = await api('DELETE', `/api/ofertas/${ofP1.OfertaID}`, { token: p1.token });
     check('Proveedor 1 borra su propia oferta', r.status === 200);
+    let filaSub = (await q('SELECT Estado, OfertaID FROM Subastas WHERE SubastaID = ?', [subP1.SubastaID]))[0];
+    check('…su subasta YA VENCIDA con pujas no se cancela (el cierre le dará ganador) y queda sin OfertaID', filaSub.Estado === 'Activa' && filaSub.OfertaID === null, JSON.stringify(filaSub));
+    const subOfP2 = (await q('SELECT SubastaID FROM Subastas WHERE OfertaID = ?', [ofP2.OfertaID]))[0];
     r = await api('DELETE', `/api/ofertas/${ofP2.OfertaID}`, { token: admin.token });
     check('Admin puede borrar cualquier oferta', r.status === 200);
+    filaSub = (await q('SELECT Estado FROM Subastas WHERE SubastaID = ?', [subOfP2.SubastaID]))[0];
+    check('…y su subasta abierta queda "Cancelada" (ya no sigue activa sin publicación)', filaSub.Estado === 'Cancelada' && /también se canceló/.test(r.data.message), JSON.stringify([filaSub, r.data]));
+    check('…y desaparece de /api/subastas', !(await api('GET', '/api/subastas')).data.some(x => x.SubastaID === subOfP2.SubastaID));
+    r = await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subOfP2.SubastaID, montoPuja: 9999 } });
+    check('…pujar en ella → 409 "fue cancelada"', r.status === 409 && /cancelada/.test(r.data.message), JSON.stringify(r));
 
     // ---------------------------------------------------------------- CHAT
     seccion('7. Chat');
@@ -288,6 +299,10 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     await q('UPDATE Ofertas SET Fotos = ? WHERE OfertaID = ?', [JSON.stringify(['data:image/png;base64,AAAA']), sinFotos.data.ofertaId]);
     const antigua = (await api('GET', '/api/ofertas')).data.find(o => o.OfertaID === sinFotos.data.ofertaId);
     check('Ofertas antiguas con fotos en texto se siguen mostrando', antigua && antigua.Fotos[0] === 'data:image/png;base64,AAAA', JSON.stringify(antigua));
+    const subConFotos = (await api('GET', '/api/subastas')).data.find(x => x.OfertaID === r.data.ofertaId);
+    check('La subasta muestra la foto principal de su publicación', subConFotos && subConFotos.Foto === urlsP2[0], JSON.stringify(subConFotos));
+    const subAntigua = (await api('GET', '/api/subastas')).data.find(x => x.OfertaID === sinFotos.data.ofertaId);
+    check('…también con las fotos antiguas en texto', subAntigua && subAntigua.Foto === 'data:image/png;base64,AAAA', JSON.stringify(subAntigua));
 
     foto = await fetch(B + '/uploads/%2e%2e/index.js');
     const textoFoto = await foto.text();
@@ -301,10 +316,64 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     check('Proveedor 1 publica con foto (para la prueba de eliminar usuario)', r.status === 200, JSON.stringify(r));
     const urlFotoP1 = r.data.fotos[0];
 
+    // ---------------------------------------------------------------- CREAR SUBASTAS
+    seccion('16. Crear subastas desde el Mercado');
+    const lote = { tituloLote: 'Suela de hule (lote)', precioBase: 300, categoriaId: 13, dias: 3 };
+    r = await api('POST', '/api/subastas', { body: lote });
+    check('Crear subasta sin sesión → 401', r.status === 401);
+    r = await api('POST', '/api/subastas', { token: e1.token, body: lote });
+    check('Emprendedor intenta crear subasta → 403', r.status === 403);
+    for (const [nombre, cambio] of [['0 días', { dias: 0 }], ['30 días', { dias: 30 }], ['1,5 días', { dias: 1.5 }], ['precio negativo', { precioBase: -1 }],
+        ['sin título', { tituloLote: '  ' }], ['sin categoría', { categoriaId: null }], ['título de 121 letras', { tituloLote: 'x'.repeat(121) }]]) {
+        r = await api('POST', '/api/subastas', { token: p2.token, body: { ...lote, ...cambio } });
+        check(`Subasta con ${nombre} → 400`, r.status === 400, JSON.stringify(r));
+    }
+    r = await api('POST', '/api/subastas', { token: p2.token, body: { ...lote, categoriaId: 9999 } });
+    check('Subasta con una categoría que no existe → 400', r.status === 400 && /categoría/.test(r.data.message), JSON.stringify(r));
+    r = await api('POST', '/api/subastas', { token: p2.token, body: { ...lote, proveedorId: p1.id } });
+    check('Proveedor 2 crea un lote nuevo de 3 días (enviando proveedorId falso)', r.status === 201 && r.data.subastaId, JSON.stringify(r));
+    const loteNuevo = (await q('SELECT ProveedorID, OfertaID, CategoriaID, TituloLote, PrecioActual, TIMESTAMPDIFF(HOUR, NOW(), FechaFin) AS horas FROM Subastas WHERE SubastaID = ?', [r.data.subastaId]))[0];
+    check('…queda a nombre del proveedor 2, sin publicación, con su categoría y precio', loteNuevo.ProveedorID === p2.id && loteNuevo.OfertaID === null && loteNuevo.CategoriaID === 13 && Number(loteNuevo.PrecioActual) === 300 && loteNuevo.TituloLote === 'Lote Subasta: Suela de hule (lote)', JSON.stringify(loteNuevo));
+    check('…y cierra en 3 días', loteNuevo.horas >= 71 && loteNuevo.horas <= 72, `horas=${loteNuevo.horas}`);
+    const enLista = (await api('GET', '/api/subastas')).data.find(x => x.SubastaID === r.data.subastaId);
+    check('…y aparece en /api/subastas con su categoría', enLista && enLista.NombreCategoria === 'Suelas, Tacones y Tapas (Calzado)', JSON.stringify(enLista));
+
+    // Desde una publicación: toma su título, categoría y fotos
+    r = await publicarConFotos(p2.token, [{ datos: PNG, tipo: 'image/png', nombre: 'tachuelas.png' }], { titulo: 'Tachuelas de cobre', categoriaId: 7, precio: 80 });
+    const ofTachuelas = r.data.ofertaId;
+    const fotoTachuelas = r.data.fotos[0];
+    r = await api('POST', '/api/subastas', { token: p2.token, body: { ofertaId: ofTachuelas, precioBase: 70 } });
+    check('Subasta de una publicación que ya tiene subasta abierta → 409', r.status === 409 && /ya tiene una subasta abierta/.test(r.data.message), JSON.stringify(r));
+    r = await api('POST', '/api/subastas', { token: p1.token, body: { ofertaId: ofTachuelas, precioBase: 70 } });
+    check('Subasta con la publicación de otro proveedor → 404', r.status === 404, JSON.stringify(r));
+    await q("UPDATE Subastas SET Estado = 'Finalizada' WHERE OfertaID = ?", [ofTachuelas]);
+    const dobles = await Promise.all([1, 2, 3].map(() => api('POST', '/api/subastas', { token: p2.token, body: { ofertaId: ofTachuelas, precioBase: 70, categoriaId: 1 } })));
+    check('3 clics a la vez para subastar la misma publicación: solo se crea UNA', dobles.filter(x => x.status === 201).length === 1 && dobles.filter(x => x.status === 409).length === 2, JSON.stringify(dobles.map(x => x.status)));
+    const subTachuelas = (await api('GET', '/api/subastas')).data.find(x => x.OfertaID === ofTachuelas);
+    check('…toma título, categoría (ignora la enviada) y foto de la publicación', subTachuelas && subTachuelas.TituloLote === 'Lote Subasta: Tachuelas de cobre' && subTachuelas.CategoriaID === 7 && subTachuelas.Foto === fotoTachuelas && Number(subTachuelas.PrecioBase) === 70, JSON.stringify(subTachuelas));
+
+    // Borrar una publicación cuya subasta abierta tiene pujas
+    r = await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subTachuelas.SubastaID, montoPuja: 75 } });
+    check('Un emprendedor puja en la subasta de las tachuelas', r.status === 200, JSON.stringify(r));
+    r = await api('DELETE', `/api/ofertas/${ofTachuelas}`, { token: p2.token });
+    check('El proveedor NO puede borrar la publicación mientras su subasta tenga pujas → 409', r.status === 409 && r.data.pujas === 1 && /cuando la subasta cierre/.test(r.data.message), JSON.stringify(r));
+    check('…la publicación y la subasta siguen igual', (await q('SELECT COUNT(*) n FROM Ofertas WHERE OfertaID = ?', [ofTachuelas]))[0].n === 1 && (await q('SELECT Estado FROM Subastas WHERE SubastaID = ?', [subTachuelas.SubastaID]))[0].Estado === 'Activa');
+    r = await api('DELETE', `/api/admin/ofertas/${ofTachuelas}`, { token: admin.token });
+    filaSub = (await q('SELECT Estado, OfertaID FROM Subastas WHERE SubastaID = ?', [subTachuelas.SubastaID]))[0];
+    check('El admin sí puede (moderación): la subasta queda Cancelada y conserva sus pujas', r.status === 200 && filaSub.Estado === 'Cancelada' && filaSub.OfertaID === null && (await q('SELECT COUNT(*) n FROM Pujas WHERE SubastaID = ?', [subTachuelas.SubastaID]))[0].n === 1, JSON.stringify([r, filaSub]));
+    check('…y la foto se borra del disco', (await fetch(B + fotoTachuelas)).status === 404);
+
+    // Borrar una publicación cuya subasta no tiene pujas
+    r = await api('POST', '/api/ofertas', { token: p2.token, body: { ...oferta, titulo: 'Cemento de contacto', categoriaId: 10 } });
+    const subCemento = (await q('SELECT SubastaID FROM Subastas WHERE OfertaID = ?', [r.data.ofertaId]))[0];
+    r = await api('DELETE', `/api/ofertas/${r.data.ofertaId}`, { token: p2.token });
+    check('El proveedor borra una publicación sin pujas: su subasta se cancela y se lo avisa', r.status === 200 && r.data.subastasCanceladas === 1 && /también se canceló/.test(r.data.message), JSON.stringify(r));
+    check('…estado Cancelada en la base', (await q('SELECT Estado FROM Subastas WHERE SubastaID = ?', [subCemento.SubastaID]))[0].Estado === 'Cancelada');
+
     // ---------------------------------------------------------------- CIERRE DE SUBASTAS
     seccion('14. Cierre automático de subastas');
-    // subP1 venció en la sección 5 con pujas; la subasta de "Suela de hule" (proveedor 2) se vence sin pujas
-    const subP2 = (await q("SELECT SubastaID FROM Subastas WHERE ProveedorID = ? AND TituloLote = 'Lote Subasta: Suela de hule'", [p2.id]))[0];
+    // subP1 venció en la sección 5 con pujas; el lote "Suela de hule (lote)" (proveedor 2, sección 16) se vence sin pujas
+    const subP2 = (await q("SELECT SubastaID FROM Subastas WHERE ProveedorID = ? AND TituloLote = 'Lote Subasta: Suela de hule (lote)'", [p2.id]))[0];
     await q('UPDATE Subastas SET FechaFin = NOW() - INTERVAL 1 MINUTE WHERE SubastaID = ?', [subP2.SubastaID]);
     const listadas = (await api('GET', '/api/subastas')).data;
     check('Las subastas vencidas ya no aparecen en /api/subastas', !listadas.some(s => s.SubastaID === subP1.SubastaID || s.SubastaID === subP2.SubastaID));
@@ -343,6 +412,62 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     check('Dashboard del ganador: 1 subasta ganada por C$590', r.status === 200 && r.data.miActividad.subastasGanadas === 1 && r.data.miActividad.montoGanado === 590, JSON.stringify(r.data && r.data.miActividad));
     r = await api('GET', '/api/dashboard', { token: p1.token });
     check('Dashboard del proveedor: 1 subasta vendida', r.status === 200 && r.data.miActividad.subastasVendidas === 1, JSON.stringify(r.data && r.data.miActividad));
+
+    // ---------------------------------------------------------------- SEGUIMIENTO DE TRATOS
+    seccion('17. Seguimiento de tratos');
+    const tratoId = tratos[0].TratoID;
+    const estadoTrato = async (id) => (await q('SELECT EstadoTrato FROM TratosCerrados WHERE TratoID = ?', [id]))[0].EstadoTrato;
+    const ultimoMensaje = async (de, para) => ((await q('SELECT ContenidoTexto FROM MensajesChat WHERE RemitenteID = ? AND DestinatarioID = ? ORDER BY MensajeID DESC LIMIT 1', [de, para]))[0] || {}).ContenidoTexto || '';
+    const cambiarTrato = (sesion, id, estado, extra = {}) => api('PUT', `/api/tratos/${id}/estado`, { token: sesion && sesion.token, body: { estado, ...extra } });
+
+    r = await cambiarTrato(null, tratoId, 'EnProceso');
+    check('Cambiar un trato sin sesión → 401', r.status === 401);
+    r = await cambiarTrato(perdedor, tratoId, 'EnProceso');
+    check('Alguien que no es parte del trato → 404 (no revela que existe)', r.status === 404, JSON.stringify(r));
+    r = await cambiarTrato(admin, tratoId, 'Completado');
+    check('El admin tampoco puede cambiar tratos ajenos → 404', r.status === 404);
+    r = await cambiarTrato(ganador, tratoId, 'Pagado');
+    check('Estado que no existe → 400', r.status === 400, JSON.stringify(r));
+    r = await cambiarTrato(ganador, tratoId, 'Pendiente');
+    check('Volver a "Pendiente" a mano → 400', r.status === 400);
+    r = await cambiarTrato(ganador, 'abc', 'EnProceso');
+    check('ID de trato inválido → 404', r.status === 404);
+    check('…ninguno de esos intentos cambió el trato', await estadoTrato(tratoId) === 'Pendiente');
+
+    r = await cambiarTrato(ganador, tratoId, 'EnProceso');
+    check('El comprador marca el trato "En proceso"', r.status === 200 && r.data.estado === 'EnProceso' && r.data.estadoAnterior === 'Pendiente' && await estadoTrato(tratoId) === 'EnProceso', JSON.stringify(r));
+    check('…y el proveedor recibe un aviso automático en el chat', /EN PROCESO/.test(await ultimoMensaje(ganador.id, p1.id)));
+    r = await cambiarTrato(p1, tratoId, 'EnProceso');
+    check('Marcarlo otra vez "En proceso" → 409', r.status === 409 && /ya está en proceso/.test(r.data.message), JSON.stringify(r));
+    r = await api('GET', '/api/tratos', { token: p1.token });
+    check('/api/tratos muestra el nuevo estado', r.data[0].estado === 'EnProceso');
+    r = await cambiarTrato(p1, tratoId, 'Completado');
+    check('El proveedor lo marca "Completado"', r.status === 200 && await estadoTrato(tratoId) === 'Completado', JSON.stringify(r));
+    check('…y el comprador recibe el aviso', /COMPLETADO/.test(await ultimoMensaje(p1.id, ganador.id)));
+    r = await cambiarTrato(ganador, tratoId, 'Cancelado');
+    check('Un trato completado ya no se puede cancelar → 409', r.status === 409 && /completado/.test(r.data.message) && await estadoTrato(tratoId) === 'Completado', JSON.stringify(r));
+
+    // Cancelar con motivo: deja de contar como subasta ganada / vendida
+    const antes = (await api('GET', '/api/dashboard', { token: ganador.token })).data.miActividad;
+    const tratoCancelar = (await q(`INSERT INTO TratosCerrados (ProveedorID, EmprendedorID, TipoOrigen, OrigenID, DescripcionResumen, MontoTotal, EstadoTrato, FechaCierre)
+        VALUES (?, ?, 'Subasta', NULL, 'Subasta ganada: Lote Subasta: Hilo encerado', 100, 'Pendiente', NOW() - INTERVAL 2 DAY)`, [p2.id, ganador.id])).insertId;
+    const conNuevo = (await api('GET', '/api/dashboard', { token: ganador.token })).data.miActividad;
+    check('Un trato nuevo suma a "subastas ganadas"', conNuevo.subastasGanadas === antes.subastasGanadas + 1 && conNuevo.montoGanado === antes.montoGanado + 100, JSON.stringify([antes, conNuevo]));
+    r = await api('GET', '/api/tratos', { token: ganador.token });
+    check('/api/tratos pone primero los abiertos aunque sean más antiguos', r.data[0].id === tratoCancelar && r.data[1].estado === 'Completado', JSON.stringify(r.data.map(t => [t.id, t.estado])));
+    r = await cambiarTrato(ganador, tratoCancelar, 'Cancelado', { motivo: '  El material <b>no</b> era el de la foto  ' + 'x'.repeat(300) });
+    check('El comprador cancela un trato pendiente con motivo', r.status === 200 && await estadoTrato(tratoCancelar) === 'Cancelado', JSON.stringify(r));
+    const avisoCancelado = await ultimoMensaje(ganador.id, p2.id);
+    check('…el aviso del chat lleva el motivo (recortado a 200 letras)', /Cancelé el trato «Hilo encerado»\. Motivo: El material <b>no<\/b> era el de la foto\s+x+$/.test(avisoCancelado) && avisoCancelado.split('Motivo: ')[1].length === 200, avisoCancelado);
+    const despues = (await api('GET', '/api/dashboard', { token: ganador.token })).data.miActividad;
+    check('…y deja de contar como subasta ganada en el dashboard', despues.subastasGanadas === antes.subastasGanadas && despues.montoGanado === antes.montoGanado, JSON.stringify(despues));
+
+    // Las dos partes pulsan a la vez
+    const tratoDoble = (await q(`INSERT INTO TratosCerrados (ProveedorID, EmprendedorID, TipoOrigen, DescripcionResumen, MontoTotal, EstadoTrato)
+        VALUES (?, ?, 'Subasta', 'Subasta ganada: Lote Subasta: Cuero doble', 50, 'Pendiente')`, [p2.id, ganador.id])).insertId;
+    const aLaVez = await Promise.all([cambiarTrato(p2, tratoDoble, 'Completado'), cambiarTrato(ganador, tratoDoble, 'Cancelado')]);
+    const ganoQuien = aLaVez[0].status === 200 ? 'Completado' : 'Cancelado';
+    check('Proveedor completa y comprador cancela a la vez: solo uno gana y el otro recibe 409', aLaVez.filter(x => x.status === 200).length === 1 && aLaVez.filter(x => x.status === 409).length === 1 && await estadoTrato(tratoDoble) === ganoQuien, JSON.stringify(aLaVez.map(x => x.status)));
 
     seccion('12. Eliminar usuarios (admin)');
     r = await api('DELETE', `/api/admin/usuarios/${admin.id}`, { token: admin.token });

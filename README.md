@@ -12,14 +12,23 @@ Los proveedores publican sus materiales, y cada publicación abre una subasta. L
 
 ### Proveedor
 - Publica materiales con título, precio, unidad, categoría y **hasta 5 fotos**. Las fotos se reducen en el navegador antes de subirlas (una foto de celular de 5 MB queda en unos 400 KB).
-- Cada publicación crea automáticamente una **subasta** de 7 días con el mismo precio base.
-- Elimina sus publicaciones (las subastas y pujas asociadas se borran juntas).
+- Cada publicación crea automáticamente una **subasta** de 7 días con el mismo precio base, que muestra sus fotos.
+- **Crear subastas** desde el Mercado: de una de sus publicaciones o de un lote nuevo, de 3 a 14 días.
+- Elimina sus publicaciones: si su subasta sigue abierta y sin pujas, se **cancela** con ella. Si ya tiene pujas, hay que esperar a que cierre (el administrador sí puede retirarla).
+- Las **categorías** de los formularios y del buscador salen de la base de datos: una categoría nueva del administrador aparece sola.
 - Ve su actividad en el dashboard: ofertas, subastas, pujas recibidas y **subastas vendidas**.
 
 ### Emprendedor
 - **Mercado** con filtros por categoría y radio de cercanía (km), y mapa interactivo.
 - **Subastas**: puja por encima del precio actual. La validación es atómica: dos pujas simultáneas nunca dejan un precio menor.
 - **Subastas ganadas** en el dashboard, con un botón para coordinar la entrega por chat.
+
+### Seguimiento de tratos
+Cada subasta ganada es un trato que proveedor y comprador avanzan desde el dashboard:
+
+`Pendiente` → `En proceso` (pago y entrega acordados) → `Completado`, o `Cancelado` (con motivo opcional) mientras no esté completado.
+
+Cualquiera de los dos puede cambiarlo; la otra parte recibe un aviso automático en el chat y un correo. Los tratos cancelados no cuentan en "subastas ganadas / vendidas".
 - **Chat** directo con los proveedores.
 
 ### Administrador
@@ -67,6 +76,7 @@ Entrelazados_web/
     │   ├── limites.js            # límites de intentos (login, registro, Kan...)
     │   ├── fotos.js              # recibir, validar, guardar y borrar fotos
     │   ├── subastas.js           # cierre automático de subastas vencidas
+    │   ├── tratos.js             # estados de los tratos (pendiente → completado)
     │   ├── uploads/              # fotos subidas (NO se sube a git; va en los respaldos)
     │   ├── .env.example          # plantilla de variables de entorno
     │   ├── .env                  # claves reales (NO se sube a git)
@@ -77,19 +87,21 @@ Entrelazados_web/
     │       ├── mercado.html, chat.html, perfil.html
     │       ├── dashboard.html, admin.html
     │       ├── sesion.js         # agrega el token a cada petición /api
+    │       ├── categorias.js     # llena los <select> de categorías desde la API
     │       ├── styles.css
     │       └── *.webp, logo.png  # imágenes
     ├── sql/
     │   ├── esquema_mysql.sql     # crea la base completa desde cero
     │   ├── migracion_v7.sql      # rol Administrador
-    │   └── migracion_v8.sql      # fotos en disco y cierre de subastas
+    │   ├── migracion_v8.sql      # fotos en disco y cierre de subastas
+    │   └── migracion_v9.sql      # subastas ligadas a su publicación, estado Cancelada
     ├── scripts/
     │   ├── LEEME.md              # cómo programar los respaldos diarios
     │   ├── respaldo.sh           # respaldo de MySQL + fotos (rota a los 7 días)
     │   └── restaurar.sh          # restaurar un respaldo
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
-        ├── pruebas_api.js        # 130 pruebas de integración
+        ├── pruebas_api.js        # 184 pruebas de integración
         ├── cargar_esquema.js
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
@@ -126,7 +138,7 @@ Después carga las tablas y las 15 categorías de materiales (los departamentos 
 mysql -u entrelazados_app -p entrelazadosdb < sql/esquema_mysql.sql
 ```
 
-Si ya tienes una base de una versión anterior, en lugar del esquema completo aplica las migraciones que te falten, en orden: `sql/migracion_v7.sql` y `sql/migracion_v8.sql`.
+Si ya tienes una base de una versión anterior, en lugar del esquema completo aplica las migraciones que te falten, en orden: `sql/migracion_v7.sql`, `sql/migracion_v8.sql` y `sql/migracion_v9.sql`.
 
 ### 3. Configurar el `.env`
 
@@ -178,7 +190,7 @@ node correo.js tu_correo@gmail.com
 
 ## Pruebas
 
-Hay 130 pruebas de integración que recorren registro, login, ofertas, fotos, subastas, pujas, cierre de subastas, chat, perfil, panel de administrador, recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+Hay 184 pruebas de integración que recorren registro, login, ofertas, fotos, subastas (crear, cancelar y cerrar), pujas, seguimiento de tratos, chat, perfil, panel de administrador, recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
@@ -212,12 +224,14 @@ Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer <token>` 
 | POST | `/api/restablecer-password` | Guardar la nueva contraseña |
 | GET | `/api/ofertas`, `/api/subastas`, `/api/categorias`, `/api/estadisticas` | Datos públicos del mercado |
 | POST | `/api/ofertas` 🔒 | Publicar material (proveedor). JSON, o `multipart/form-data` con hasta 5 archivos en `fotos` |
-| DELETE | `/api/ofertas/:id` 🔒 | Eliminar una publicación propia |
+| DELETE | `/api/ofertas/:id` 🔒 | Eliminar una publicación propia (cancela su subasta abierta; 409 si ya tiene pujas) |
+| POST | `/api/subastas` 🔒 | Crear una subasta: `{ precioBase, dias, ofertaId }` o `{ tituloLote, precioBase, categoriaId, dias }` (proveedor) |
 | POST | `/api/pujas` 🔒 | Pujar en una subasta (emprendedor) |
 | GET | `/api/chat/contactos`, `/api/chat/mensajes` 🔒 | Conversaciones propias |
 | POST | `/api/chat/enviar` 🔒 | Enviar un mensaje |
 | POST | `/api/chat/ia` 🔒 | Preguntar a Kan |
-| GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas |
+| GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas (primero las abiertas) |
+| PUT | `/api/tratos/:id/estado` 🔒 | `{ estado: 'EnProceso' \| 'Completado' \| 'Cancelado', motivo? }` (solo las dos partes del trato) |
 | GET | `/api/perfil/:id` 🔒 | Perfil propio (o cualquiera si eres admin) |
 | GET | `/api/dashboard` 🔒 | Datos del dashboard según el rol |
 | GET/PUT/DELETE/POST | `/api/admin/...` 🔒 | Panel de administrador (solo admin) |

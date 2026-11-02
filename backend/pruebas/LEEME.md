@@ -1,8 +1,9 @@
 # Pruebas locales de la API
 
 Pruebas de integración que levantan el flujo completo (registro, login, ofertas,
-subastas, pujas, chat, perfil, panel de administrador y restablecer contraseña)
-contra una base MySQL **local** de pruebas. Nunca usan la base de producción.
+fotos, subastas, pujas, cierre de subastas, seguimiento de tratos, chat, perfil,
+panel de administrador, restablecer contraseña y límites de intentos) contra una
+base MySQL **local** de pruebas. Nunca usan la base de producción.
 
 ## 1. Crear la base de pruebas (una sola vez, como root en MySQL Workbench)
 

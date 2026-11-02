@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="categorias.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Tu Mercado de Materia Prima para Cuero</title>
     
@@ -853,12 +854,8 @@
 
         <!-- FORMULARIO DE BÚSQUEDA -->
         <form id="searchForm" class="search-bar" onsubmit="ejecutarBusqueda(event)">
-            <select id="searchCategory" class="search-category">
+            <select id="searchCategory" class="search-category" aria-label="Categoría">
                 <option value="todos">Todos los insumos</option>
-                <option value="Cuero Vacuno">Cuero Vacuno</option>
-                <option value="Suelas & Caucho">Suelas & Caucho</option>
-                <option value="Herrajes">Herrajes</option>
-                <option value="Herramientas">Herramientas</option>
             </select>
             <input type="text" id="searchInput" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
             <button type="submit" class="search-btn"><i class="ti ti-search"></i></button>
@@ -1126,6 +1123,10 @@
                 cardWelcomeTitle.textContent = `¡Hola de nuevo, ${userNombre}!`;
             }
 
+            // Categorías del buscador desde la base de datos (ver categorias.js)
+            Categorias.cargar().then(lista => Categorias.llenarSelect(
+                document.getElementById('searchCategory'), lista, { primera: { valor: 'todos', texto: 'Todos los insumos' } }));
+
             reiniciarTemporizadorInactividad();
         });
 
@@ -1155,22 +1156,12 @@
 
                 const ofertas = await res.json();
 
-                const catFiltroLimpia = limpiarTexto(categoria);
                 const queryLimpia = limpiarTexto(query);
 
                 const coincidencia = ofertas.some(oferta => {
                     const tituloOfertaLimpio = limpiarTexto(oferta.TituloMaterial);
-                    const catOfertaLimpia = limpiarTexto(oferta.NombreCategoria);
-
                     const coincideTexto = queryLimpia === '' || tituloOfertaLimpio.includes(queryLimpia);
-
-                    let coincideCategoria = (categoria === 'todos');
-                    if (!coincideCategoria) {
-                        const palabrasFiltro = catFiltroLimpia.split(/\s+/);
-                        coincideCategoria = catOfertaLimpia.includes(catFiltroLimpia) ||
-                            catFiltroLimpia.includes(catOfertaLimpia) ||
-                            palabrasFiltro.some(palabra => palabra.length > 3 && catOfertaLimpia.includes(palabra));
-                    }
+                    const coincideCategoria = categoria === 'todos' || String(oferta.CategoriaID) === categoria;
 
                     const distanciaOferta = parseInt(oferta.DistanciaSimuladaKm || 0, 10);
                     const dentroDelRadio = distanciaOferta <= radioMaximo;

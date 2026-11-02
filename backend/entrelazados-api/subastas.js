@@ -163,4 +163,4 @@ function crearCierreSubastas({ db, correo, urlBase }) {
     return { cerrarVencidas, iniciar };
 }
 
-module.exports = { crearCierreSubastas };
+module.exports = { crearCierreSubastas, nombreLote };

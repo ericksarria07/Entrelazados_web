@@ -101,13 +101,20 @@ CREATE TABLE FotosOfertas (
 CREATE TABLE Subastas (
     SubastaID INT AUTO_INCREMENT PRIMARY KEY,
     ProveedorID INT NOT NULL,
+    -- Publicación de la que sale el lote (NULL si se creó sin publicación o si esta se borró)
+    OfertaID INT NULL,
+    CategoriaID INT NULL,
     TituloLote VARCHAR(150) NOT NULL,
     PrecioBase DECIMAL(10,2) NOT NULL,
     PrecioActual DECIMAL(10,2) NOT NULL,
     FechaInicio DATETIME DEFAULT CURRENT_TIMESTAMP,
     FechaFin DATETIME NOT NULL,
-    Estado VARCHAR(15) DEFAULT 'Activa' CHECK (Estado IN ('Activa', 'Finalizada')),
+    -- 'Cancelada': se borró la publicación mientras la subasta seguía abierta
+    Estado VARCHAR(15) DEFAULT 'Activa',
+    CONSTRAINT chk_subastas_estado CHECK (Estado IN ('Activa', 'Finalizada', 'Cancelada')),
     FOREIGN KEY (ProveedorID) REFERENCES Usuarios(UsuarioID),
+    CONSTRAINT fk_subastas_oferta FOREIGN KEY (OfertaID) REFERENCES Ofertas(OfertaID) ON DELETE SET NULL,
+    CONSTRAINT fk_subastas_categoria FOREIGN KEY (CategoriaID) REFERENCES CategoriasMateriales(CategoriaID),
     -- El cierre automático busca cada minuto las subastas activas ya vencidas
     INDEX idx_subastas_estado_fin (Estado, FechaFin)
 ) ENGINE=InnoDB;

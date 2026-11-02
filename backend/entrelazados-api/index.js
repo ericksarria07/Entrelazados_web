@@ -10,6 +10,7 @@ const { crearServicioCorreo } = require('./correo');
 const limites = require('./limites');
 const fotos = require('./fotos');
 const { crearCierreSubastas } = require('./subastas');
+const { crearServicioTratos } = require('./tratos');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { GoogleGenAI } = require('@google/genai');
@@ -103,6 +104,13 @@ const cierreSubastas = crearCierreSubastas({
 });
 const intervaloCierre = Number(process.env.INTERVALO_CIERRE_SUBASTAS_SEG);
 cierreSubastas.iniciar(Number.isInteger(intervaloCierre) && intervaloCierre >= 10 ? intervaloCierre : 60);
+
+// SEGUIMIENTO DE TRATOS: pendiente → en proceso → completado / cancelado (ver tratos.js)
+const tratos = crearServicioTratos({
+    db,
+    correo,
+    urlBase: (process.env.APP_URL || '').replace(/\/+$/, '') || null
+});
 
 /* ==========================================================================
    MIDDLEWARE DE VERIFICACIÓN DE ROL ADMINISTRADOR
@@ -725,7 +733,8 @@ async function urlsDeFotos(ofertaIds) {
 app.get('/api/ofertas', async (req, res) => {
     try {
         const [ofertas] = await db.promise().query(`
-            SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos, c.NombreCategoria
+            SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos,
+                   o.CategoriaID, c.NombreCategoria
             FROM Ofertas o
             JOIN CategoriasMateriales c ON o.CategoriaID = c.CategoriaID
         `);
@@ -739,6 +748,26 @@ app.get('/api/ofertas', async (req, res) => {
         res.status(500).json([]);
     }
 });
+
+// Error con código HTTP: la ruta responde su mensaje tal cual
+const errorDeUsuario = (status, message) => Object.assign(new Error(message), { status });
+
+// SUBASTAS: duración permitida y precio máximo (DECIMAL(10,2) llega hasta 99.999.999,99)
+const DIAS_SUBASTA = { minimo: 1, maximo: 14, porDefecto: 7 };
+const PRECIO_MAXIMO = 99999999;
+
+// Crea una subasta dentro de una transacción ya abierta (conn).
+// ofertaId liga el lote a su publicación: así muestra sus fotos y se cancela si la publicación se borra.
+async function insertarSubasta(conn, { proveedorId, ofertaId = null, categoriaId, titulo, precioBase, dias = DIAS_SUBASTA.porDefecto }) {
+    const fechaFin = new Date();
+    fechaFin.setDate(fechaFin.getDate() + dias);
+    const [resultado] = await conn.query(
+        `INSERT INTO Subastas (ProveedorID, OfertaID, CategoriaID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Activa')`,
+        [proveedorId, ofertaId, categoriaId, `Lote Subasta: ${titulo}`, precioBase, precioBase, fechaFin]
+    );
+    return { subastaId: resultado.insertId, fechaFin };
+}
 
 // Acepta JSON (sin fotos) o multipart/form-data con hasta 5 archivos en el campo "fotos"
 app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, fotos.recibirFotos, async (req, res) => {
@@ -754,7 +783,7 @@ app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, 
     if (tituloLimpio.length > 120) {
         return res.status(400).json({ message: "El título puede tener como máximo 120 caracteres." });
     }
-    if (!(Number(precio) > 0)) {
+    if (!(Number(precio) > 0) || Number(precio) > PRECIO_MAXIMO) {
         return res.status(400).json({ message: "El precio debe ser un número mayor que 0." });
     }
     const errorFotos = fotos.validarFotos(archivos);
@@ -783,13 +812,13 @@ app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, 
             );
         }
 
-        const fechaFin = new Date();
-        fechaFin.setDate(fechaFin.getDate() + 7);
-        await conn.query(
-            `INSERT INTO Subastas (ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado)
-             VALUES (?, ?, ?, ?, ?, 'Activa')`,
-            [proveedorId, `Lote Subasta: ${tituloLimpio}`, precio, precio, fechaFin]
-        );
+        await insertarSubasta(conn, {
+            proveedorId,
+            ofertaId: oferta.insertId,
+            categoriaId,
+            titulo: tituloLimpio,
+            precioBase: precio
+        });
 
         await conn.commit();
         res.json({
@@ -810,34 +839,78 @@ app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, 
     }
 });
 
-// Borra una oferta con sus fotos (de la tabla y del disco).
-// Si se indica proveedorId, solo la borra si es de ese proveedor.
-// Devuelve false si no existía o no le pertenece.
+// Borra una oferta con sus fotos (de la tabla y del disco) y cancela su subasta si sigue abierta.
+// Si se indica proveedorId, solo la borra si es de ese proveedor, y NO la borra si su
+// subasta abierta ya tiene pujas (no se le quita el lote a quien va ganando).
+// El admin (sin proveedorId) sí puede: la subasta queda 'Cancelada' igual.
+// Las subastas ya vencidas no se tocan: el cierre automático les da su ganador.
+// Devuelve { borrada, pujas, subastasCanceladas }.
 async function eliminarOferta(ofertaId, proveedorId = null) {
     const soloDelProveedor = proveedorId !== null;
-    const parametros = soloDelProveedor ? [ofertaId, proveedorId] : [ofertaId];
-    const [filasFotos] = await db.promise().query(
-        `SELECT f.FotoURL FROM FotosOfertas f JOIN Ofertas o ON o.OfertaID = f.OfertaID
-         WHERE o.OfertaID = ? ${soloDelProveedor ? 'AND o.ProveedorID = ?' : ''}`,
-        parametros
-    );
-    const [resultado] = await db.promise().query(
-        `DELETE FROM Ofertas WHERE OfertaID = ? ${soloDelProveedor ? 'AND ProveedorID = ?' : ''}`,
-        parametros
-    );   // las filas de FotosOfertas se borran en cascada
-    if (resultado.affectedRows === 0) return false;
-    await fotos.borrarFotos(filasFotos.map(f => f.FotoURL));
-    return true;
+    const conn = await db.promise().getConnection();
+    let urlsFotos = [];
+    let abiertas = [];
+    try {
+        await conn.beginTransaction();
+        const [[oferta]] = await conn.query(
+            `SELECT OfertaID FROM Ofertas WHERE OfertaID = ? ${soloDelProveedor ? 'AND ProveedorID = ?' : ''} FOR UPDATE`,
+            soloDelProveedor ? [ofertaId, proveedorId] : [ofertaId]
+        );
+        if (!oferta) {
+            await conn.rollback();
+            return { borrada: false, pujas: 0, subastasCanceladas: 0 };
+        }
+
+        // FOR UPDATE: una puja que llegue mientras tanto espera y luego ve la subasta cancelada
+        [abiertas] = await conn.query(
+            `SELECT s.SubastaID, (SELECT COUNT(*) FROM Pujas p WHERE p.SubastaID = s.SubastaID) AS pujas
+             FROM Subastas s
+             WHERE s.OfertaID = ? AND s.Estado = 'Activa' AND s.FechaFin > NOW()
+             FOR UPDATE`,
+            [ofertaId]
+        );
+        const pujas = abiertas.reduce((total, s) => total + Number(s.pujas), 0);
+        if (soloDelProveedor && pujas > 0) {
+            await conn.rollback();
+            return { borrada: false, pujas, subastasCanceladas: 0 };
+        }
+        if (abiertas.length > 0) {
+            await conn.query("UPDATE Subastas SET Estado = 'Cancelada' WHERE SubastaID IN (?)", [abiertas.map(s => s.SubastaID)]);
+        }
+
+        const [filasFotos] = await conn.query('SELECT FotoURL FROM FotosOfertas WHERE OfertaID = ?', [ofertaId]);
+        urlsFotos = filasFotos.map(f => f.FotoURL);
+        // Las filas de FotosOfertas se borran en cascada; las subastas conservan su historial (OfertaID = NULL)
+        await conn.query('DELETE FROM Ofertas WHERE OfertaID = ?', [ofertaId]);
+        await conn.commit();
+    } catch (err) {
+        await conn.rollback().catch(() => { });
+        throw err;
+    } finally {
+        conn.release();
+    }
+    await fotos.borrarFotos(urlsFotos);
+    return { borrada: true, pujas: 0, subastasCanceladas: abiertas.length };
 }
+
+const mensajeOfertaBorrada = (resultado, base) => resultado.subastasCanceladas > 0
+    ? `${base} Su subasta abierta también se canceló.`
+    : base;
 
 app.delete('/api/ofertas/:id', verificarToken, async (req, res) => {
     try {
         // Un proveedor solo puede borrar sus propias ofertas; el admin puede borrar cualquiera
-        const borrada = await eliminarOferta(req.params.id, req.usuario.esAdmin ? null : req.usuario.id);
-        if (!borrada) {
+        const resultado = await eliminarOferta(req.params.id, req.usuario.esAdmin ? null : req.usuario.id);
+        if (resultado.pujas > 0) {
+            return res.status(409).json({
+                message: `Esta publicación tiene una subasta abierta con ${resultado.pujas} puja(s). Podrás borrarla cuando la subasta cierre.`,
+                pujas: resultado.pujas
+            });
+        }
+        if (!resultado.borrada) {
             return res.status(403).json({ message: "No tienes permiso para eliminar esta oferta o no existe." });
         }
-        res.json({ success: true, message: "Oferta eliminada correctamente." });
+        res.json({ success: true, message: mensajeOfertaBorrada(resultado, "Oferta eliminada correctamente."), subastasCanceladas: resultado.subastasCanceladas });
     } catch (err) {
         console.error("❌ Error al eliminar oferta:", err.message);
         res.status(500).json({ message: "Error al remover la oferta." });
@@ -847,19 +920,94 @@ app.delete('/api/ofertas/:id', verificarToken, async (req, res) => {
 // RUTAS PARA SUBASTAS Y PUJAS
 // Solo las que siguen abiertas: una vencida desaparece de la lista aunque el
 // cierre automático todavía no haya pasado por ella
-app.get('/api/subastas', (req, res) => {
-    const query = `
-        SELECT SubastaID, ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado
-        FROM Subastas
-        WHERE Estado = 'Activa' AND FechaFin > NOW()
-    `;
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error("❌ Error en GET /api/subastas:", err.message);
-            return res.status(500).json([]);
+// Cada una trae la foto principal y la categoría de su publicación. Primero las que cierran antes.
+app.get('/api/subastas', async (req, res) => {
+    try {
+        const [subastas] = await db.promise().query(`
+            SELECT s.SubastaID, s.ProveedorID, s.OfertaID, s.CategoriaID, s.TituloLote, s.PrecioBase,
+                   s.PrecioActual, s.FechaFin, s.Estado, c.NombreCategoria, o.Fotos AS FotosAntiguas,
+                   (SELECT COUNT(*) FROM Pujas p WHERE p.SubastaID = s.SubastaID) AS TotalPujas
+            FROM Subastas s
+            LEFT JOIN CategoriasMateriales c ON c.CategoriaID = s.CategoriaID
+            LEFT JOIN Ofertas o ON o.OfertaID = s.OfertaID
+            WHERE s.Estado = 'Activa' AND s.FechaFin > NOW()
+            ORDER BY s.FechaFin, s.SubastaID
+        `);
+        const fotosPorOferta = await urlsDeFotos([...new Set(subastas.map(s => s.OfertaID).filter(Boolean))]);
+        res.json(subastas.map(({ FotosAntiguas, ...s }) => ({
+            ...s,
+            TotalPujas: Number(s.TotalPujas),
+            Foto: (fotosPorOferta.get(s.OfertaID) || leerFotosAntiguas(FotosAntiguas))[0] || null
+        })));
+    } catch (err) {
+        console.error("❌ Error en GET /api/subastas:", err.message);
+        res.status(500).json([]);
+    }
+});
+
+// CREAR UNA SUBASTA desde el Mercado (botón "Crear Subasta"): proveedores (y el admin, como en las ofertas).
+// Con ofertaId, el lote sale de una de sus publicaciones (toma su título, categoría y fotos);
+// sin ofertaId, es un lote nuevo con título y categoría propios.
+app.post('/api/subastas', verificarToken, soloRoles('proveedor'), async (req, res) => {
+    const proveedorId = req.usuario.id;
+    const ofertaId = req.body.ofertaId ? Number(req.body.ofertaId) : null;
+    const precioBase = Number(req.body.precioBase);
+    const dias = req.body.dias === undefined || req.body.dias === '' ? DIAS_SUBASTA.porDefecto : Number(req.body.dias);
+    let titulo = typeof req.body.tituloLote === 'string' ? req.body.tituloLote.trim() : '';
+    let categoriaId = Number(req.body.categoriaId) || null;
+
+    if (!(precioBase > 0) || precioBase > PRECIO_MAXIMO) {
+        return res.status(400).json({ message: "El precio base debe ser un número mayor que 0." });
+    }
+    if (!Number.isInteger(dias) || dias < DIAS_SUBASTA.minimo || dias > DIAS_SUBASTA.maximo) {
+        return res.status(400).json({ message: `La subasta debe durar de ${DIAS_SUBASTA.minimo} a ${DIAS_SUBASTA.maximo} días.` });
+    }
+    if (ofertaId !== null && !(Number.isInteger(ofertaId) && ofertaId > 0)) {
+        return res.status(400).json({ message: "La publicación elegida no es válida." });
+    }
+
+    let conn;
+    try {
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        if (ofertaId) {
+            // FOR UPDATE: dos clics seguidos no pueden abrir dos subastas de la misma publicación
+            const [[oferta]] = await conn.query(
+                'SELECT TituloMaterial, CategoriaID FROM Ofertas WHERE OfertaID = ? AND ProveedorID = ? FOR UPDATE',
+                [ofertaId, proveedorId]
+            );
+            if (!oferta) throw errorDeUsuario(404, "Esa publicación no existe o no es tuya.");
+            const [[abierta]] = await conn.query(
+                "SELECT SubastaID FROM Subastas WHERE OfertaID = ? AND Estado = 'Activa' AND FechaFin > NOW() LIMIT 1",
+                [ofertaId]
+            );
+            if (abierta) throw errorDeUsuario(409, "Esa publicación ya tiene una subasta abierta.");
+            titulo = titulo || oferta.TituloMaterial;
+            categoriaId = oferta.CategoriaID;
         }
-        res.json(results || []);
-    });
+
+        if (!titulo || !categoriaId) throw errorDeUsuario(400, "Escribe el título del lote y elige una categoría.");
+        if (titulo.length > 120) throw errorDeUsuario(400, "El título puede tener como máximo 120 caracteres.");
+
+        const { subastaId, fechaFin } = await insertarSubasta(conn, { proveedorId, ofertaId, categoriaId, titulo, precioBase, dias });
+        await conn.commit();
+        res.status(201).json({
+            message: `¡Subasta creada! Recibirá pujas durante ${dias} día${dias === 1 ? '' : 's'}.`,
+            subastaId,
+            fechaFin
+        });
+    } catch (err) {
+        if (conn) await conn.rollback().catch(() => { });
+        if (err.status) return res.status(err.status).json({ message: err.message });
+        const categoriaInvalida = err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW';
+        if (!categoriaInvalida) console.error("❌ Error al crear subasta:", err.message);
+        res.status(categoriaInvalida ? 400 : 500).json({
+            message: categoriaInvalida ? "La categoría elegida no existe." : "No se pudo crear la subasta."
+        });
+    } finally {
+        if (conn) conn.release();
+    }
 });
 
 app.post('/api/pujas', verificarToken, soloRoles('emprendedor'), (req, res) => {
@@ -892,6 +1040,9 @@ app.post('/api/pujas', verificarToken, soloRoles('emprendedor'), (req, res) => {
                 const s = filas[0];
                 if (s.ProveedorID === emprendedorId) {
                     return res.status(403).json({ message: "No puedes pujar en tu propia subasta." });
+                }
+                if (s.Estado === 'Cancelada') {
+                    return res.status(409).json({ message: "Esta subasta fue cancelada porque el proveedor retiró la publicación." });
                 }
                 if (s.Estado !== 'Activa' || new Date(s.FechaFin) <= new Date()) {
                     return res.status(409).json({ message: "Esta subasta ya finalizó." });
@@ -1195,11 +1346,15 @@ app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
 // 5. MODERACIÓN DE CONTENIDO: ELIMINAR CUALQUIER OFERTA POR ADMIN
 app.delete('/api/admin/ofertas/:id', verificarAdmin, async (req, res) => {
     try {
-        const borrada = await eliminarOferta(req.params.id);
-        if (!borrada) {
+        const resultado = await eliminarOferta(req.params.id);
+        if (!resultado.borrada) {
             return res.status(404).json({ message: "La oferta no existe o ya fue eliminada." });
         }
-        res.json({ success: true, message: "Publicación eliminada por moderación administrativa." });
+        res.json({
+            success: true,
+            message: mensajeOfertaBorrada(resultado, "Publicación eliminada por moderación administrativa."),
+            subastasCanceladas: resultado.subastasCanceladas
+        });
     } catch (err) {
         console.error("❌ Error al moderar oferta:", err.message);
         res.status(500).json({ message: "Error al eliminar la publicación." });
@@ -1220,7 +1375,8 @@ app.post('/api/admin/subastas/cerrar-vencidas', verificarAdmin, async (req, res)
     }
 });
 
-// MIS TRATOS: subastas que gané (emprendedor) o que vendí (proveedor)
+// MIS TRATOS: subastas que gané (emprendedor) o que vendí (proveedor).
+// Primero los que siguen abiertos (pendiente / en proceso), luego los más recientes.
 app.get('/api/tratos', verificarToken, async (req, res) => {
     try {
         const [filas] = await db.promise().query(`
@@ -1233,13 +1389,36 @@ app.get('/api/tratos', verificarToken, async (req, res) => {
             FROM TratosCerrados t
             LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = IF(t.ProveedorID = ?, t.EmprendedorID, t.ProveedorID)
             WHERE t.ProveedorID = ? OR t.EmprendedorID = ?
-            ORDER BY t.FechaCierre DESC, t.TratoID DESC
+            ORDER BY (t.EstadoTrato IN ('Pendiente', 'EnProceso')) DESC, t.FechaCierre DESC, t.TratoID DESC
             LIMIT 50
         `, Array(5).fill(req.usuario.id));
         res.json(filas.map(t => ({ ...t, monto: Number(t.monto), soyProveedor: !!t.soyProveedor })));
     } catch (err) {
         console.error('❌ Error en GET /api/tratos:', err.message);
         res.status(500).json({ message: 'No se pudieron cargar tus tratos.' });
+    }
+});
+
+// CAMBIAR EL ESTADO DE UN TRATO: { estado: 'EnProceso' | 'Completado' | 'Cancelado', motivo? }
+// Solo el proveedor o el comprador del trato (ver reglas en tratos.js)
+const MENSAJES_ESTADO_TRATO = {
+    EnProceso: 'Trato marcado como en proceso.',
+    Completado: '¡Trato completado!',
+    Cancelado: 'Trato cancelado.'
+};
+app.put('/api/tratos/:id/estado', verificarToken, async (req, res) => {
+    try {
+        const resultado = await tratos.cambiarEstado({
+            tratoId: Number(req.params.id),
+            usuarioId: req.usuario.id,
+            estado: req.body.estado,
+            motivo: req.body.motivo
+        });
+        res.json({ message: `${MENSAJES_ESTADO_TRATO[resultado.estado]} Le avisamos a la otra parte por el chat.`, ...resultado });
+    } catch (err) {
+        if (err.status) return res.status(err.status).json({ message: err.message });
+        console.error('❌ Error al cambiar el estado del trato:', err.message);
+        res.status(500).json({ message: 'No se pudo actualizar el trato.' });
     }
 });
 
@@ -1309,7 +1488,7 @@ app.get('/api/dashboard', verificarToken, async (req, res) => {
                 (SELECT COUNT(*) FROM Ofertas WHERE FechaPublicacion >= NOW() - INTERVAL 30 DAY) AS ofertas30d,
                 (SELECT COALESCE(AVG(Precio), 0) FROM Ofertas) AS precioPromedio,
                 (SELECT COUNT(*) FROM Subastas WHERE Estado = 'Activa' AND FechaFin > NOW()) AS subastasActivas,
-                (SELECT COUNT(*) FROM Subastas WHERE Estado <> 'Activa' OR FechaFin <= NOW()) AS subastasCerradas,
+                (SELECT COUNT(*) FROM Subastas WHERE Estado = 'Finalizada' OR (Estado = 'Activa' AND FechaFin <= NOW())) AS subastasCerradas,
                 (SELECT COALESCE(SUM(PrecioActual), 0) FROM Subastas WHERE Estado = 'Activa' AND FechaFin > NOW()) AS valorEnSubasta,
                 (SELECT COUNT(*) FROM Pujas) AS pujas,
                 (SELECT COUNT(*) FROM Pujas WHERE FechaPuja >= NOW() - INTERVAL 30 DAY) AS pujas30d,
@@ -1400,8 +1579,8 @@ app.get('/api/dashboard', verificarToken, async (req, res) => {
                     (SELECT COUNT(*) FROM Pujas pj JOIN Subastas s ON s.SubastaID = pj.SubastaID WHERE s.ProveedorID = ?) AS pujasRecibidas,
                     (SELECT COALESCE(SUM(PrecioActual), 0) FROM Subastas WHERE ProveedorID = ? AND Estado = 'Activa' AND FechaFin > NOW()) AS valorMisSubastas,
                     (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos,
-                    (SELECT COUNT(*) FROM TratosCerrados WHERE ProveedorID = ? AND TipoOrigen = 'Subasta') AS subastasVendidas,
-                    (SELECT COALESCE(SUM(MontoTotal), 0) FROM TratosCerrados WHERE ProveedorID = ? AND TipoOrigen = 'Subasta') AS montoVendido
+                    (SELECT COUNT(*) FROM TratosCerrados WHERE ProveedorID = ? AND TipoOrigen = 'Subasta' AND EstadoTrato <> 'Cancelado') AS subastasVendidas,
+                    (SELECT COALESCE(SUM(MontoTotal), 0) FROM TratosCerrados WHERE ProveedorID = ? AND TipoOrigen = 'Subasta' AND EstadoTrato <> 'Cancelado') AS montoVendido
             `, [yo, yo, yo, yo, yo, yo, yo]);
             miActividad = { ...miActividad, ...m };
         } else if (req.usuario.rol === 'emprendedor') {
@@ -1416,8 +1595,8 @@ app.get('/api/dashboard', verificarToken, async (req, res) => {
                        WHERE s.Estado = 'Activa' AND s.FechaFin > NOW()
                          AND s.PrecioActual = (SELECT MAX(MontoPuja) FROM Pujas WHERE SubastaID = s.SubastaID AND EmprendedorID = ?)) AS montoLiderando,
                     (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos,
-                    (SELECT COUNT(*) FROM TratosCerrados WHERE EmprendedorID = ? AND TipoOrigen = 'Subasta') AS subastasGanadas,
-                    (SELECT COALESCE(SUM(MontoTotal), 0) FROM TratosCerrados WHERE EmprendedorID = ? AND TipoOrigen = 'Subasta') AS montoGanado
+                    (SELECT COUNT(*) FROM TratosCerrados WHERE EmprendedorID = ? AND TipoOrigen = 'Subasta' AND EstadoTrato <> 'Cancelado') AS subastasGanadas,
+                    (SELECT COALESCE(SUM(MontoTotal), 0) FROM TratosCerrados WHERE EmprendedorID = ? AND TipoOrigen = 'Subasta' AND EstadoTrato <> 'Cancelado') AS montoGanado
             `, [yo, yo, yo, yo, yo, yo, yo]);
             miActividad = { ...miActividad, ...m };
         }
