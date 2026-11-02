@@ -76,7 +76,7 @@ const verificarAdmin = (req, res, next) => {
     const sqlCheckAdmin = `
         SELECT u.UsuarioID, u.TipoRol 
         FROM Usuarios u 
-        WHERE u.UsuarioID = ? AND LOWER(u.TipoRol) IN ('administrador', 'admin')
+        WHERE u.UsuarioID = ? AND LOWER(u.TipoRol) IN ('Administrador', 'admin')
     `;
 
     db.query(sqlCheckAdmin, [adminId], (err, results) => {
