@@ -5,7 +5,19 @@ const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const { GoogleGenAI } = require('@google/genai');
+
+// VARIABLES DE ENTORNO OBLIGATORIAS (definidas en .env, ver .env.example)
+const VARIABLES_REQUERIDAS = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'JWT_SECRET'];
+const faltantes = VARIABLES_REQUERIDAS.filter(v => !process.env[v]);
+if (faltantes.length > 0) {
+    console.error(`❌ Faltan variables en el archivo .env: ${faltantes.join(', ')}`);
+    process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
+const BCRYPT_RONDAS = 10;
 
 const app = express();
 
@@ -38,10 +50,10 @@ const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 // CONFIGURACIÓN DE BASE DE DATOS USANDO POOL ROBUSTO
 const db = mysql.createPool({
-    host: 'mysql8001.site4now.net',
-    user: 'acd8d6_entrelazados',
-    password: 'Entre_Lazados2026',
-    database: 'db_acd8d6_entrelazados',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -66,17 +78,29 @@ const transporter = nodemailer.createTransport({
 /* ==========================================================================
    MIDDLEWARE DE VERIFICACIÓN DE ROL ADMINISTRADOR
    ========================================================================== */
+// El token JWT se entrega en /api/login y el navegador lo envía como
+// "Authorization: Bearer <token>". Al estar firmado con JWT_SECRET,
+// el usuario no puede falsificar su ID ni su rol.
 const verificarAdmin = (req, res, next) => {
-    const adminId = req.headers['x-user-id'] || req.body.adminId || req.query.adminId;
+    const encabezado = req.headers['authorization'] || '';
+    const token = encabezado.startsWith('Bearer ') ? encabezado.slice(7) : null;
 
-    if (!adminId) {
-        return res.status(401).json({ message: "Acceso denegado. Se requiere identificación de usuario." });
+    if (!token) {
+        return res.status(401).json({ message: "Acceso denegado. Inicia sesión nuevamente." });
     }
 
+    let adminId;
+    try {
+        adminId = jwt.verify(token, JWT_SECRET).id;
+    } catch (e) {
+        return res.status(401).json({ message: "Tu sesión expiró o no es válida. Inicia sesión nuevamente." });
+    }
+
+    // Se vuelve a consultar el rol en la BD por si fue cambiado después del login
     const sqlCheckAdmin = `
-        SELECT u.UsuarioID, u.TipoRol 
-        FROM Usuarios u 
-        WHERE u.UsuarioID = ? AND LOWER(u.TipoRol) IN ('Administrador', 'admin')
+        SELECT u.UsuarioID, u.TipoRol
+        FROM Usuarios u
+        WHERE u.UsuarioID = ? AND LOWER(u.TipoRol) IN ('administrador', 'admin')
     `;
 
     db.query(sqlCheckAdmin, [adminId], (err, results) => {
@@ -102,8 +126,11 @@ app.get('/api/ping', (req, res) => {
 app.post('/api/chat/ia', (req, res) => {
     const { mensajeUsuario, rolUsuario } = req.body;
 
-    if (!mensajeUsuario) {
+    if (typeof mensajeUsuario !== 'string' || !mensajeUsuario.trim()) {
         return res.status(400).json({ error: "El mensaje del usuario es obligatorio." });
+    }
+    if (mensajeUsuario.length > 1000) {
+        return res.status(400).json({ error: "El mensaje es demasiado largo (máximo 1000 caracteres)." });
     }
 
     const textoLimpio = mensajeUsuario.toLowerCase().trim();
@@ -270,13 +297,25 @@ app.post('/registro', (req, res) => {
         nivelAcceso
     } = req.body;
 
-    const nombreDepartamento = deptoId ? deptoId.trim() : '';
-    const passwordHash = password || contrasena || '123456';
-    const emailLimpio = email ? email.trim() : '';
+    const nombreDepartamento = typeof deptoId === 'string' ? deptoId.trim() : '';
+    const passwordPlano = password || contrasena;
+    const emailLimpio = typeof email === 'string' ? email.trim() : '';
 
-    if (!nombreDepartamento || !emailLimpio || !nombre || !rol) {
+    if (!nombreDepartamento || !emailLimpio || !nombre || !rol || !passwordPlano) {
         return res.status(400).json({ message: "Por favor, completa todos los campos obligatorios." });
     }
+
+    if (typeof passwordPlano !== 'string' || passwordPlano.length < 6) {
+        return res.status(400).json({ message: "La contraseña debe tener al menos 6 caracteres." });
+    }
+
+    // Solo se permite registrarse como Proveedor o Emprendedor (nunca como administrador)
+    if (!['proveedor', 'emprendedor'].includes(String(rol).toLowerCase())) {
+        return res.status(400).json({ message: "Rol no válido." });
+    }
+
+    // La contraseña se guarda cifrada con bcrypt, nunca en texto plano
+    const passwordHash = bcrypt.hashSync(passwordPlano, BCRYPT_RONDAS);
 
     if (!REGEX_EMAIL.test(emailLimpio)) {
         return res.status(400).json({
@@ -442,8 +481,16 @@ app.post('/api/login', (req, res) => {
         }
 
         const usuario = results[0];
+        const hashGuardado = usuario.ContrasenaHash || '';
+        const esHashBcrypt = /^\$2[aby]\$/.test(hashGuardado);
 
-        if (usuario.ContrasenaHash !== passIngresada) {
+        // Compatibilidad: las cuentas antiguas tienen la contraseña en texto plano.
+        // Si coincide, se cifra con bcrypt en ese momento (migración automática).
+        const coincide = esHashBcrypt
+            ? bcrypt.compareSync(String(passIngresada), hashGuardado)
+            : hashGuardado === String(passIngresada);
+
+        if (!coincide) {
             return res.status(401).json({ message: "Correo o contraseña incorrectos." });
         }
 
@@ -451,12 +498,22 @@ app.post('/api/login', (req, res) => {
             return res.status(403).json({ message: "Tu cuenta ha sido suspendida por el administrador." });
         }
 
+        if (!esHashBcrypt) {
+            const nuevoHash = bcrypt.hashSync(String(passIngresada), BCRYPT_RONDAS);
+            db.query('UPDATE Usuarios SET ContrasenaHash = ? WHERE UsuarioID = ?', [nuevoHash, usuario.UsuarioID], (errHash) => {
+                if (errHash) console.error('⚠️ No se pudo migrar la contraseña a bcrypt:', errHash.message);
+            });
+        }
+
+        const token = jwt.sign({ id: usuario.UsuarioID, rol: usuario.TipoRol }, JWT_SECRET, { expiresIn: '8h' });
+
         return res.json({
             id: usuario.UsuarioID,
             nombre: usuario.NombreRazonSocial || 'Usuario',
             rol: usuario.TipoRol,
             departamento: usuario.NombreDepartamento || 'Managua',
-            estado: usuario.EstadoCuenta || 'Activo'
+            estado: usuario.EstadoCuenta || 'Activo',
+            token
         });
     });
 });
@@ -516,6 +573,10 @@ app.post('/api/restablecer-password', (req, res) => {
         return res.status(400).json({ message: "Datos incompletos para restablecer la contraseña." });
     }
 
+    if (typeof nuevaContrasena !== 'string' || nuevaContrasena.length < 6) {
+        return res.status(400).json({ message: "La contraseña debe tener al menos 6 caracteres." });
+    }
+
     const sqlVerificarToken = `
         SELECT UsuarioID FROM Usuarios 
         WHERE TokenRecuperacion = ? AND ExpiracionToken > NOW()
@@ -533,7 +594,8 @@ app.post('/api/restablecer-password', (req, res) => {
             WHERE UsuarioID = ?
         `;
 
-        db.query(sqlActualizarPass, [nuevaContrasena, usuarioId], (errUpdate) => {
+        const nuevoHash = bcrypt.hashSync(nuevaContrasena, BCRYPT_RONDAS);
+        db.query(sqlActualizarPass, [nuevoHash, usuarioId], (errUpdate) => {
             if (errUpdate) {
                 return res.status(500).json({ message: "Error al cambiar la contraseña." });
             }
@@ -556,9 +618,12 @@ app.get('/api/ofertas', (req, res) => {
             return res.status(500).json([]);
         }
 
+        const leerFotos = (valor) => {
+            try { return valor ? JSON.parse(valor) : []; } catch (e) { return []; }
+        };
         const ofertasFormateadas = (results || []).map(oferta => ({
             ...oferta,
-            Fotos: oferta.Fotos ? JSON.parse(oferta.Fotos) : []
+            Fotos: leerFotos(oferta.Fotos)
         }));
 
         res.json(ofertasFormateadas);
@@ -949,7 +1014,27 @@ app.post('/api/admin/categorias', verificarAdmin, (req, res) => {
 });
 
 // SERVIR ARCHIVOS ESTÁTICOS
-app.use(express.static(__dirname));
+// Solo se publica la carpeta "public": así index.js, .env y web.config
+// nunca se pueden descargar desde el navegador.
+// La raíz "/" muestra preview.html (igual que en web.config de IIS)
+app.use(express.static(path.join(__dirname, 'public'), { index: 'preview.html' }));
+
+// Rutas de API inexistentes
+app.use('/api', (req, res) => {
+    res.status(404).json({ message: "Ruta no encontrada." });
+});
+
+// MANEJADOR GLOBAL DE ERRORES: nunca mostrar el detalle interno al usuario
+app.use((err, req, res, next) => {
+    if (err.type === 'entity.parse.failed') {
+        return res.status(400).json({ message: "Formato de datos inválido." });
+    }
+    if (err.type === 'entity.too.large') {
+        return res.status(413).json({ message: "Los datos enviados son demasiado grandes." });
+    }
+    console.error('❌ Error no controlado:', err.stack || err.message);
+    res.status(500).json({ message: "Error interno del servidor." });
+});
 
 // PUERTO Y ESCUCHA
 const PORT = process.env.PORT || 3000;

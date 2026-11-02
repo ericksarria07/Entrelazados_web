@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Mercado de Materia Prima</title>
     
@@ -1080,6 +1081,24 @@
             background-color: var(--color-terciario);
         }
     </style>
+    <!-- AJUSTES RESPONSIVOS PARA CELULAR (cabecera y sub-barra) -->
+    <style>
+        @media (max-width: 768px) {
+            .amazon-header { flex-wrap: wrap; padding: 10px; gap: 10px; }
+            .amazon-header .logo { font-size: 22px; }
+            .amazon-header .nav-user { margin-left: auto; }
+            .amazon-header .search-bar { order: 3; width: 100%; min-width: 100%; display: flex !important; }
+            .amazon-header .search-category { max-width: 110px; font-size: 11px; padding: 0 4px; }
+            .amazon-header .search-input { min-width: 0; }
+            .sub-bar { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+            /* body es flex: sin min-width:0, #app se estira al ancho de su contenido */
+            #app { width: 100%; min-width: 0; padding: 0 12px; }
+            .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .tab-bar .tab { flex: 0 0 auto; }
+            .filter-row { flex-wrap: wrap; gap: 10px; }
+            .filter-row #btn-publicar-modal { width: 100%; justify-content: center; }
+        }
+    </style>
 </head>
 <body>
 
@@ -1356,6 +1375,8 @@
     <script>
         let mapa;
         const API_URL = window.location.origin;
+        // Escapa el texto escrito por usuarios antes de insertarlo como HTML (evita XSS)
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
         let todasLasOfertas = [];
         let fotosPublicacion = [];
 
@@ -1568,7 +1589,7 @@
 
                 const tieneImagen = oferta.Fotos && oferta.Fotos.length > 0;
                 const contenidoAvatar = tieneImagen
-                    ? `<img src="${oferta.Fotos[0]}" alt="${oferta.TituloMaterial}">`
+                    ? `<img src="${esc(oferta.Fotos[0])}" alt="${esc(oferta.TituloMaterial)}">`
                     : `<i class="ti ${iconoCat}"></i>`;
 
                 const esDueno = (miRol === 'proveedor' && parseInt(miUserId) === parseInt(oferta.ProveedorID));
@@ -1586,7 +1607,7 @@
                         <div class="listing-top">
                             <div class="listing-avatar">${contenidoAvatar}</div>
                             <div class="listing-info">
-                                <div class="listing-name">${oferta.TituloMaterial}</div>
+                                <div class="listing-name">${esc(oferta.TituloMaterial)}</div>
                                 <div class="listing-sub">Proveedor Local · Nicaragua · Ubicado a ${oferta.DistanciaSimuladaKm} km</div>
                                 <div class="listing-badges">
                                     <span class="badge badge-verified"><i class="ti ti-shield-check" style="font-size:10px"></i> Verificado</span>
@@ -1660,7 +1681,7 @@
                     contenedor.innerHTML += `
                         <div class="auction-card">
                             <div class="auction-header">
-                                <div class="auction-title">${subasta.TituloLote} ${esMiSubasta ? ' <span style="color:var(--color-principal); font-size:12px;">(Tu Lote)</span>' : ''}</div>
+                                <div class="auction-title">${esc(subasta.TituloLote)} ${esMiSubasta ? ' <span style="color:var(--color-principal); font-size:12px;">(Tu Lote)</span>' : ''}</div>
                                 <div class="auction-timer"><i class="ti ti-clock"></i> Activa</div>
                             </div>
                             <div class="auction-body">

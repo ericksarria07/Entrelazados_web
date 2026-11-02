@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Chat y Mensajes</title>
 
@@ -840,6 +841,8 @@
 
     <script>
         const API_URL = window.location.origin;
+        // Escapa el texto escrito por usuarios antes de insertarlo como HTML (evita XSS)
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
         const miId = parseInt(localStorage.getItem('userId'));
         const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
 
@@ -963,11 +966,11 @@
                 }
 
                 listaContactos.innerHTML = htmlKan + contactos.map(c => `
-                    <div class="contact-item" id="contacto-${c.UsuarioID}" onclick="seleccionarContacto(${c.UsuarioID}, '${c.NombreRazonSocial}', '${c.NombreDepartamento || 'Nicaragua'}')">
-                        <div class="contact-avatar-side">${c.NombreRazonSocial.substring(0, 2).toUpperCase()}</div>
+                    <div class="contact-item" id="contacto-${c.UsuarioID}" onclick="seleccionarContacto(${Number(c.UsuarioID)}, ${esc(JSON.stringify(c.NombreRazonSocial || ''))}, ${esc(JSON.stringify(c.NombreDepartamento || 'Nicaragua'))})">
+                        <div class="contact-avatar-side">${esc((c.NombreRazonSocial || '').substring(0, 2).toUpperCase())}</div>
                         <div style="overflow: hidden;">
-                            <strong style="display: block; color: var(--color-secundario); font-size: 14px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${c.NombreRazonSocial}</strong>
-                            <span style="font-size: 11px; color: var(--color-principal);">${c.TipoRol} · ${c.NombreDepartamento || 'Nicaragua'}</span>
+                            <strong style="display: block; color: var(--color-secundario); font-size: 14px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${esc(c.NombreRazonSocial)}</strong>
+                            <span style="font-size: 11px; color: var(--color-principal);">${esc(c.TipoRol)} · ${esc(c.NombreDepartamento || 'Nicaragua')}</span>
                         </div>
                     </div>
                 `).join('');
@@ -1156,7 +1159,7 @@
 
                     areaMensajes.innerHTML += `
                         <div class="${claseEmisor}">
-                            <div class="msg-bubble">${m.ContenidoTexto}</div>
+                            <div class="msg-bubble">${esc(m.ContenidoTexto)}</div>
                             <div class="msg-time">${horaFormateada}</div>
                         </div>
                     `;

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Iniciar Sesión</title>
 
@@ -18,7 +19,7 @@
             const userRol = (localStorage.getItem('userRol') || '').toLowerCase();
 
             if (userId) {
-                if (userRol === 'administrador' || userRol === 'administrador') {
+                if (userRol === 'administrador' || userRol === 'admin') {
                     window.location.href = 'admin.html';
                 } else {
                     window.location.href = 'index.html';
@@ -403,6 +404,7 @@
                     localStorage.setItem('userRol', data.rol);
                     localStorage.setItem('userId', data.id);
                     localStorage.setItem('userDepartamento', data.departamento || 'Managua');
+                    localStorage.setItem('token', data.token || '');
 
                     alert(`¡Bienvenido de vuelta, ${data.nombre}!`);
 

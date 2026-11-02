@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Dashboard de Control</title>
     
@@ -747,6 +748,18 @@
             height: 75px;
             width: auto;
             display: block;
+        }
+    </style>
+    <!-- AJUSTES RESPONSIVOS PARA CELULAR (cabecera y sub-barra) -->
+    <style>
+        @media (max-width: 768px) {
+            .amazon-header { flex-wrap: wrap; padding: 10px; gap: 10px; }
+            .amazon-header .logo { font-size: 22px; }
+            .amazon-header .nav-user { margin-left: auto; }
+            .amazon-header .search-bar { order: 3; width: 100%; min-width: 100%; display: flex !important; }
+            .amazon-header .search-category { max-width: 110px; font-size: 11px; padding: 0 4px; }
+            .amazon-header .search-input { min-width: 0; }
+            .sub-bar { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
         }
     </style>
 </head>

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Panel de Administración</title>
 
@@ -349,6 +350,18 @@
             margin-top: auto;
         }
     </style>
+    <!-- AJUSTES RESPONSIVOS PARA CELULAR (cabecera y sub-barra) -->
+    <style>
+        @media (max-width: 768px) {
+            .amazon-header { flex-wrap: wrap; padding: 10px; gap: 10px; }
+            .amazon-header .logo { font-size: 22px; }
+            .amazon-header .nav-user { margin-left: auto; }
+            .amazon-header .search-bar { order: 3; width: 100%; min-width: 100%; display: flex !important; }
+            .amazon-header .search-category { max-width: 110px; font-size: 11px; padding: 0 4px; }
+            .amazon-header .search-input { min-width: 0; }
+            .sub-bar { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        }
+    </style>
 </head>
 <body>
 
@@ -500,7 +513,24 @@
 
     <script>
         const API_URL = window.location.origin;
+        // Escapa el texto escrito por usuarios antes de insertarlo como HTML (evita XSS)
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
         const currentAdminId = localStorage.getItem('userId');
+        // Token JWT firmado por el servidor al iniciar sesión (ver /api/login)
+        const tokenSesion = localStorage.getItem('token') || '';
+
+        // Si el servidor rechaza el token (expiró o no es admin), volver al login
+        const fetchOriginal = window.fetch.bind(window);
+        window.fetch = async (...args) => {
+            const res = await fetchOriginal(...args);
+            const url = String(args[0]);
+            if (url.includes('/api/admin/') && (res.status === 401 || res.status === 403)) {
+                alert('Tu sesión de administrador expiró o no es válida. Inicia sesión nuevamente.');
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+            return res;
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
             cargarMetricas();
@@ -512,7 +542,7 @@
         async function cargarMetricas() {
             try {
                 const res = await fetch(`${API_URL}/api/admin/metricas`, {
-                    headers: { 'x-user-id': currentAdminId }
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
                 });
                 if (!res.ok) throw new Error("Error al obtener métricas");
                 const data = await res.json();
@@ -530,7 +560,7 @@
         async function cargarUsuarios() {
             try {
                 const res = await fetch(`${API_URL}/api/admin/usuarios`, {
-                    headers: { 'x-user-id': currentAdminId }
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
                 });
                 const usuarios = await res.json();
                 const tbody = document.getElementById('tabla-usuarios-body');
@@ -547,8 +577,8 @@
                     return `
                         <tr>
                             <td>#${u.UsuarioID}</td>
-                            <td><strong>${u.NombreRazonSocial || 'Sin Nombre'}</strong></td>
-                            <td>${u.CorreoElectronico}</td>
+                            <td><strong>${esc(u.NombreRazonSocial || 'Sin Nombre')}</strong></td>
+                            <td>${esc(u.CorreoElectronico)}</td>
                             <td>${(u.TipoRol || 'Miembro').toUpperCase()}</td>
                             <td>${u.NombreDepartamento || 'Managua'}</td>
                             <td><span class="badge-status ${badgeClass}">${u.EstadoCuenta || 'Activo'}</span></td>
@@ -578,7 +608,7 @@
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-user-id': currentAdminId
+                        'Authorization': 'Bearer ' + tokenSesion
                     },
                     body: JSON.stringify({ nuevoEstado })
                 });
@@ -596,7 +626,7 @@
             try {
                 const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}`, {
                     method: 'DELETE',
-                    headers: { 'x-user-id': currentAdminId }
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
                 });
                 const data = await res.json();
                 alert(data.message);
@@ -622,7 +652,7 @@
                 tbody.innerHTML = ofertas.map(o => `
                     <tr>
                         <td>#${o.OfertaID}</td>
-                        <td><strong>${o.TituloMaterial}</strong></td>
+                        <td><strong>${esc(o.TituloMaterial)}</strong></td>
                         <td>${o.NombreCategoria || 'General'}</td>
                         <td>C$ ${o.Precio}</td>
                         <td>${o.UnidadMedida}</td>
@@ -644,7 +674,7 @@
             try {
                 const res = await fetch(`${API_URL}/api/admin/ofertas/${ofertaId}`, {
                     method: 'DELETE',
-                    headers: { 'x-user-id': currentAdminId }
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
                 });
                 const data = await res.json();
                 alert(data.message);
@@ -666,7 +696,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-user-id': currentAdminId
+                        'Authorization': 'Bearer ' + tokenSesion
                     },
                     body: JSON.stringify({ nombreCategoria, descripcion })
                 });
@@ -710,7 +740,7 @@
             if (!texto) return;
 
             const body = document.getElementById('kanBody');
-            body.innerHTML += `<div class="kan-msg user">${texto}</div>`;
+            body.innerHTML += `<div class="kan-msg user">${esc(texto)}</div>`;
             input.value = '';
             body.scrollTop = body.scrollHeight;
 
