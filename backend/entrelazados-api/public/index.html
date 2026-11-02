@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="categorias.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Tu Mercado de Materia Prima para Cuero</title>
     
@@ -41,7 +42,7 @@
         }
 
         body {
-            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('volcanes.jpeg');
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('volcanes.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -853,12 +854,8 @@
 
         <!-- FORMULARIO DE BÚSQUEDA -->
         <form id="searchForm" class="search-bar" onsubmit="ejecutarBusqueda(event)">
-            <select id="searchCategory" class="search-category">
+            <select id="searchCategory" class="search-category" aria-label="Categoría">
                 <option value="todos">Todos los insumos</option>
-                <option value="Cuero Vacuno">Cuero Vacuno</option>
-                <option value="Suelas & Caucho">Suelas & Caucho</option>
-                <option value="Herrajes">Herrajes</option>
-                <option value="Herramientas">Herramientas</option>
             </select>
             <input type="text" id="searchInput" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
             <button type="submit" class="search-btn"><i class="ti ti-search"></i></button>
@@ -995,14 +992,14 @@
             </div>
 
             <div class="footer-volcano">
-                <img src="volcan.png" alt="Volcán Nicaragua">
+                <img src="volcan.webp" alt="Volcán Nicaragua">
             </div>
         </div>
     </footer>
 
     <!-- ASISTENTE FLOTANTE "KAN" - ENTRELANDOS -->
     <div class="kan-widget-btn" id="kanBtn" onclick="toggleKanChat()">
-        <img src="randal saludando.png" alt="Kan Asistente" id="imgKanFlotante">
+        <img src="randal-saludando.webp" alt="Kan Asistente" id="imgKanFlotante">
         <div class="kan-badge" id="kanBadge">1</div>
     </div>
 
@@ -1012,7 +1009,7 @@
             <div class="kan-header-info">
                 <!-- Foto de perfil fija saludando -->
                 <div class="kan-avatar-header">
-                    <img src="randal saludando.png" alt="Kan Avatar" id="imgKanAvatarHeader">
+                    <img src="randal-saludando.webp" alt="Kan Avatar" id="imgKanAvatarHeader">
                 </div>
                 <div>
                     <div class="kan-title">Kan <span style="font-size:11px; font-weight:normal;">(Asistente)</span></div>
@@ -1024,7 +1021,7 @@
 
         <!-- BANNER DE ILUSTRACIÓN DINÁMICA DE KAN -->
         <div class="kan-display-banner">
-            <img src="randal saludando.png" alt="Kan Pose" id="imgKanDisplayBanner">
+            <img src="randal-saludando.webp" alt="Kan Pose" id="imgKanDisplayBanner">
         </div>
 
         <!-- CUERPO DE MENSAJES -->
@@ -1126,6 +1123,10 @@
                 cardWelcomeTitle.textContent = `¡Hola de nuevo, ${userNombre}!`;
             }
 
+            // Categorías del buscador desde la base de datos (ver categorias.js)
+            Categorias.cargar().then(lista => Categorias.llenarSelect(
+                document.getElementById('searchCategory'), lista, { primera: { valor: 'todos', texto: 'Todos los insumos' } }));
+
             reiniciarTemporizadorInactividad();
         });
 
@@ -1155,22 +1156,12 @@
 
                 const ofertas = await res.json();
 
-                const catFiltroLimpia = limpiarTexto(categoria);
                 const queryLimpia = limpiarTexto(query);
 
                 const coincidencia = ofertas.some(oferta => {
                     const tituloOfertaLimpio = limpiarTexto(oferta.TituloMaterial);
-                    const catOfertaLimpia = limpiarTexto(oferta.NombreCategoria);
-
                     const coincideTexto = queryLimpia === '' || tituloOfertaLimpio.includes(queryLimpia);
-
-                    let coincideCategoria = (categoria === 'todos');
-                    if (!coincideCategoria) {
-                        const palabrasFiltro = catFiltroLimpia.split(/\s+/);
-                        coincideCategoria = catOfertaLimpia.includes(catFiltroLimpia) ||
-                            catFiltroLimpia.includes(catOfertaLimpia) ||
-                            palabrasFiltro.some(palabra => palabra.length > 3 && catOfertaLimpia.includes(palabra));
-                    }
+                    const coincideCategoria = categoria === 'todos' || String(oferta.CategoriaID) === categoria;
 
                     const distanciaOferta = parseInt(oferta.DistanciaSimuladaKm || 0, 10);
                     const dentroDelRadio = distanciaOferta <= radioMaximo;
@@ -1221,11 +1212,11 @@
 
         /* --- LÓGICA DE KAN CORREGIDA --- */
         const POSES_KAN = {
-            saludando: 'randal saludando.png',
-            telefono: 'randal con telefono.png',
-            dudando: 'randal dudando.png',
-            respondiendo: 'randal principal.png',
-            durmiendo: 'randal durmiendo-03.png'
+            saludando: 'randal-saludando.webp',
+            telefono: 'randal-telefono.webp',
+            dudando: 'randal-dudando.webp',
+            respondiendo: 'randal-principal.webp',
+            durmiendo: 'randal-durmiendo.webp'
         };
 
         let temporizadorInactividad = null;
@@ -1375,7 +1366,7 @@
                 const data = await res.json();
 
                 cambiarBannerKan('respondiendo');
-                agregarMsgBot(data.respuesta || data.error);
+                agregarMsgBot(data.respuesta || data.error || data.message);
 
                 setTimeout(() => {
                     cambiarBannerKan('dudando');

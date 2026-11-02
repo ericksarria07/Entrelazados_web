@@ -1,8 +1,9 @@
 # Pruebas locales de la API
 
 Pruebas de integración que levantan el flujo completo (registro, login, ofertas,
-subastas, pujas, chat, perfil, panel de administrador y restablecer contraseña)
-contra una base MySQL **local** de pruebas. Nunca usan la base de producción.
+fotos, subastas, pujas, cierre de subastas, seguimiento de tratos, chat, perfil,
+panel de administrador, restablecer contraseña y límites de intentos) contra una
+base MySQL **local** de pruebas. Nunca usan la base de producción.
 
 ## 1. Crear la base de pruebas (una sola vez, como root en MySQL Workbench)
 
@@ -43,8 +44,16 @@ prioridad sobre el `.env`, que no se modifica):
 
 ```bash
 DB_HOST=localhost DB_USER=entrelazados_pruebas DB_PASSWORD=UNA_CLAVE_DE_PRUEBA \
-DB_NAME=entrelazados_pruebas GEMINI_API_KEY=sin-clave PORT=3055 node index.js
+DB_NAME=entrelazados_pruebas GEMINI_API_KEY=sin-clave JWT_SECRET=secreto-de-pruebas PORT=3055 \
+UPLOADS_DIR=/tmp/uploads_pruebas LIMITE_REGISTRO=40 LIMITE_RECUPERACION=30 LIMITE_LOGIN=30 \
+INTERVALO_CIERRE_SUBASTAS_SEG=3600 node index.js
 ```
+
+Los límites se suben porque las pruebas crean muchas cuentas desde la misma IP. La sección 15
+comprueba igual que los límites funcionan: sigue intentando hasta recibir el 429. El cierre de
+subastas se pone cada hora para que las pruebas lo controlen con
+`POST /api/admin/subastas/cerrar-vencidas`. Las fotos de prueba quedan en `UPLOADS_DIR` y se pueden
+borrar al terminar.
 
 ## 4. Ejecutar las pruebas (en otra terminal, desde `backend`)
 

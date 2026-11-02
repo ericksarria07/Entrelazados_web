@@ -61,3 +61,6 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# Los scripts de bash deben tener finales de línea de Linux (LF) para funcionar en la VM
+*.sh text eol=lf

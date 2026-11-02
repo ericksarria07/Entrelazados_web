@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="categorias.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Mercado de Materia Prima</title>
     
@@ -54,7 +55,7 @@
         }
 
         body {
-            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('patron.jpeg');
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('patron.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -538,6 +539,40 @@
             align-items: center;
             gap: 5px;
             border: 1px solid #ffd8cc;
+        }
+
+        .auction-top {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+
+        .auction-top .auction-header {
+            flex: 1;
+            margin-bottom: 0;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .auction-sub {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .auction-timer.pronto {
+            color: #fff;
+            background: var(--color-terciario);
+            border-color: var(--color-terciario);
+        }
+
+        .ayuda-form {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
         }
 
         .bid-track {
@@ -1115,12 +1150,8 @@
         </div>
 
         <form id="searchForm" class="search-bar" onsubmit="ejecutarBusqueda(event)">
-            <select id="searchCategory" class="search-category">
+            <select id="searchCategory" class="search-category" aria-label="Categoría" onchange="renderizarOfertasFiltradas(document.getElementById('range-km').value)">
                 <option value="todos">Todos los insumos</option>
-                <option value="Cuero Vacuno">Cuero Vacuno</option>
-                <option value="Suelas & Caucho">Suelas & Caucho</option>
-                <option value="Herrajes">Herrajes</option>
-                <option value="Herramientas">Herramientas</option>
             </select>
             <input type="text" id="searchInput" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
             <button type="submit" class="search-btn"><i class="ti ti-search"></i></button>
@@ -1225,21 +1256,6 @@
                 <label class="form-label">Categoría del Material</label>
                 <select class="form-input" id="ofertaCategoria" style="height: 42px;">
                     <option value="" disabled selected>-- Selecciona una categoría --</option>
-                    <option value="1">Cuero Bovino / Vacuno</option>
-                    <option value="2">Cuero Caprino / Ovino</option>
-                    <option value="3">Gamuza y Carnaza</option>
-                    <option value="4">Cuero Charol y Acabados Especiales</option>
-                    <option value="5">Forros Textiles y Sintéticos</option>
-                    <option value="6">Herrajes, Hebillas y Mosquetones</option>
-                    <option value="7">Remaches, Ojalillos y Tachuelas</option>
-                    <option value="8">Cierres, Cremalleras y Deslizadores</option>
-                    <option value="9">Hilos Encerados y Trenzados</option>
-                    <option value="10">Pegamentos, Cemento de Contacto y Látex</option>
-                    <option value="11">Tintes, Pintura para Cantos y Selladores</option>
-                    <option value="12">Ceras, Aceites y Acondicionadores</option>
-                    <option value="13">Suelas, Tacones y Tapas (Calzado)</option>
-                    <option value="14">Plantillas de Armado y Cambrillones</option>
-                    <option value="15">Refuerzos, Cartón Fibra y Espuma EVA</option>
                 </select>
             </div>
 
@@ -1248,14 +1264,14 @@
                 <div class="upload-box" onclick="document.getElementById('inputFotos').click()">
                     <i class="ti ti-camera-plus upload-box-icon"></i>
                     <div class="upload-box-text">Tomar o seleccionar fotos del material</div>
-                    <div class="upload-box-subtext">Haz clic aquí para abrir la cámara o galería</div>
+                    <div class="upload-box-subtext">Hasta 5 fotos (JPG, PNG o WebP). Se reducen automáticamente antes de subirlas.</div>
                 </div>
-                <input type="file" id="inputFotos" accept="image/*" capture="environment" multiple style="display: none;" onchange="procesarFotosSeleccionadas(event)">
+                <input type="file" id="inputFotos" accept="image/jpeg,image/png,image/webp" multiple style="display: none;" onchange="procesarFotosSeleccionadas(event)">
                 
                 <div class="photo-preview-grid" id="previewGrid"></div>
             </div>
 
-            <button class="btn-primary" style="width:100%; margin-top: 10px; padding: 12px;" onclick="guardarOferta()">
+            <button class="btn-primary" id="btnGuardarOferta" style="width:100%; margin-top: 10px; padding: 12px;" onclick="guardarOferta()">
                 Guardar y Publicar Oferta ↗
             </button>
         </div>
@@ -1269,38 +1285,42 @@
             </h3>
             
             <div class="form-group">
-                <label class="form-label">Título del Lote a Subastar</label>
-                <input class="form-input" type="text" id="subastaTitulo" placeholder="Ej. Lote de 50m2 Gamuza Negra">
+                <label class="form-label" for="subastaOferta">¿Sale de una de tus publicaciones? (opcional)</label>
+                <select class="form-input" id="subastaOferta" style="height: 42px;" onchange="elegirPublicacionSubasta()">
+                    <option value="">No, es un lote nuevo</option>
+                </select>
+                <small class="ayuda-form">Si eliges una, el lote muestra sus fotos y se cancela solo si la borras.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="subastaTitulo">Título del Lote a Subastar</label>
+                <input class="form-input" type="text" id="subastaTitulo" maxlength="120" placeholder="Ej. Lote de 50m2 Gamuza Negra">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Precio Base / Inicial de Salida (C$)</label>
-                <input class="form-input" type="number" id="subastaPrecioBase" placeholder="Ej. 1200">
+                <input class="form-input" type="number" id="subastaPrecioBase" min="1" step="0.01" placeholder="Ej. 1200">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="subastaDias">Duración</label>
+                <select class="form-input" id="subastaDias" style="height: 42px;">
+                    <option value="3">3 días</option>
+                    <option value="5">5 días</option>
+                    <option value="7" selected>7 días</option>
+                    <option value="10">10 días</option>
+                    <option value="14">14 días</option>
+                </select>
             </div>
 
             <div class="form-group">
                 <label class="form-label">Categoría del Material</label>
                 <select class="form-input" id="subastaCategoria" style="height: 42px;">
                     <option value="" disabled selected>-- Selecciona una categoría --</option>
-                    <option value="1">Cuero Bovino / Vacuno</option>
-                    <option value="2">Cuero Caprino / Ovino</option>
-                    <option value="3">Gamuza y Carnaza</option>
-                    <option value="4">Cuero Charol y Acabados Especiales</option>
-                    <option value="5">Forros Textiles y Sintéticos</option>
-                    <option value="6">Herrajes, Hebillas y Mosquetones</option>
-                    <option value="7">Remaches, Ojalillos y Tachuelas</option>
-                    <option value="8">Cierres, Cremalleras y Deslizadores</option>
-                    <option value="9">Hilos Encerados y Trenzados</option>
-                    <option value="10">Pegamentos, Cemento de Contacto y Látex</option>
-                    <option value="11">Tintes, Pintura para Cantos y Selladores</option>
-                    <option value="12">Ceras, Aceites y Acondicionadores</option>
-                    <option value="13">Suelas, Tacones y Tapas (Calzado)</option>
-                    <option value="14">Plantillas de Armado y Cambrillones</option>
-                    <option value="15">Refuerzos, Cartón Fibra y Espuma EVA</option>
                 </select>
             </div>
 
-            <button class="btn-primary" style="background-color: var(--color-terciario); width:100%; margin-top: 10px; padding: 12px;" onclick="guardarSubasta()">
+            <button id="btnGuardarSubasta" class="btn-primary" style="background-color: var(--color-terciario); width:100%; margin-top: 10px; padding: 12px;" onclick="guardarSubasta()">
                 Iniciar Subasta ↗
             </button>
         </div>
@@ -1323,14 +1343,14 @@
             </div>
 
             <div class="footer-volcano">
-                <img src="volcan.png" alt="Volcán Nicaragua">
+                <img src="volcan.webp" alt="Volcán Nicaragua">
             </div>
         </div>
     </footer>
 
     <!-- ASISTENTE FLOTANTE "KAN" - MERCADO -->
     <div class="kan-widget-btn" id="kanBtn" onclick="toggleKanChat()">
-        <img src="randal saludando.png" alt="Kan Asistente" id="imgKanFlotante">
+        <img src="randal-saludando.webp" alt="Kan Asistente" id="imgKanFlotante">
         <div class="kan-badge" id="kanBadge">1</div>
     </div>
 
@@ -1339,7 +1359,7 @@
         <div class="kan-header">
             <div class="kan-header-info">
                 <div class="kan-avatar-header">
-                    <img src="randal saludando.png" alt="Kan Avatar" id="imgKanAvatarHeader">
+                    <img src="randal-saludando.webp" alt="Kan Avatar" id="imgKanAvatarHeader">
                 </div>
                 <div>
                     <div class="kan-title">Kan <span style="font-size:11px; font-weight:normal;">(Asistente)</span></div>
@@ -1351,7 +1371,7 @@
 
         <!-- BANNER DE ILUSTRACIÓN DINÁMICA DE KAN -->
         <div class="kan-display-banner">
-            <img src="randal saludando.png" alt="Kan Pose" id="imgKanDisplayBanner">
+            <img src="randal-saludando.webp" alt="Kan Pose" id="imgKanDisplayBanner">
         </div>
 
         <!-- CUERPO DE MENSAJES -->
@@ -1468,12 +1488,12 @@
             const radioParam = urlParams.get('radio');
 
             if (qParam) document.getElementById('searchInput').value = qParam;
-            if (catParam) document.getElementById('searchCategory').value = catParam;
             if (radioParam) {
                 document.getElementById('range-km').value = radioParam;
                 document.getElementById('range-val').textContent = `${radioParam}km`;
             }
 
+            prepararCategorias(catParam);
             cargarOfertasDesdeBD();
             cargarSubastasDesdeBD();
             reiniciarTemporizadorInactividad();
@@ -1494,38 +1514,90 @@
             }
         };
 
-        function procesarFotosSeleccionadas(event) {
-            const archivos = Array.from(event.target.files);
+        // FOTOS DE LA OFERTA
+        // Cada foto se reduce en el navegador (máx. 1600 px, WebP o JPG) antes de subirla:
+        // una foto de celular de 4-8 MB queda en unos 200-400 KB y sube rápido con datos móviles.
+        const MAX_FOTOS = 5;
+        const LADO_MAXIMO = 1600;
 
-            archivos.forEach(archivo => {
-                const lector = new FileReader();
-                lector.onload = function (e) {
-                    fotosPublicacion.push(e.target.result);
-                    renderizarVistaPreviaFotos();
+        function reducirFoto(archivo) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(archivo);
+                const img = new Image();
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    const escala = Math.min(1, LADO_MAXIMO / Math.max(img.naturalWidth, img.naturalHeight));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(img.naturalWidth * escala);
+                    canvas.height = Math.round(img.naturalHeight * escala);
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob((blob) => {
+                        // Safari antiguo no genera WebP: en ese caso se usa JPG
+                        if (blob && blob.type === 'image/webp') return resolve(blob);
+                        canvas.toBlob((jpg) => jpg ? resolve(jpg) : reject(new Error('No se pudo procesar la foto')), 'image/jpeg', 0.85);
+                    }, 'image/webp', 0.82);
                 };
-                lector.readAsDataURL(archivo);
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('El archivo no es una imagen válida')); };
+                img.src = url;
             });
+        }
 
+        async function procesarFotosSeleccionadas(event) {
+            const archivos = Array.from(event.target.files);
             event.target.value = '';
+
+            const espacio = MAX_FOTOS - fotosPublicacion.length;
+            if (archivos.length > espacio) {
+                alert(espacio > 0
+                    ? `Puedes subir como máximo ${MAX_FOTOS} fotos. Se agregarán solo las primeras ${espacio}.`
+                    : `Ya tienes ${MAX_FOTOS} fotos, el máximo por oferta.`);
+            }
+
+            for (const archivo of archivos.slice(0, Math.max(0, espacio))) {
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(archivo.type)) {
+                    alert(`"${archivo.name}" no es una foto JPG, PNG o WebP.`);
+                    continue;
+                }
+                try {
+                    const blob = await reducirFoto(archivo);
+                    fotosPublicacion.push({ blob, url: URL.createObjectURL(blob) });
+                    renderizarVistaPreviaFotos();
+                } catch (e) {
+                    alert(`No se pudo usar "${archivo.name}": ${e.message}.`);
+                }
+            }
         }
 
         function renderizarVistaPreviaFotos() {
             const grid = document.getElementById('previewGrid');
-            grid.innerHTML = '';
-
-            fotosPublicacion.forEach((foto, index) => {
-                grid.innerHTML += `
+            grid.innerHTML = fotosPublicacion.map((foto, index) => `
                     <div class="photo-preview-item">
-                        <img src="${foto}" alt="Vista previa ${index + 1}">
+                        <img src="${foto.url}" alt="Vista previa ${index + 1}">
                         <div class="photo-preview-remove" onclick="eliminarFoto(${index})">&times;</div>
                     </div>
-                `;
-            });
+                `).join('');
         }
 
         function eliminarFoto(index) {
-            fotosPublicacion.splice(index, 1);
+            const [quitada] = fotosPublicacion.splice(index, 1);
+            if (quitada) URL.revokeObjectURL(quitada.url);
             renderizarVistaPreviaFotos();
+        }
+
+        // Llena los tres <select> de categorías con las de la base de datos.
+        // ?categoria= puede traer el ID o, en enlaces viejos, un texto como "Cuero Vacuno".
+        async function prepararCategorias(catParam) {
+            const lista = await Categorias.cargar();
+            let elegida = null;
+            if (catParam) {
+                elegida = lista.some(c => String(c.CategoriaID) === catParam) ? catParam : Categorias.buscarPorTexto(lista, catParam);
+            }
+            Categorias.llenarSelect(document.getElementById('searchCategory'), lista,
+                { primera: { valor: 'todos', texto: 'Todos los insumos' }, seleccionada: elegida || 'todos' });
+            const placeholder = { valor: '', texto: '-- Selecciona una categoría --', deshabilitada: true };
+            Categorias.llenarSelect(document.getElementById('ofertaCategoria'), lista, { primera: placeholder });
+            Categorias.llenarSelect(document.getElementById('subastaCategoria'), lista, { primera: placeholder });
+            if (elegida && todasLasOfertas.length) renderizarOfertasFiltradas(document.getElementById('range-km').value);
         }
 
         async function cargarOfertasDesdeBD() {
@@ -1557,23 +1629,13 @@
 
             const queryInput = limpiarTexto(document.getElementById('searchInput').value);
             const categoriaSelect = document.getElementById('searchCategory').value;
-            const catFiltroLimpia = limpiarTexto(categoriaSelect);
 
             const ofertasFiltradas = todasLasOfertas.filter(oferta => {
                 const dentroDelRadio = parseInt(oferta.DistanciaSimuladaKm || 0, 10) <= parseInt(maxKm, 10);
 
                 const tituloOfertaLimpio = limpiarTexto(oferta.TituloMaterial);
-                const catOfertaLimpia = limpiarTexto(oferta.NombreCategoria);
-
                 const coincideTexto = queryInput === '' || tituloOfertaLimpio.includes(queryInput);
-
-                let coincideCategoria = (categoriaSelect === 'todos');
-                if (!coincideCategoria) {
-                    const palabrasFiltro = catFiltroLimpia.split(/\s+/);
-                    coincideCategoria = catOfertaLimpia.includes(catFiltroLimpia) ||
-                        catFiltroLimpia.includes(catOfertaLimpia) ||
-                        palabrasFiltro.some(palabra => palabra.length > 3 && catOfertaLimpia.includes(palabra));
-                }
+                const coincideCategoria = categoriaSelect === 'todos' || String(oferta.CategoriaID) === categoriaSelect;
 
                 return dentroDelRadio && coincideTexto && coincideCategoria;
             });
@@ -1586,7 +1648,7 @@
             }
 
             ofertasFiltradas.forEach(oferta => {
-                const iconoCat = oferta.NombreCategoria.toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
+                const iconoCat = (oferta.NombreCategoria || '').toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
 
                 const tieneImagen = oferta.Fotos && oferta.Fotos.length > 0;
                 const contenidoAvatar = tieneImagen
@@ -1612,7 +1674,7 @@
                                 <div class="listing-sub">Proveedor Local · Nicaragua · Ubicado a ${oferta.DistanciaSimuladaKm} km</div>
                                 <div class="listing-badges">
                                     <span class="badge badge-verified"><i class="ti ti-shield-check" style="font-size:10px"></i> Verificado</span>
-                                    <span class="badge badge-mat">${oferta.NombreCategoria}</span>
+                                    <span class="badge badge-mat">${esc(oferta.NombreCategoria)}</span>
                                     ${tieneImagen ? `<span class="badge badge-mat"><i class="ti ti-photo"></i> ${oferta.Fotos.length} foto(s)</span>` : ''}
                                 </div>
                             </div>
@@ -1649,6 +1711,7 @@
                 if (response.ok) {
                     alert(res.message || "Oferta eliminada exitosamente.");
                     cargarOfertasDesdeBD();
+                    cargarSubastasDesdeBD();
                 } else {
                     alert(res.message);
                 }
@@ -1678,12 +1741,28 @@
                     const esMiSubasta = (parseInt(subasta.ProveedorID) === miUserId);
                     const esProveedor = (miRol === 'proveedor');
                     const deshabilitarPujas = esProveedor || esMiSubasta;
+                    // En la base se guardan como "Lote Subasta: <material>"; en la tarjeta basta el material
+                    const nombreLote = String(subasta.TituloLote || '').replace(/^Lote Subasta:\s*/i, '') || subasta.TituloLote;
+                    const tiempo = tiempoRestante(subasta.FechaFin);
+                    const avatar = subasta.Foto
+                        ? `<img src="${esc(subasta.Foto)}" alt="${esc(nombreLote)}" loading="lazy">`
+                        : '<i class="ti ti-gavel"></i>';
+                    const pujas = Number(subasta.TotalPujas) || 0;
 
                     contenedor.innerHTML += `
                         <div class="auction-card">
-                            <div class="auction-header">
-                                <div class="auction-title">${esc(subasta.TituloLote)} ${esMiSubasta ? ' <span style="color:var(--color-principal); font-size:12px;">(Tu Lote)</span>' : ''}</div>
-                                <div class="auction-timer"><i class="ti ti-clock"></i> Activa</div>
+                            <div class="auction-top">
+                                <div class="listing-avatar">${avatar}</div>
+                                <div class="auction-header">
+                                    <div>
+                                        <div class="auction-title">${esc(nombreLote)} ${esMiSubasta ? ' <span style="color:var(--color-principal); font-size:12px;">(Tu Lote)</span>' : ''}</div>
+                                        <div class="auction-sub">
+                                            ${subasta.NombreCategoria ? `<span class="badge badge-mat">${esc(subasta.NombreCategoria)}</span>` : ''}
+                                            <span class="badge badge-mat"><i class="ti ti-hammer" style="font-size:10px"></i> ${pujas} puja${pujas === 1 ? '' : 's'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="auction-timer ${tiempo.pronto ? 'pronto' : ''}" title="Cierra el ${esc(new Date(subasta.FechaFin).toLocaleString('es-NI'))}"><i class="ti ti-clock"></i> ${esc(tiempo.texto)}</div>
+                                </div>
                             </div>
                             <div class="auction-body">
                                 <div class="bid-track">
@@ -1708,6 +1787,17 @@
             } catch (error) {
                 contenedor.innerHTML = `<p style="text-align:center; color:#c92a2a; padding: 20px;">No se pudieron cargar las subastas.</p>`;
             }
+        }
+
+        // "Cierra en 3 d 4 h", "Cierra en 2 h 10 min"... (pronto = menos de 24 horas)
+        function tiempoRestante(fechaFin) {
+            const minutos = Math.max(0, Math.floor((new Date(fechaFin) - Date.now()) / 60000));
+            const dias = Math.floor(minutos / 1440), horas = Math.floor((minutos % 1440) / 60), mins = minutos % 60;
+            let texto;
+            if (dias > 0) texto = `Cierra en ${dias} d ${horas} h`;
+            else if (horas > 0) texto = `Cierra en ${horas} h ${mins} min`;
+            else texto = minutos > 0 ? `Cierra en ${mins} min` : 'Cerrando…';
+            return { texto, pronto: minutos < 1440 };
         }
 
         async function ejecutarPujaReal(subastaId, precioActual) {
@@ -1757,55 +1847,70 @@
             if (!proveedorId) { alert("Error de sesión. Inicia sesión nuevamente."); return; }
             if (!titulo || !precio || !unidad || !categoriaId) { alert("Por favor llena todos los campos obligatorios."); return; }
 
-            try {
-                const response = await fetch(`${API_URL}/api/ofertas`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        proveedorId: parseInt(proveedorId),
-                        titulo,
-                        precio: parseFloat(precio),
-                        unidad,
-                        distancia: parseInt(distancia) || 0,
-                        categoriaId: parseInt(categoriaId),
-                        fotos: fotosPublicacion
-                    })
-                });
+            // Los datos y las fotos viajan juntos como formulario (multipart/form-data)
+            const formulario = new FormData();
+            formulario.append('titulo', titulo);
+            formulario.append('precio', parseFloat(precio));
+            formulario.append('unidad', unidad);
+            formulario.append('distancia', parseInt(distancia) || 0);
+            formulario.append('categoriaId', parseInt(categoriaId));
+            fotosPublicacion.forEach((foto, i) => {
+                formulario.append('fotos', foto.blob, `foto-${i + 1}.${foto.blob.type === 'image/webp' ? 'webp' : 'jpg'}`);
+            });
 
+            const boton = document.getElementById('btnGuardarOferta');
+            const textoBoton = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = fotosPublicacion.length ? 'Subiendo fotos…' : 'Publicando…';
+
+            try {
+                const response = await fetch(`${API_URL}/api/ofertas`, { method: 'POST', body: formulario });
                 const resData = await response.json();
                 if (response.ok) {
                     alert("¡Éxito! " + resData.message);
                     cerrarModal();
                     cargarOfertasDesdeBD();
                 } else { alert("Error: " + resData.message); }
-            } catch (error) { alert("Error de red al guardar la oferta."); }
+            } catch (error) {
+                alert("Error de red al guardar la oferta.");
+            } finally {
+                boton.disabled = false;
+                boton.innerHTML = textoBoton;
+            }
         }
 
         async function guardarSubasta() {
+            const ofertaId = document.getElementById('subastaOferta').value;
             const tituloLote = document.getElementById('subastaTitulo').value.trim();
-            const precioBase = document.getElementById('subastaPrecioBase').value.trim();
+            const precioBase = parseFloat(document.getElementById('subastaPrecioBase').value);
             const categoriaId = document.getElementById('subastaCategoria').value;
-            const proveedorId = localStorage.getItem('userId');
+            const dias = parseInt(document.getElementById('subastaDias').value, 10);
 
-            if (!proveedorId) { alert("Error de sesión. Inicia sesión nuevamente."); return; }
-            if (!tituloLote || !precioBase || !categoriaId) { alert("Por favor llena todos los campos de la subasta."); return; }
+            if (!tituloLote || !categoriaId || !(precioBase > 0)) {
+                alert("Escribe el título del lote, el precio base (mayor que 0) y elige una categoría.");
+                return;
+            }
 
+            const boton = document.getElementById('btnGuardarSubasta');
+            const textoBoton = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = 'Creando subasta…';
             try {
+                // El proveedor lo toma el servidor de la sesión; no se envía
                 const response = await fetch(`${API_URL}/api/subastas`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        proveedorId: parseInt(proveedorId),
+                        ofertaId: ofertaId ? parseInt(ofertaId, 10) : null,
                         tituloLote,
-                        precioBase: parseFloat(precioBase),
-                        precioActual: parseFloat(precioBase),
-                        categoriaId: parseInt(categoriaId)
+                        precioBase,
+                        categoriaId: parseInt(categoriaId, 10),
+                        dias
                     })
                 });
-
                 const resData = await response.json();
                 if (response.ok) {
-                    alert("¡Subasta creada correctamente!");
+                    alert(resData.message || "¡Subasta creada correctamente!");
                     cerrarModalSubasta();
                     cargarSubastasDesdeBD();
                 } else {
@@ -1813,7 +1918,22 @@
                 }
             } catch (error) {
                 alert("Error de red al publicar la subasta.");
+            } finally {
+                boton.disabled = false;
+                boton.innerHTML = textoBoton;
             }
+        }
+
+        // Al elegir una publicación propia se copian su título, precio y categoría
+        function elegirPublicacionSubasta() {
+            const ofertaId = document.getElementById('subastaOferta').value;
+            const categoria = document.getElementById('subastaCategoria');
+            const oferta = todasLasOfertas.find(o => String(o.OfertaID) === ofertaId);
+            categoria.disabled = !!oferta;
+            if (!oferta) return;
+            document.getElementById('subastaTitulo').value = oferta.TituloMaterial;
+            document.getElementById('subastaPrecioBase').value = parseFloat(oferta.Precio);
+            categoria.value = String(oferta.CategoriaID);
         }
 
         function abrirModal() { document.getElementById('modalOferta').style.display = 'block'; }
@@ -1825,16 +1945,29 @@
             document.getElementById('ofertaUnidad').value = '';
             document.getElementById('ofertaDistancia').value = '';
             document.getElementById('ofertaCategoria').selectedIndex = 0;
+            fotosPublicacion.forEach(f => URL.revokeObjectURL(f.url));
             fotosPublicacion = [];
             renderizarVistaPreviaFotos();
         }
 
-        function abrirModalSubasta() { document.getElementById('modalSubasta').style.display = 'block'; }
+        function abrirModalSubasta() {
+            // Lista de MIS publicaciones, por si el lote sale de una de ellas
+            const miUserId = String(localStorage.getItem('userId'));
+            const select = document.getElementById('subastaOferta');
+            select.innerHTML = '<option value="">No, es un lote nuevo</option>';
+            todasLasOfertas
+                .filter(o => String(o.ProveedorID) === miUserId)
+                .forEach(o => select.add(new Option(`${o.TituloMaterial} · C$ ${parseFloat(o.Precio).toFixed(2)}`, String(o.OfertaID))));
+            document.getElementById('modalSubasta').style.display = 'block';
+        }
 
         function cerrarModalSubasta() {
             document.getElementById('modalSubasta').style.display = 'none';
             document.getElementById('subastaTitulo').value = '';
             document.getElementById('subastaPrecioBase').value = '';
+            document.getElementById('subastaOferta').value = '';
+            document.getElementById('subastaDias').value = '7';
+            document.getElementById('subastaCategoria').disabled = false;
             document.getElementById('subastaCategoria').selectedIndex = 0;
         }
 
@@ -1899,11 +2032,11 @@
 
         /* --- LÓGICA DE KAN PARA MERCADO --- */
         const POSES_KAN = {
-            saludando: 'randal saludando.png',
-            telefono: 'randal con telefono.png',
-            dudando: 'randal dudando.png',
-            respondiendo: 'randal principal.png',
-            durmiendo: 'randal durmiendo-03.png'
+            saludando: 'randal-saludando.webp',
+            telefono: 'randal-telefono.webp',
+            dudando: 'randal-dudando.webp',
+            respondiendo: 'randal-principal.webp',
+            durmiendo: 'randal-durmiendo.webp'
         };
 
         let temporizadorInactividad = null;
@@ -2044,7 +2177,7 @@
                 const data = await res.json();
 
                 cambiarBannerKan('respondiendo');
-                agregarMsgBot(data.respuesta || data.error);
+                agregarMsgBot(data.respuesta || data.error || data.message);
 
                 setTimeout(() => {
                     cambiarBannerKan('dudando');

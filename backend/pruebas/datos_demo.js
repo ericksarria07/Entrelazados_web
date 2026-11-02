@@ -67,15 +67,15 @@ const MATERIALES = [
         const diasDesdeRegistro = Math.floor((Date.now() - prov.registro) / 86400000);
         const publicado = haceDias(entre(0, Math.max(1, diasDesdeRegistro)), entre(0, 20));
         const precio = entre(pmin, pmax);
-        await q('INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm, Fotos, FechaPublicacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        const oferta = await q('INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm, Fotos, FechaPublicacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [prov.id, titulo, cat, precio, unidad, entre(2, 45), '[]', publicado]);
         ofertas++;
 
         // Cada oferta crea su subasta de 7 días (como en la plataforma real)
         const fin = new Date(publicado.getTime() + 7 * 86400000);
         const activa = fin > new Date();
-        const s = await q('INSERT INTO Subastas (ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaInicio, FechaFin, Estado) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [prov.id, `Lote Subasta: ${titulo}`, precio, precio, publicado, fin, activa ? 'Activa' : 'Finalizada']);
+        const s = await q('INSERT INTO Subastas (ProveedorID, OfertaID, CategoriaID, TituloLote, PrecioBase, PrecioActual, FechaInicio, FechaFin, Estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [prov.id, oferta.insertId, cat, `Lote Subasta: ${titulo}`, precio, precio, publicado, fin, activa ? 'Activa' : 'Finalizada']);
         subastas++;
 
         let actual = precio;

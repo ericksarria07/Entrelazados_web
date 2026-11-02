@@ -44,7 +44,7 @@
         }
 
         body {
-            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('volcanes.jpeg');
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('volcanes.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -536,6 +536,49 @@
         }
 
         .mini-kpi .etq { font-size: 12px; color: #e3cfc4; }
+
+        .mis-tratos { margin-top: 16px; }
+        .mis-tratos[hidden] { display: none; }
+        .mis-tratos h3 { font-size: 13px; color: #f6e3d8; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .trato {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+        }
+        .trato-info { min-width: 0; }
+        .trato-info strong { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .trato-info span { font-size: 12px; color: #e3cfc4; }
+        .trato-lado { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .trato-monto { font-weight: 800; font-size: 15px; white-space: nowrap; }
+        .trato a {
+            color: #3D170A; background: #f6e3d8; text-decoration: none; font-size: 12px; font-weight: 700;
+            padding: 6px 10px; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .trato a:hover { background: #fff; }
+        .trato { flex-wrap: wrap; }
+        .trato-acciones { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+        .trato-acciones button {
+            font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+            padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
+            color: #f6e3d8; background: transparent; border: 1px solid rgba(246, 227, 216, 0.55);
+        }
+        .trato-acciones button:hover { background: rgba(255, 255, 255, 0.12); }
+        .trato-acciones button.principal { color: #3D170A; background: #f6e3d8; border-color: #f6e3d8; }
+        .trato-acciones button.principal:hover { background: #fff; }
+        .trato-acciones button:disabled { opacity: .6; cursor: wait; }
+        .estado-trato {
+            font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px; white-space: nowrap;
+            display: inline-flex; align-items: center; gap: 4px; border: 1px solid transparent;
+        }
+        .estado-trato.pendiente { background: #fff3cd; color: #6b4b00; }
+        .estado-trato.proceso { background: #dbeafe; color: #1e3a8a; }
+        .estado-trato.completado { background: #d3f9d8; color: #1b5e20; }
+        .estado-trato.cancelado { background: rgba(255, 255, 255, 0.12); color: #e3cfc4; border-color: rgba(255, 255, 255, 0.25); }
+        .trato.cerrado .trato-info strong { opacity: .75; }
+        @media (max-width: 600px) {
+            .trato { flex-direction: column; align-items: flex-start; }
+            .trato-lado { width: 100%; justify-content: space-between; }
+        }
         .mini-kpi .val { font-size: 24px; font-weight: 800; margin-top: 2px; font-family: 'Source Sans 3', sans-serif; }
 
         /* --- Tarjetas y cuadrícula --- */
@@ -1241,6 +1284,11 @@
             <section class="mi-actividad" id="seccionMiActividad" hidden>
                 <h2><i class="ti ti-user-star"></i> <span id="tituloMiActividad">Mi actividad</span></h2>
                 <div class="mini-kpis" id="miActividadGrid"></div>
+                <div class="mis-tratos" id="misTratos" hidden>
+                    <h3><i class="ti ti-gavel"></i> <span id="tituloMisTratos">Mis subastas cerradas</span></h3>
+                    <p class="nota-tratos" style="font-size:12px; color:#e3cfc4; margin:-4px 0 8px;">Marca cómo va cada trato: la otra parte recibe un aviso en el chat.</p>
+                    <div id="listaMisTratos"></div>
+                </div>
             </section>
 
             <!-- ACTIVIDAD EN EL TIEMPO + DEPARTAMENTOS -->
@@ -1386,14 +1434,14 @@
                 </p>
             </div>
             <div class="footer-volcano">
-                <img src="volcan.png" alt="Volcán Nicaragua">
+                <img src="volcan.webp" alt="Volcán Nicaragua">
             </div>
         </div>
     </footer>
 
     <!-- ASISTENTE FLOTANTE KAN -->
     <div class="kan-widget-btn" id="kanBtn" onclick="toggleKanChat()">
-        <img src="randal saludando.png" alt="Kan Asistente" id="imgKanFlotante">
+        <img src="randal-saludando.webp" alt="Kan Asistente" id="imgKanFlotante">
         <div class="kan-badge" id="kanBadge">1</div>
     </div>
 
@@ -1401,7 +1449,7 @@
         <div class="kan-header">
             <div class="kan-header-info">
                 <div class="kan-avatar-header">
-                    <img src="randal saludando.png" alt="Kan Avatar" id="imgKanAvatarHeader">
+                    <img src="randal-saludando.webp" alt="Kan Avatar" id="imgKanAvatarHeader">
                 </div>
                 <div>
                     <div class="kan-title">Kan <span style="font-size:11px; font-weight:normal;">(Asistente)</span></div>
@@ -1412,7 +1460,7 @@
         </div>
 
         <div class="kan-display-banner">
-            <img src="randal saludando.png" alt="Kan Pose" id="imgKanDisplayBanner">
+            <img src="randal-saludando.webp" alt="Kan Pose" id="imgKanDisplayBanner">
         </div>
 
         <div class="kan-body" id="kanBody">
@@ -1664,6 +1712,8 @@
                     ['Mis subastas activas', entero(m.misSubastasActivas), m.misSubastasActivas],
                     ['Pujas recibidas', entero(m.pujasRecibidas), m.pujasRecibidas],
                     ['Valor actual de mis lotes', dineroCorto(m.valorMisSubastas), m.valorMisSubastas],
+                    ['Subastas vendidas', entero(m.subastasVendidas), m.subastasVendidas],
+                    ['Monto vendido en subastas', dineroCorto(m.montoVendido), m.montoVendido],
                     ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos]
                 ]
             };
@@ -1674,6 +1724,8 @@
                     ['Subastas en las que participo', entero(m.subastasParticipando), m.subastasParticipando],
                     ['Subastas que voy ganando', entero(m.subastasLiderando), m.subastasLiderando],
                     ['Monto de los lotes que lidero', dineroCorto(m.montoLiderando), m.montoLiderando],
+                    ['Subastas ganadas', entero(m.subastasGanadas), m.subastasGanadas],
+                    ['Monto de subastas ganadas', dineroCorto(m.montoGanado), m.montoGanado],
                     ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos]
                 ]
             };
@@ -1688,6 +1740,95 @@
             document.getElementById('miActividadGrid').innerHTML = info.filas.map(([etq, val]) =>
                 `<div class="mini-kpi"><div class="etq">${etq}</div><div class="val">${val}</div></div>`).join('');
             sec.hidden = false;
+            cargarMisTratos(m.rol);
+        }
+
+        // Subastas que ya cerraron con ganador: el emprendedor ve las que ganó y el
+        // proveedor las que vendió, con acceso directo al chat para coordinar la entrega
+        // y botones para marcar cómo va el trato (ver tratos.js en el servidor).
+        const ESTADOS_TRATO = {
+            Pendiente: { texto: 'Pendiente', icono: 'ti-hourglass', clase: 'pendiente' },
+            EnProceso: { texto: 'En proceso', icono: 'ti-truck-delivery', clase: 'proceso' },
+            Completado: { texto: 'Completado', icono: 'ti-circle-check', clase: 'completado' },
+            Cancelado: { texto: 'Cancelado', icono: 'ti-circle-x', clase: 'cancelado' }
+        };
+        // Qué botones se ofrecen según el estado actual (Completado y Cancelado son finales)
+        const ACCIONES_TRATO = {
+            Pendiente: [
+                { estado: 'EnProceso', texto: 'Pago y entrega acordados', icono: 'ti-truck-delivery', principal: true },
+                { estado: 'Completado', texto: 'Completado', icono: 'ti-circle-check' },
+                { estado: 'Cancelado', texto: 'Cancelar', icono: 'ti-x' }
+            ],
+            EnProceso: [
+                { estado: 'Completado', texto: 'Marcar completado', icono: 'ti-circle-check', principal: true },
+                { estado: 'Cancelado', texto: 'Cancelar', icono: 'ti-x' }
+            ]
+        };
+        let rolMisTratos = null;
+
+        async function cargarMisTratos(rol) {
+            rolMisTratos = rol;
+            const caja = document.getElementById('misTratos');
+            try {
+                const res = await fetch(`${API_URL}/api/tratos`);
+                if (!res.ok) throw new Error('sin datos');
+                // Llegan primero los abiertos (pendiente / en proceso)
+                const tratos = (await res.json()).filter(t => t.origen === 'Subasta').slice(0, 6);
+                if (tratos.length === 0) { caja.hidden = true; return; }
+                document.getElementById('tituloMisTratos').textContent = rol === 'proveedor' ? 'Mis subastas vendidas' : 'Mis subastas ganadas';
+                document.getElementById('listaMisTratos').innerHTML = tratos.map(t => {
+                    const estado = ESTADOS_TRATO[t.estado] || { texto: t.estado, icono: 'ti-info-circle', clase: 'pendiente' };
+                    const acciones = ACCIONES_TRATO[t.estado] || [];
+                    const id = Number(t.id);
+                    return `
+                    <div class="trato ${acciones.length ? '' : 'cerrado'}" data-trato="${id}">
+                        <div class="trato-info">
+                            <strong>${esc(t.descripcion.replace(/^Subasta ganada:\s*(Lote Subasta:\s*)?/i, ''))}</strong>
+                            <span>${t.soyProveedor ? 'Comprador' : 'Proveedor'}: ${esc(t.contraparte)} · ${esc(haceCuanto(t.fecha))}</span>
+                        </div>
+                        <div class="trato-lado">
+                            <span class="estado-trato ${estado.clase}"><i class="ti ${estado.icono}"></i> ${esc(estado.texto)}</span>
+                            <span class="trato-monto">${dinero(t.monto)}</span>
+                        </div>
+                        <div class="trato-acciones">
+                            <a href="chat.html?contacto=${Number(t.contraparteId)}"><i class="ti ti-message-circle"></i> ${acciones.length ? 'Coordinar' : 'Chat'}</a>
+                            ${acciones.map(a => `<button type="button" class="${a.principal ? 'principal' : ''}" onclick="cambiarEstadoTrato(${id}, '${a.estado}', this)"><i class="ti ${a.icono}"></i> ${a.texto}</button>`).join('')}
+                        </div>
+                    </div>`;
+                }).join('');
+                caja.hidden = false;
+            } catch (e) {
+                caja.hidden = true;
+            }
+        }
+
+        async function cambiarEstadoTrato(tratoId, estado, boton) {
+            const datos = { estado };
+            if (estado === 'Cancelado') {
+                const motivo = prompt('¿Seguro que quieres cancelar este trato? Puedes escribir el motivo (opcional):', '');
+                if (motivo === null) return;   // pulsó "Cancelar" en el cuadro
+                datos.motivo = motivo.trim();
+            } else if (estado === 'Completado') {
+                if (!confirm('¿Confirmas que el material ya se entregó y se pagó?')) return;
+            }
+
+            const botones = boton.parentElement.querySelectorAll('button');
+            botones.forEach(b => { b.disabled = true; });
+            try {
+                const res = await fetch(`${API_URL}/api/tratos/${tratoId}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const resultado = await res.json().catch(() => ({}));
+                mostrarToast(resultado.message || (res.ok ? 'Trato actualizado.' : 'No se pudo actualizar el trato.'), !res.ok);
+                // Cancelar cambia los totales de "Mi actividad": se recarga todo
+                if (res.ok && estado === 'Cancelado') cargarDashboard();
+                else cargarMisTratos(rolMisTratos);
+            } catch (e) {
+                mostrarToast('Error de conexión con el servidor.', true);
+                botones.forEach(b => { b.disabled = false; });
+            }
         }
 
         /* ==========================================================
@@ -2255,11 +2396,11 @@
 
         /* --- LÓGICA DEL ASISTENTE KAN --- */
         const POSES_KAN = {
-            saludando: 'randal saludando.png',
-            telefono: 'randal con telefono.png',
-            dudando: 'randal dudando.png',
-            respondiendo: 'randal principal.png',
-            durmiendo: 'randal durmiendo-03.png'
+            saludando: 'randal-saludando.webp',
+            telefono: 'randal-telefono.webp',
+            dudando: 'randal-dudando.webp',
+            respondiendo: 'randal-principal.webp',
+            durmiendo: 'randal-durmiendo.webp'
         };
 
         function obtenerConfigRolKan() {
@@ -2393,7 +2534,7 @@
                 });
                 const data = await res.json();
                 cambiarBannerKan('respondiendo');
-                agregarMsgBot(data.respuesta || data.error);
+                agregarMsgBot(data.respuesta || data.error || data.message);
                 setTimeout(() => cambiarBannerKan('dudando'), 3000);
             } catch (error) {
                 cambiarBannerKan('respondiendo');

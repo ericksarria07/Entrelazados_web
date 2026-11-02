@@ -51,7 +51,7 @@
         }
 
         body {
-            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('lagos.jpeg');
+            background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url('lagos.webp');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -802,7 +802,7 @@
                     
                     <!-- BANNER DINÁMICO DE POSE PARA KAN -->
                     <div class="kan-chat-banner" id="kanChatBanner" style="display: none;">
-                        <img src="randal saludando.png" alt="Kan Pose" id="imgKanChatPose">
+                        <img src="randal-saludando.webp" alt="Kan Pose" id="imgKanChatPose">
                     </div>
 
                     <div class="chat-messages" id="chat-msgs"></div>
@@ -835,7 +835,7 @@
             </div>
 
             <div class="footer-volcano">
-                <img src="volcan.png" alt="Volcán Nicaragua">
+                <img src="volcan.webp" alt="Volcán Nicaragua">
             </div>
         </div>
     </footer>
@@ -852,10 +852,10 @@
         let bucleActualizacion = null;
 
         const POSES_KAN = {
-            saludando: 'randal saludando.png',
-            telefono: 'randal con telefono.png',
-            dudando: 'randal dudando.png',
-            respondiendo: 'randal principal.png'
+            saludando: 'randal-saludando.webp',
+            telefono: 'randal-telefono.webp',
+            dudando: 'randal-dudando.webp',
+            respondiendo: 'randal-principal.webp'
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -941,7 +941,7 @@
             let htmlKan = `
                 <div class="contact-item kan-pinned-item" id="contacto-kan" onclick="seleccionarChatKan()">
                     <div class="contact-avatar-side">
-                        <img src="randal saludando.png" alt="Kan Avatar">
+                        <img src="randal-saludando.webp" alt="Kan Avatar">
                     </div>
                     <div style="overflow: hidden; flex: 1;">
                         <strong style="display: flex; align-items: center; justify-content: space-between; color: var(--color-secundario); font-size: 14px;">
@@ -976,6 +976,13 @@
                     </div>
                 `).join('');
 
+                // chat.html?contacto=ID abre directamente esa conversación (p. ej. desde el dashboard)
+                const contactoInicial = Number(new URLSearchParams(window.location.search).get('contacto'));
+                if (contactoInicial) {
+                    const elemento = document.getElementById(`contacto-${contactoInicial}`);
+                    if (elemento) elemento.click();
+                }
+
             } catch (error) {
                 console.error("Error al cargar contactos:", error);
                 listaContactos.innerHTML = htmlKan + `
@@ -1003,7 +1010,7 @@
 
             // Configurar Header
             document.getElementById('chat-vendor-name').textContent = 'Kan (Asistente Virtual)';
-            document.getElementById('chat-vendor-avatar').innerHTML = `<img src="randal saludando.png" alt="Kan Avatar">`;
+            document.getElementById('chat-vendor-avatar').innerHTML = `<img src="randal-saludando.webp" alt="Kan Avatar">`;
             document.getElementById('chat-vendor-sub').textContent = 'Asistente del Sistema EntreLazados';
 
             // Mostrar Banner de Poses
@@ -1205,7 +1212,7 @@
                     const data = await res.json();
 
                     // 2. Transición de poses de Kan con la respuesta devuelta por la IA
-                    procesarSecuenciaKan(data.respuesta || data.error);
+                    procesarSecuenciaKan(data.respuesta || data.error || data.message);
 
                 } catch (err) {
                     console.error("Error al conectar con Kan IA:", err);
