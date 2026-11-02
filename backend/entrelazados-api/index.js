@@ -1,10 +1,12 @@
-require('dotenv').config();
+// El .env se busca junto a este archivo, sin importar desde qué carpeta
+// se inicie el servidor (PM2, systemd, IIS...)
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { crearServicioCorreo } = require('./correo');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { GoogleGenAI } = require('@google/genai');
@@ -67,13 +69,17 @@ db.on('error', (err) => {
 
 console.log('✅ Pool de conexiones MySQL inicializado correctamente.');
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'tu_correo@gmail.com',
-        pass: 'tu_contrasena_de_aplicacion'
-    }
-});
+// CORREO (recuperación de contraseña), ver correo.js. Opcional: si EMAIL_USER /
+// EMAIL_PASS no están en el .env, el enlace se escribe en el log (pm2 logs).
+const correo = crearServicioCorreo();
+if (!correo.configurado) {
+    console.warn('⚠️ EMAIL_USER / EMAIL_PASS no están en el .env: los enlaces de recuperación solo se mostrarán en el log.');
+} else {
+    correo.verificar().then(({ ok, motivo }) => {
+        if (ok) console.log(`✅ Correo listo: los enlaces de recuperación se envían desde ${correo.remitente}.`);
+        else console.error(`❌ El correo de recuperación NO funciona: ${motivo}`);
+    });
+}
 
 /* ==========================================================================
    MIDDLEWARE DE VERIFICACIÓN DE ROL ADMINISTRADOR
@@ -538,52 +544,86 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// RUTA DE RECUPERACIÓN DE CONTRASEÑA
-app.post('/api/solicitar-recuperacion', (req, res) => {
-    const { email } = req.body;
-    const emailLimpio = email ? email.trim() : '';
+// RUTAS DE RECUPERACIÓN DE CONTRASEÑA
+const MENSAJE_RECUPERACION = "Si el correo está registrado, recibirás un enlace de recuperación en unos minutos.";
+const ESPERA_REENVIO_MS = 60 * 1000;          // 1 correo por minuto por dirección
+const VIGENCIA_TOKEN_MS = 60 * 60 * 1000;     // el enlace vale 1 hora
+const ultimosEnvios = new Map();              // correo -> momento del último envío
+
+// "erick@gmail.com" -> "e***k@gmail.com" (para mostrar sin revelar el correo completo)
+function ocultarCorreo(correo) {
+    const [nombre, dominio] = String(correo).split('@');
+    if (!dominio) return '';
+    const visible = nombre.length <= 2 ? nombre[0] + '***' : nombre[0] + '***' + nombre[nombre.length - 1];
+    return `${visible}@${dominio}`;
+}
+
+app.post('/api/solicitar-recuperacion', async (req, res) => {
+    const emailLimpio = typeof req.body.email === 'string' ? req.body.email.trim() : '';
 
     if (!emailLimpio || !REGEX_EMAIL.test(emailLimpio)) {
         return res.status(400).json({ message: "Por favor proporciona un correo electrónico válido." });
     }
 
-    const sqlBuscar = `SELECT UsuarioID FROM Usuarios WHERE CorreoElectronico = ?`;
+    // Siempre se responde lo mismo, exista o no la cuenta, para no revelar qué correos están registrados
+    const clave = emailLimpio.toLowerCase();
+    const ahora = Date.now();
+    if (ultimosEnvios.has(clave) && ahora - ultimosEnvios.get(clave) < ESPERA_REENVIO_MS) {
+        return res.json({ message: MENSAJE_RECUPERACION });
+    }
+    ultimosEnvios.set(clave, ahora);
+    if (ultimosEnvios.size > 1000) {
+        for (const [c, t] of ultimosEnvios) if (ahora - t > ESPERA_REENVIO_MS) ultimosEnvios.delete(c);
+    }
 
-    db.query(sqlBuscar, [emailLimpio], (err, results) => {
-        if (err || !results || results.length === 0) {
-            return res.json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+    try {
+        const [usuarios] = await db.promise().query(
+            "SELECT UsuarioID, CorreoElectronico FROM Usuarios WHERE CorreoElectronico = ? AND (EstadoCuenta IS NULL OR EstadoCuenta <> 'Suspendido')",
+            [emailLimpio]
+        );
+        if (usuarios.length === 0) return res.json({ message: MENSAJE_RECUPERACION });
+
+        const token = crypto.randomBytes(32).toString('hex');
+        await db.promise().query(
+            'UPDATE Usuarios SET TokenRecuperacion = ?, ExpiracionToken = ? WHERE UsuarioID = ?',
+            [token, new Date(ahora + VIGENCIA_TOKEN_MS), usuarios[0].UsuarioID]
+        );
+
+        // APP_URL (opcional) fija la dirección pública, p. ej. https://entrelazados.com
+        const base = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+        const enlace = `${base}/restablecer.html?token=${token}`;
+
+        if (!correo.configurado) {
+            console.warn(`🔑 Enlace de recuperación para ${emailLimpio} (correo no configurado): ${enlace}`);
+            return res.json({ message: MENSAJE_RECUPERACION });
         }
 
-        const usuarioId = results[0].UsuarioID;
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiracion = new Date(Date.now() + 3600000);
+        // Se responde sin esperar al envío; el resultado queda en el log
+        correo.enviarRecuperacion(usuarios[0].CorreoElectronico, enlace, base)
+            .then(() => console.log(`📧 Correo de recuperación enviado a ${emailLimpio}`))
+            .catch((errCorreo) => console.error(`❌ No se pudo enviar el correo de recuperación a ${emailLimpio}: ${errCorreo.message}`));
+        res.json({ message: MENSAJE_RECUPERACION });
+    } catch (error) {
+        console.error('Error en solicitar-recuperacion:', error.message);
+        res.status(500).json({ message: "Error interno al generar el enlace. Intenta de nuevo." });
+    }
+});
 
-        const sqlGuardarToken = `
-            UPDATE Usuarios 
-            SET TokenRecuperacion = ?, ExpiracionToken = ? 
-            WHERE UsuarioID = ?
-        `;
-
-        db.query(sqlGuardarToken, [token, expiracion, usuarioId], (errToken) => {
-            if (errToken) {
-                return res.status(500).json({ message: "Error interno al generar enlace." });
-            }
-
-            const hostActual = req.get('host');
-            const enlace = `${req.protocol}://${hostActual}/restablecer.html?token=${token}`;
-
-            const mailOptions = {
-                from: '"EntreLazados" <tu_correo@gmail.com>',
-                to: emailLimpio,
-                subject: 'Recuperación de Contraseña - EntreLazados',
-                html: `<p>Haz clic en el enlace para restablecer tu contraseña: <a href="${enlace}">${enlace}</a></p>`
-            };
-
-            transporter.sendMail(mailOptions, () => {
-                res.json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
-            });
-        });
-    });
+// Permite a restablecer.html saber, antes de escribir la contraseña, si el enlace sigue vigente
+app.get('/api/validar-token-recuperacion', async (req, res) => {
+    const token = typeof req.query.token === 'string' ? req.query.token : '';
+    if (!/^[a-f0-9]{64}$/i.test(token)) return res.status(400).json({ valido: false });
+    try {
+        const [filas] = await db.promise().query(
+            'SELECT CorreoElectronico, ExpiracionToken FROM Usuarios WHERE TokenRecuperacion = ? AND ExpiracionToken > NOW()',
+            [token]
+        );
+        if (filas.length === 0) return res.status(400).json({ valido: false });
+        res.json({ valido: true, correo: ocultarCorreo(filas[0].CorreoElectronico), expira: filas[0].ExpiracionToken });
+    } catch (error) {
+        console.error('Error en validar-token-recuperacion:', error.message);
+        res.status(500).json({ valido: false });
+    }
 });
 
 app.post('/api/restablecer-password', (req, res) => {
@@ -593,8 +633,12 @@ app.post('/api/restablecer-password', (req, res) => {
         return res.status(400).json({ message: "Datos incompletos para restablecer la contraseña." });
     }
 
-    if (typeof nuevaContrasena !== 'string' || nuevaContrasena.length < 6) {
+    if (typeof token !== 'string' || typeof nuevaContrasena !== 'string' || nuevaContrasena.length < 6) {
         return res.status(400).json({ message: "La contraseña debe tener al menos 6 caracteres." });
+    }
+
+    if (Buffer.byteLength(nuevaContrasena, 'utf8') > 72) {
+        return res.status(400).json({ message: "La contraseña es demasiado larga (máximo 72 caracteres)." });
     }
 
     const sqlVerificarToken = `

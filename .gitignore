@@ -363,3 +363,9 @@ MigrationBackup/
 FodyWeavers.xsd
 # Variables de entorno (contraseñas y claves)
 .env
+
+# Archivos comprimidos (copias del proyecto, node_modules)
+*.zip
+
+# Sesiones generadas por las pruebas
+backend/pruebas/sesiones_prueba.json

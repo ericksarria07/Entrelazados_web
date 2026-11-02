@@ -2,17 +2,25 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="no-referrer">
+    <title>Recuperar contraseña - EntreLazados</title>
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restablecer Contraseña - EntreLazados</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --color-principal: #7D381B;
             --color-secundario: #3D170A;
             --color-terciario: #993D24;
+            --texto-suave: #6b5b53;
+            --borde: #d6c7bd;
+            --exito: #1e6b2a;
+            --error: #a12a1a;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,38 +33,72 @@
             align-items: center;
             justify-content: center;
             padding: 16px;
+            color: var(--color-secundario);
         }
 
         .tarjeta {
             background: #fff;
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             padding: 32px 28px;
             border-radius: 8px;
             border-top: 4px solid var(--color-terciario);
             box-shadow: 0 8px 24px rgba(61, 23, 10, 0.18);
         }
 
-        .tarjeta img { display: block; height: 56px; margin: 0 auto 16px; }
+        .logo { display: block; height: 56px; margin: 0 auto 16px; }
 
-        h1 { font-size: 22px; color: var(--color-secundario); text-align: center; margin-bottom: 6px; }
+        .icono-grande {
+            display: flex; align-items: center; justify-content: center;
+            width: 64px; height: 64px; margin: 0 auto 14px;
+            border-radius: 50%; font-size: 32px;
+            background: #f5efe9; color: var(--color-principal);
+        }
+        .icono-grande.exito { background: #e8f5e9; color: var(--exito); }
+        .icono-grande.error { background: #fdecea; color: var(--error); }
 
-        .subtitulo { font-size: 14px; color: #6b5b53; text-align: center; margin-bottom: 22px; }
+        h1 { font-size: 22px; text-align: center; margin-bottom: 6px; }
 
-        label { display: block; font-size: 14px; font-weight: 600; color: var(--color-secundario); margin-bottom: 6px; }
+        .subtitulo { font-size: 15px; color: var(--texto-suave); text-align: center; margin-bottom: 22px; line-height: 1.45; }
+        .subtitulo strong { color: var(--color-secundario); }
+
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+
+        .campo { position: relative; margin-bottom: 16px; }
 
         input {
             width: 100%;
             padding: 11px 12px;
             font: inherit;
-            border: 1px solid #d6c7bd;
+            color: inherit;
+            border: 1px solid var(--borde);
             border-radius: 4px;
-            margin-bottom: 16px;
         }
-
+        .campo.con-ojo input { padding-right: 44px; }
         input:focus { outline: 2px solid var(--color-principal); border-color: transparent; }
+        input[aria-invalid="true"] { border-color: var(--error); }
 
-        button {
+        .ver-pass {
+            position: absolute; right: 4px; bottom: 4px;
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; border-radius: 4px;
+            color: var(--texto-suave); font-size: 20px; cursor: pointer;
+        }
+        .ver-pass:hover { color: var(--color-principal); background: #f5efe9; }
+
+        .fuerza { margin: -8px 0 16px; }
+        .fuerza-barra { display: flex; gap: 4px; margin-bottom: 4px; }
+        .fuerza-barra span { flex: 1; height: 4px; border-radius: 2px; background: #eadfd8; transition: background .2s; }
+        .fuerza-texto { font-size: 13px; color: var(--texto-suave); }
+
+        .requisitos { list-style: none; font-size: 13px; color: var(--texto-suave); margin: -6px 0 18px; }
+        .requisitos li { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+        .requisitos li.cumple { color: var(--exito); }
+        .requisitos i { font-size: 16px; }
+
+        .boton {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
             width: 100%;
             padding: 12px;
             font: inherit;
@@ -66,89 +108,400 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            text-decoration: none;
         }
+        .boton:hover { background: var(--color-secundario); }
+        .boton:disabled { opacity: 0.6; cursor: not-allowed; }
+        .boton.secundario { background: #fff; color: var(--color-principal); border: 1px solid var(--color-principal); margin-top: 10px; }
+        .boton.secundario:hover { background: #f5efe9; }
 
-        button:hover { background: var(--color-secundario); }
-        button:disabled { opacity: 0.6; cursor: wait; }
+        .mensaje { display: none; font-size: 14px; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px; line-height: 1.4; }
+        .mensaje.error { display: block; background: #fdecea; color: var(--error); }
+        .mensaje.exito { display: block; background: #e8f5e9; color: var(--exito); }
 
-        .mensaje { display: none; font-size: 14px; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px; }
-        .mensaje.error { display: block; background: #fdecea; color: #a12a1a; }
-        .mensaje.exito { display: block; background: #e8f5e9; color: #1e6b2a; }
+        .consejos { font-size: 14px; color: var(--texto-suave); background: #faf6f3; border-radius: 4px; padding: 12px 14px; margin-bottom: 18px; line-height: 1.45; }
+        .consejos ul { margin: 6px 0 0 18px; }
 
-        .volver { display: block; text-align: center; margin-top: 18px; font-size: 14px; color: var(--color-principal); }
+        .enlaces { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; margin-top: 18px; font-size: 14px; }
+        .enlaces a, .enlace-boton { color: var(--color-principal); font-weight: 600; }
+        .enlace-boton { background: none; border: none; font: inherit; cursor: pointer; text-decoration: underline; }
+        .enlace-boton:disabled { color: var(--texto-suave); cursor: default; text-decoration: none; }
+
+        .vista { display: none; }
+        .vista.activa { display: block; }
+
+        .cargando { text-align: center; color: var(--texto-suave); padding: 24px 0; }
+        .giro { display: inline-block; animation: girar 1s linear infinite; }
+        @keyframes girar { to { transform: rotate(360deg); } }
+
+        @media (max-width: 420px) {
+            .tarjeta { padding: 26px 18px; }
+            h1 { font-size: 20px; }
+        }
     </style>
 </head>
 <body>
     <main class="tarjeta">
-        <img src="logo.png" alt="EntreLazados">
-        <h1>Restablecer contraseña</h1>
-        <p class="subtitulo">Escribe tu nueva contraseña para volver a entrar a EntreLazados.</p>
+        <img class="logo" src="logo.png" alt="EntreLazados">
 
-        <div id="mensaje" class="mensaje" role="alert"></div>
+        <!-- Comprobando el enlace del correo -->
+        <section id="vista-cargando" class="vista" aria-live="polite">
+            <p class="cargando"><i class="ti ti-loader-2 giro"></i> Comprobando tu enlace...</p>
+        </section>
 
-        <form id="formRestablecer">
-            <label for="nuevaPass">Nueva contraseña</label>
-            <input type="password" id="nuevaPass" minlength="6" autocomplete="new-password" required>
+        <!-- Paso 1: pedir el enlace -->
+        <section id="vista-solicitar" class="vista">
+            <h1>¿Olvidaste tu contraseña?</h1>
+            <p class="subtitulo">Escribe el correo con el que te registraste y te enviaremos un enlace para crear una nueva.</p>
 
-            <label for="confirmarPass">Confirmar contraseña</label>
-            <input type="password" id="confirmarPass" minlength="6" autocomplete="new-password" required>
+            <div id="mensaje-solicitar" class="mensaje" role="alert"></div>
 
-            <button type="submit" id="btnEnviar">Actualizar contraseña</button>
-        </form>
+            <form id="form-solicitar" novalidate>
+                <label for="correo">Correo electrónico</label>
+                <div class="campo">
+                    <input type="email" id="correo" autocomplete="email" inputmode="email" placeholder="usuario@gmail.com" required>
+                </div>
+                <button type="submit" class="boton" id="btn-solicitar"><i class="ti ti-mail-forward"></i> Enviar enlace</button>
+            </form>
 
-        <a class="volver" href="login.html">Volver a iniciar sesión</a>
+            <div class="enlaces"><a href="login.html"><i class="ti ti-arrow-left"></i> Volver a iniciar sesión</a></div>
+        </section>
+
+        <!-- Paso 2: correo enviado -->
+        <section id="vista-enviado" class="vista">
+            <div class="icono-grande"><i class="ti ti-mail-check"></i></div>
+            <h1>Revisa tu correo</h1>
+            <p class="subtitulo">Si <strong id="correo-enviado"></strong> está registrado en EntreLazados, te llegará un enlace para crear tu nueva contraseña.</p>
+
+            <div class="consejos">
+                <strong>¿No te llega?</strong>
+                <ul>
+                    <li>Puede tardar unos minutos.</li>
+                    <li>Revisa las carpetas de <em>Spam</em> o <em>Promociones</em>.</li>
+                    <li>El enlace vence en 1 hora y solo sirve una vez.</li>
+                </ul>
+            </div>
+
+            <div id="mensaje-enviado" class="mensaje" role="status"></div>
+
+            <a href="login.html" class="boton"><i class="ti ti-login"></i> Ir a iniciar sesión</a>
+            <div class="enlaces">
+                <button type="button" class="enlace-boton" id="btn-reenviar">Reenviar correo</button>
+                <button type="button" class="enlace-boton" id="btn-otro-correo">Usar otro correo</button>
+            </div>
+        </section>
+
+        <!-- Paso 3: escribir la nueva contraseña -->
+        <section id="vista-nueva" class="vista">
+            <h1>Crea tu nueva contraseña</h1>
+            <p class="subtitulo" id="texto-cuenta">Elige una contraseña que no hayas usado antes.</p>
+
+            <div id="mensaje-nueva" class="mensaje" role="alert"></div>
+
+            <form id="form-nueva" novalidate>
+                <label for="nuevaPass">Nueva contraseña</label>
+                <div class="campo con-ojo">
+                    <input type="password" id="nuevaPass" autocomplete="new-password" maxlength="72" required aria-describedby="fuerza-texto">
+                    <button type="button" class="ver-pass" data-para="nuevaPass" aria-label="Mostrar contraseña"><i class="ti ti-eye"></i></button>
+                </div>
+                <div class="fuerza" aria-hidden="false">
+                    <div class="fuerza-barra"><span></span><span></span><span></span><span></span></div>
+                    <div class="fuerza-texto" id="fuerza-texto">Seguridad de la contraseña</div>
+                </div>
+                <ul class="requisitos">
+                    <li id="req-largo"><i class="ti ti-circle"></i> Al menos 6 caracteres</li>
+                    <li id="req-mezcla"><i class="ti ti-circle"></i> Letras y números (recomendado)</li>
+                </ul>
+
+                <label for="confirmarPass">Confirmar contraseña</label>
+                <div class="campo con-ojo">
+                    <input type="password" id="confirmarPass" autocomplete="new-password" maxlength="72" required>
+                    <button type="button" class="ver-pass" data-para="confirmarPass" aria-label="Mostrar contraseña"><i class="ti ti-eye"></i></button>
+                </div>
+                <ul class="requisitos">
+                    <li id="req-igual"><i class="ti ti-circle"></i> Las dos contraseñas coinciden</li>
+                </ul>
+
+                <button type="submit" class="boton" id="btn-guardar"><i class="ti ti-lock-check"></i> Guardar nueva contraseña</button>
+            </form>
+
+            <div class="enlaces"><a href="login.html"><i class="ti ti-arrow-left"></i> Volver a iniciar sesión</a></div>
+        </section>
+
+        <!-- Paso 4: listo -->
+        <section id="vista-listo" class="vista">
+            <div class="icono-grande exito"><i class="ti ti-circle-check"></i></div>
+            <h1>¡Contraseña actualizada!</h1>
+            <p class="subtitulo">Ya puedes entrar a EntreLazados con tu nueva contraseña. Te llevaremos al inicio de sesión en <strong id="cuenta-regresiva">5</strong> segundos.</p>
+            <a href="login.html" class="boton"><i class="ti ti-login"></i> Iniciar sesión ahora</a>
+        </section>
+
+        <!-- Enlace vencido o inválido -->
+        <section id="vista-invalido" class="vista">
+            <div class="icono-grande error"><i class="ti ti-link-off"></i></div>
+            <h1>El enlace ya no es válido</h1>
+            <p class="subtitulo">Puede que haya vencido (dura 1 hora), que ya lo hayas usado o que esté incompleto. Pide uno nuevo, solo toma un momento.</p>
+            <button type="button" class="boton" id="btn-pedir-nuevo"><i class="ti ti-mail-forward"></i> Pedir un enlace nuevo</button>
+            <div class="enlaces"><a href="login.html"><i class="ti ti-arrow-left"></i> Volver a iniciar sesión</a></div>
+        </section>
     </main>
 
     <script>
         const API_URL = window.location.origin;
-        const token = new URLSearchParams(window.location.search).get('token');
-        const form = document.getElementById('formRestablecer');
-        const caja = document.getElementById('mensaje');
-        const boton = document.getElementById('btnEnviar');
+        const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+        const ESPERA_REENVIO = 60; // segundos, igual que en el servidor
 
-        function mostrar(texto, tipo) {
-            caja.textContent = texto;
-            caja.className = 'mensaje ' + tipo;
+        const parametros = new URLSearchParams(window.location.search);
+        const token = parametros.get('token');
+        let correoSolicitado = '';
+        let temporizadorReenvio = null;
+
+        const $ = (id) => document.getElementById(id);
+
+        function mostrarVista(nombre) {
+            document.querySelectorAll('.vista').forEach(v => v.classList.toggle('activa', v.id === 'vista-' + nombre));
+            const titulos = { nueva: 'Nueva contraseña', listo: 'Contraseña actualizada', invalido: 'Enlace no válido' };
+            document.title = (titulos[nombre] || 'Recuperar contraseña') + ' - EntreLazados';
+            const primerCampo = document.querySelector('#vista-' + nombre + ' input');
+            if (primerCampo) primerCampo.focus();
         }
 
-        if (!token) {
-            mostrar('El enlace no es válido o está incompleto. Solicita un nuevo enlace de recuperación desde la página de inicio de sesión.', 'error');
-            form.querySelectorAll('input, button').forEach(el => el.disabled = true);
+        function mensaje(id, texto, tipo) {
+            const caja = $(id);
+            caja.textContent = texto || '';
+            caja.className = texto ? 'mensaje ' + tipo : 'mensaje';
         }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nuevaContrasena = document.getElementById('nuevaPass').value;
-            const confirmar = document.getElementById('confirmarPass').value;
+        function ocupado(boton, activo, textoOcupado) {
+            if (activo) {
+                boton.dataset.html = boton.innerHTML;
+                boton.disabled = true;
+                boton.innerHTML = '<i class="ti ti-loader-2 giro"></i> ' + textoOcupado;
+            } else {
+                boton.disabled = false;
+                if (boton.dataset.html) boton.innerHTML = boton.dataset.html;
+            }
+        }
 
-            if (nuevaContrasena.length < 6) return mostrar('La contraseña debe tener al menos 6 caracteres.', 'error');
-            if (nuevaContrasena !== confirmar) return mostrar('Las contraseñas no coinciden.', 'error');
+        async function leerJSON(res) {
+            try { return await res.json(); } catch (e) { return {}; }
+        }
 
+        /* ---------- Paso 1 y 2: pedir el enlace ---------- */
+        async function enviarSolicitud(correo) {
+            const res = await fetch(`${API_URL}/api/solicitar-recuperacion`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: correo })
+            });
+            const data = await leerJSON(res);
+            if (!res.ok) throw new Error(data.message || 'No se pudo enviar el enlace. Intenta de nuevo.');
+            return data;
+        }
+
+        function iniciarEsperaReenvio() {
+            const boton = $('btn-reenviar');
+            let restantes = ESPERA_REENVIO;
+            clearInterval(temporizadorReenvio);
             boton.disabled = true;
-            boton.textContent = 'Actualizando...';
+            boton.textContent = `Reenviar correo (${restantes} s)`;
+            temporizadorReenvio = setInterval(() => {
+                restantes--;
+                if (restantes <= 0) {
+                    clearInterval(temporizadorReenvio);
+                    boton.disabled = false;
+                    boton.textContent = 'Reenviar correo';
+                } else {
+                    boton.textContent = `Reenviar correo (${restantes} s)`;
+                }
+            }, 1000);
+        }
 
+        $('form-solicitar').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const campo = $('correo');
+            const correo = campo.value.trim();
+            if (!REGEX_EMAIL.test(correo)) {
+                campo.setAttribute('aria-invalid', 'true');
+                campo.focus();
+                return mensaje('mensaje-solicitar', 'Escribe un correo válido, por ejemplo usuario@gmail.com.', 'error');
+            }
+            campo.removeAttribute('aria-invalid');
+            mensaje('mensaje-solicitar', '');
+
+            const boton = $('btn-solicitar');
+            ocupado(boton, true, 'Enviando...');
+            try {
+                await enviarSolicitud(correo);
+                correoSolicitado = correo;
+                $('correo-enviado').textContent = correo;
+                mensaje('mensaje-enviado', '');
+                mostrarVista('enviado');
+                iniciarEsperaReenvio();
+            } catch (error) {
+                mensaje('mensaje-solicitar', error.message === 'Failed to fetch' ? 'No hay conexión con el servidor. Revisa tu internet e intenta de nuevo.' : error.message, 'error');
+            } finally {
+                ocupado(boton, false);
+            }
+        });
+
+        $('btn-reenviar').addEventListener('click', async () => {
+            const boton = $('btn-reenviar');
+            boton.disabled = true;
+            boton.textContent = 'Reenviando...';
+            try {
+                await enviarSolicitud(correoSolicitado);
+                mensaje('mensaje-enviado', 'Te enviamos un correo nuevo. Usa el enlace más reciente: los anteriores ya no sirven.', 'exito');
+                iniciarEsperaReenvio();
+            } catch (error) {
+                mensaje('mensaje-enviado', 'No se pudo reenviar. Intenta de nuevo en un momento.', 'error');
+                boton.disabled = false;
+                boton.textContent = 'Reenviar correo';
+            }
+        });
+
+        $('btn-otro-correo').addEventListener('click', () => {
+            clearInterval(temporizadorReenvio);
+            $('correo').value = '';
+            mostrarVista('solicitar');
+        });
+
+        $('btn-pedir-nuevo').addEventListener('click', () => {
+            history.replaceState(null, '', 'restablecer.html');
+            mostrarVista('solicitar');
+        });
+
+        /* ---------- Paso 3: nueva contraseña ---------- */
+        const nuevaPass = $('nuevaPass');
+        const confirmarPass = $('confirmarPass');
+
+        document.querySelectorAll('.ver-pass').forEach(boton => {
+            boton.addEventListener('click', () => {
+                const campo = $(boton.dataset.para);
+                const mostrar = campo.type === 'password';
+                campo.type = mostrar ? 'text' : 'password';
+                boton.innerHTML = `<i class="ti ti-eye${mostrar ? '-off' : ''}"></i>`;
+                boton.setAttribute('aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            });
+        });
+
+        function marcar(id, cumple) {
+            const item = $(id);
+            item.classList.toggle('cumple', cumple);
+            item.querySelector('i').className = cumple ? 'ti ti-circle-check' : 'ti ti-circle';
+        }
+
+        function evaluarFuerza(pass) {
+            let puntos = 0;
+            if (pass.length >= 6) puntos++;
+            if (pass.length >= 10) puntos++;
+            if (/[a-zA-ZñÑ]/.test(pass) && /\d/.test(pass)) puntos++;
+            if (/[^a-zA-Z0-9ñÑ]/.test(pass) || (/[a-z]/.test(pass) && /[A-Z]/.test(pass))) puntos++;
+            if (pass.length < 6) puntos = Math.min(puntos, 1);
+            return puntos;
+        }
+
+        function actualizarIndicadores() {
+            const pass = nuevaPass.value;
+            const conf = confirmarPass.value;
+            marcar('req-largo', pass.length >= 6);
+            marcar('req-mezcla', /[a-zA-ZñÑ]/.test(pass) && /\d/.test(pass));
+            marcar('req-igual', conf.length > 0 && pass === conf);
+
+            const puntos = pass ? evaluarFuerza(pass) : 0;
+            const niveles = [
+                ['Seguridad de la contraseña', '#eadfd8'],
+                ['Débil', '#a12a1a'],
+                ['Aceptable', '#c98500'],
+                ['Buena', '#2f7d3a'],
+                ['Muy segura', '#1e6b2a']
+            ];
+            document.querySelectorAll('.fuerza-barra span').forEach((barra, i) => {
+                barra.style.background = i < puntos ? niveles[puntos][1] : '#eadfd8';
+            });
+            $('fuerza-texto').textContent = pass ? 'Seguridad: ' + niveles[puntos][0] : niveles[0][0];
+            if (conf) confirmarPass.setAttribute('aria-invalid', pass === conf ? 'false' : 'true');
+        }
+
+        nuevaPass.addEventListener('input', actualizarIndicadores);
+        confirmarPass.addEventListener('input', actualizarIndicadores);
+
+        $('form-nueva').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const pass = nuevaPass.value;
+            if (pass.length < 6) {
+                nuevaPass.focus();
+                return mensaje('mensaje-nueva', 'La contraseña debe tener al menos 6 caracteres.', 'error');
+            }
+            if (pass !== confirmarPass.value) {
+                confirmarPass.focus();
+                return mensaje('mensaje-nueva', 'Las contraseñas no coinciden.', 'error');
+            }
+            mensaje('mensaje-nueva', '');
+
+            const boton = $('btn-guardar');
+            ocupado(boton, true, 'Guardando...');
             try {
                 const res = await fetch(`${API_URL}/api/restablecer-password`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, nuevaContrasena })
+                    body: JSON.stringify({ token, nuevaContrasena: pass })
                 });
-                const data = await res.json();
-
+                const data = await leerJSON(res);
                 if (res.ok) {
-                    mostrar(data.message + ' Te llevaremos al inicio de sesión...', 'exito');
-                    setTimeout(() => window.location.href = 'login.html', 2500);
+                    // El enlace ya no sirve: se quita de la barra de direcciones y del historial
+                    history.replaceState(null, '', 'restablecer.html');
+                    try { localStorage.removeItem('token'); } catch (err) { }
+                    mostrarVista('listo');
+                    let segundos = 5;
+                    const reloj = setInterval(() => {
+                        segundos--;
+                        $('cuenta-regresiva').textContent = segundos;
+                        if (segundos <= 0) { clearInterval(reloj); window.location.href = 'login.html'; }
+                    }, 1000);
+                } else if (/inválido|expirado/i.test(data.message || '')) {
+                    mostrarVista('invalido');
                 } else {
-                    mostrar(data.message || 'No se pudo restablecer la contraseña.', 'error');
-                    boton.disabled = false;
-                    boton.textContent = 'Actualizar contraseña';
+                    mensaje('mensaje-nueva', data.message || 'No se pudo cambiar la contraseña. Intenta de nuevo.', 'error');
                 }
             } catch (error) {
-                mostrar('Error de conexión al intentar restablecer la contraseña.', 'error');
-                boton.disabled = false;
-                boton.textContent = 'Actualizar contraseña';
+                mensaje('mensaje-nueva', 'No hay conexión con el servidor. Revisa tu internet e intenta de nuevo.', 'error');
+            } finally {
+                ocupado(boton, false);
             }
         });
+
+        /* ---------- Inicio: ¿viene con token del correo o no? ---------- */
+        async function iniciar() {
+            if (!token) {
+                const correoPrevio = parametros.get('email');
+                if (correoPrevio) $('correo').value = correoPrevio;
+                return mostrarVista('solicitar');
+            }
+
+            mostrarVista('cargando');
+            try {
+                const res = await fetch(`${API_URL}/api/validar-token-recuperacion?token=${encodeURIComponent(token)}`);
+                const data = await leerJSON(res);
+                if (!res.ok || !data.valido) return mostrarVista('invalido');
+
+                if (data.correo) {
+                    const texto = $('texto-cuenta');
+                    texto.textContent = 'Cuenta: ';
+                    const fuerte = document.createElement('strong');
+                    fuerte.textContent = data.correo;
+                    texto.appendChild(fuerte);
+                    texto.append('. Elige una contraseña que no hayas usado antes.');
+                }
+                mostrarVista('nueva');
+            } catch (error) {
+                // Sin conexión: se deja intentar igual, el servidor validará el token al guardar
+                mostrarVista('nueva');
+                mensaje('mensaje-nueva', 'No pudimos comprobar el enlace, revisa tu conexión.', 'error');
+            }
+        }
+
+        iniciar();
     </script>
 </body>
 </html>
