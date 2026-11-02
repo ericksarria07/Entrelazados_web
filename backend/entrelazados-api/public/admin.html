@@ -350,6 +350,21 @@
             font-size: 12px;
             margin-top: auto;
         }
+
+        /* BÚSQUEDA, PAGINACIÓN Y AVISOS DE CORREO */
+        .barra-filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+        .barra-filtros input[type="search"] { flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #d6c7bd; border-radius: 6px; font: inherit; }
+        .barra-filtros label { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        .aviso-correos { background: #fff4e6; border: 1px solid #ffd8a8; color: #8a4b00; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 14px; }
+        .aviso-correos[hidden] { display: none; }
+        .etiqueta-correo { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; margin-left: 4px; white-space: nowrap; }
+        .etiqueta-correo.invalido { background: #ffe3e3; color: #a12a1a; }
+        .etiqueta-correo.pendiente { background: #fff3bf; color: #6b4b00; }
+        .paginacion-admin { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; }
+        .paginacion-admin:empty { display: none; }
+        .paginacion-admin button { padding: 5px 10px; border: 1px solid #d6c7bd; background: #fff; border-radius: 6px; cursor: pointer; font: inherit; }
+        .paginacion-admin button:disabled { opacity: .45; cursor: not-allowed; }
+        .btn-correo { background: #e7f5ff; color: #1864ab; }
     </style>
     <!-- AJUSTES RESPONSIVOS PARA CELULAR (cabecera y sub-barra) -->
     <style>
@@ -418,6 +433,11 @@
             <div class="panel-header">
                 <h3 class="panel-title"><i class="ti ti-users-group"></i> Gestión General de Usuarios</h3>
             </div>
+            <div class="aviso-correos" id="avisoCorreos" hidden></div>
+            <div class="barra-filtros">
+                <input type="search" id="buscarUsuario" placeholder="Buscar por nombre o correo..." oninput="buscarUsuariosConPausa()">
+                <label><input type="checkbox" id="soloProblemas" onchange="cargarUsuarios(1)"> Solo cuentas con problemas de correo</label>
+            </div>
             <div class="table-responsive">
                 <table>
                     <thead>
@@ -436,6 +456,7 @@
                     </tbody>
                 </table>
             </div>
+            <div class="paginacion-admin" id="paginacion-usuarios"></div>
         </section>
 
         <!-- 3. MODERACIÓN DE OFERTAS Y PUBLICACIONES -->
@@ -460,6 +481,7 @@
                     </tbody>
                 </table>
             </div>
+            <div class="paginacion-admin" id="paginacion-ofertas"></div>
         </section>
 
         <!-- 4. GESTIÓN DE CATEGORÍAS -->
@@ -550,45 +572,88 @@
                 document.getElementById('kpi-proveedores').textContent = data.totalProveedores || 0;
                 document.getElementById('kpi-emprendedores').textContent = data.totalEmprendedores || 0;
                 document.getElementById('kpi-ofertas').textContent = data.totalOfertas || 0;
+
+                // Cuentas que no pueden entrar por su correo (inválido o sin confirmar)
+                const aviso = document.getElementById('avisoCorreos');
+                const partes = [];
+                const cuentas = (n) => `${n} cuenta${n === 1 ? '' : 's'}`;
+                if (data.correosInvalidos) partes.push(`${cuentas(data.correosInvalidos)} con un correo inválido (no puede${data.correosInvalidos === 1 ? '' : 'n'} iniciar sesión)`);
+                if (data.cuentasSinVerificar) partes.push(`${cuentas(data.cuentasSinVerificar)} sin confirmar su correo`);
+                aviso.innerHTML = partes.length
+                    ? `<i class="ti ti-alert-triangle"></i> Hay ${partes.join(' y ')}. Marca <strong>"Solo cuentas con problemas de correo"</strong> para verlas y corregirlas.`
+                    : '';
+                aviso.hidden = partes.length === 0;
             } catch (err) {
                 console.error("Error métricas:", err);
             }
         }
 
-        // 2. CARGAR Y GESTIONAR USUARIOS
-        async function cargarUsuarios() {
+        // Controles "Anterior / Página X de Y / Siguiente"
+        function pintarPaginacion(idContenedor, datos, funcion) {
+            const caja = document.getElementById(idContenedor);
+            if (!datos || datos.paginas <= 1) { caja.innerHTML = ''; return; }
+            caja.innerHTML = `
+                <button ${datos.pagina <= 1 ? 'disabled' : ''} onclick="${funcion}(${datos.pagina - 1})"><i class="ti ti-chevron-left"></i> Anterior</button>
+                <span>Página <strong>${datos.pagina}</strong> de ${datos.paginas} · ${datos.total} en total</span>
+                <button ${datos.pagina >= datos.paginas ? 'disabled' : ''} onclick="${funcion}(${datos.pagina + 1})">Siguiente <i class="ti ti-chevron-right"></i></button>`;
+        }
+
+        // 2. CARGAR Y GESTIONAR USUARIOS (20 por página, con búsqueda)
+        let paginaUsuarios = 1;
+        let pausaBusqueda = null;
+        function buscarUsuariosConPausa() {
+            clearTimeout(pausaBusqueda);
+            pausaBusqueda = setTimeout(() => cargarUsuarios(1), 300);
+        }
+
+        async function cargarUsuarios(pagina = paginaUsuarios) {
+            paginaUsuarios = pagina;
+            const params = new URLSearchParams({ pagina, porPagina: 20 });
+            const buscar = document.getElementById('buscarUsuario').value.trim();
+            if (buscar) params.set('buscar', buscar);
+            if (document.getElementById('soloProblemas').checked) params.set('problemas', '1');
             try {
-                const res = await fetch(`${API_URL}/api/admin/usuarios`, {
+                const res = await fetch(`${API_URL}/api/admin/usuarios?${params}`, {
                     headers: { 'Authorization': 'Bearer ' + tokenSesion }
                 });
-                const usuarios = await res.json();
+                const datos = await res.json();
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarUsuarios(datos.paginas);
+                const usuarios = datos.datos;
                 const tbody = document.getElementById('tabla-usuarios-body');
+                pintarPaginacion('paginacion-usuarios', datos, 'cargarUsuarios');
 
                 if (!usuarios.length) {
-                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No hay usuarios registrados.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">${buscar || params.has('problemas') ? 'Ningún usuario coincide con la búsqueda.' : 'No hay usuarios registrados.'}</td></tr>`;
                     return;
                 }
 
                 tbody.innerHTML = usuarios.map(u => {
                     const est = (u.EstadoCuenta || 'Activo').toLowerCase();
                     const badgeClass = est === 'activo' ? 'badge-activo' : (est === 'suspendido' ? 'badge-suspendido' : 'badge-inactivo');
+                    const id = Number(u.UsuarioID);
+                    const etiquetas = (u.CorreoValido ? '' : '<span class="etiqueta-correo invalido" title="Le falta el dominio completo (ej. .com): no puede iniciar sesión">Correo inválido</span>')
+                        + (u.CorreoVerificado ? '' : '<span class="etiqueta-correo pendiente" title="No ha abierto el enlace de confirmación">Sin confirmar</span>');
 
                     return `
                         <tr>
-                            <td>#${u.UsuarioID}</td>
+                            <td>#${id}</td>
                             <td><strong>${esc(u.NombreRazonSocial || 'Sin Nombre')}</strong></td>
-                            <td>${esc(u.CorreoElectronico)}</td>
-                            <td>${(u.TipoRol || 'Miembro').toUpperCase()}</td>
-                            <td>${u.NombreDepartamento || 'Managua'}</td>
-                            <td><span class="badge-status ${badgeClass}">${u.EstadoCuenta || 'Activo'}</span></td>
+                            <td>${esc(u.CorreoElectronico)}${etiquetas}</td>
+                            <td>${esc((u.TipoRol || 'Miembro').toUpperCase())}</td>
+                            <td>${esc(u.NombreDepartamento || 'Managua')}</td>
+                            <td><span class="badge-status ${badgeClass}">${esc(u.EstadoCuenta || 'Activo')}</span></td>
                             <td>
-                                <select onchange="cambiarEstadoUsuario(${u.UsuarioID}, this.value)" style="font-size:11px; padding:3px;">
+                                <select onchange="cambiarEstadoUsuario(${id}, this.value)" style="font-size:11px; padding:3px;">
                                     <option value="">Cambiar estado...</option>
                                     <option value="Activo">Activo</option>
                                     <option value="Inactivo">Inactivo</option>
                                     <option value="Suspendido">Suspendido</option>
                                 </select>
-                                <button onclick="eliminarUsuario(${u.UsuarioID})" class="btn-action btn-delete" style="margin-left:4px;">
+                                <button onclick="corregirCorreo(${id}, ${esc(JSON.stringify(u.CorreoElectronico || ''))})" class="btn-action btn-correo" style="margin-left:4px;" title="Corregir correo">
+                                    <i class="ti ti-mail-cog"></i>
+                                </button>
+                                ${u.CorreoVerificado ? '' : `<button onclick="confirmarCorreo(${id})" class="btn-action btn-correo" style="margin-left:4px;" title="Dar el correo por confirmado"><i class="ti ti-mail-check"></i></button>`}
+                                <button onclick="eliminarUsuario(${id})" class="btn-action btn-delete" style="margin-left:4px;" title="Eliminar usuario">
                                     <i class="ti ti-trash"></i>
                                 </button>
                             </td>
@@ -597,6 +662,36 @@
                 }).join('');
             } catch (err) {
                 console.error("Error usuarios:", err);
+            }
+        }
+
+        // Corrige un correo mal escrito (p. ej. "erick@gmail" sin ".com"): confírmalo antes con la persona
+        async function corregirCorreo(usuarioId, correoActual) {
+            const correo = prompt(`Correo nuevo para el usuario #${usuarioId}.\nConfírmalo antes con la persona: con él iniciará sesión y recuperará su contraseña.`, correoActual);
+            if (correo === null || correo.trim() === correoActual) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}/correo`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo: correo.trim() })
+                });
+                const data = await res.json();
+                alert(data.message);
+                if (res.ok) { cargarUsuarios(); cargarMetricas(); }
+            } catch (err) {
+                alert("Error al actualizar el correo.");
+            }
+        }
+
+        async function confirmarCorreo(usuarioId) {
+            if (!confirm(`¿Dar por confirmado el correo del usuario #${usuarioId}? Hazlo solo si comprobaste que el correo es suyo.`)) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}/verificar`, { method: 'PUT' });
+                const data = await res.json();
+                alert(data.message);
+                if (res.ok) { cargarUsuarios(); cargarMetricas(); }
+            } catch (err) {
+                alert("Error al actualizar la cuenta.");
             }
         }
 
@@ -636,12 +731,17 @@
             }
         }
 
-        // 3. CARGAR Y MODERAR OFERTAS
-        async function cargarOfertas() {
+        // 3. CARGAR Y MODERAR OFERTAS (15 por página, las más nuevas primero)
+        let paginaOfertas = 1;
+        async function cargarOfertas(pagina = paginaOfertas) {
+            paginaOfertas = pagina;
             try {
-                const res = await fetch(`${API_URL}/api/ofertas`);
-                const ofertas = await res.json();
+                const res = await fetch(`${API_URL}/api/ofertas?pagina=${pagina}&porPagina=15`);
+                const datos = await res.json();
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarOfertas(datos.paginas);
+                const ofertas = datos.datos;
                 const tbody = document.getElementById('tabla-ofertas-body');
+                pintarPaginacion('paginacion-ofertas', datos, 'cargarOfertas');
 
                 if (!ofertas.length) {
                     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No hay ofertas disponibles.</td></tr>`;
@@ -652,9 +752,9 @@
                     <tr>
                         <td>#${o.OfertaID}</td>
                         <td><strong>${esc(o.TituloMaterial)}</strong></td>
-                        <td>${o.NombreCategoria || 'General'}</td>
-                        <td>C$ ${o.Precio}</td>
-                        <td>${o.UnidadMedida}</td>
+                        <td>${esc(o.NombreCategoria || 'General')}</td>
+                        <td>C$ ${esc(o.Precio)}</td>
+                        <td>${esc(o.UnidadMedida)}</td>
                         <td>
                             <button onclick="eliminarOfertaAdmin(${o.OfertaID})" class="btn-action btn-delete">
                                 <i class="ti ti-trash"></i> Eliminar

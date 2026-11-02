@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const { crearServicioCorreo } = require('./correo');
 const limites = require('./limites');
 const fotos = require('./fotos');
-const { crearCierreSubastas } = require('./subastas');
+const { crearCierreSubastas, avisarPujadoresCancelacion } = require('./subastas');
 const { crearServicioTratos } = require('./tratos');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -46,9 +46,13 @@ app.use(express.urlencoded({ limit: '1mb', extended: true }));
 app.use('/api', limites.api);
 
 // INICIALIZACIÓN SEGURA DE GEMINI API
+// GEMINI_MODELO (opcional) permite cambiar de modelo sin tocar el código.
+// Para probar la clave y el modelo: node backend/scripts/probar_gemini.js
+const MODELO_GEMINI = (process.env.GEMINI_MODELO || '').trim() || 'gemini-3.8-flash';
 let ai = null;
 try {
     const apiKey = process.env.GEMINI_API_KEY || 'CLAVE_TEMPORAL';
+    if (!process.env.GEMINI_API_KEY) console.warn('⚠️ GEMINI_API_KEY no está en el .env: Kan solo dará sus respuestas fijas.');
     ai = new GoogleGenAI({ apiKey });
 } catch (err) {
     console.error('⚠️ No se pudo inicializar GoogleGenAI:', err.message);
@@ -64,6 +68,8 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// La misma regla escrita para MySQL (REGEXP), para buscar correos inválidos en la base
+const REGEXP_EMAIL_SQL = '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]{2,}$';
 
 // CONFIGURACIÓN DE BASE DE DATOS USANDO POOL ROBUSTO
 const db = mysql.createPool({
@@ -95,6 +101,43 @@ if (!correo.configurado) {
         else console.error(`❌ El correo de recuperación NO funciona: ${motivo}`);
     });
 }
+
+// VERIFICACIÓN DEL CORREO AL REGISTRARSE
+// VERIFICAR_CORREO=1 la exige siempre, VERIFICAR_CORREO=0 la apaga. Si no se indica,
+// se exige solo cuando el correo está configurado (sin correo nadie recibiría el enlace).
+// Las cuentas que ya existían quedan verificadas (ver sql/migracion_v10.sql).
+const modoVerificacion = (process.env.VERIFICAR_CORREO || '').trim();
+const VERIFICAR_CORREO = modoVerificacion === '1' || (modoVerificacion !== '0' && correo.configurado);
+const VIGENCIA_VERIFICACION_MS = 24 * 60 * 60 * 1000;
+console.log(VERIFICAR_CORREO
+    ? '✅ Las cuentas nuevas deben confirmar su correo antes de iniciar sesión.'
+    : '⚠️ Verificación de correo desactivada: las cuentas nuevas entran sin confirmar su correo.');
+
+// Dirección pública del sitio para los enlaces de los correos.
+// APP_URL (opcional) la fija, p. ej. https://entrelazados.com
+const urlPublica = (req) => (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+
+// PAGINACIÓN: ?pagina=N&porPagina=M. Si no se pide ?pagina, las rutas devuelven
+// la lista completa como antes (compatibilidad con pantallas y scripts viejos).
+function leerPaginacion(query, porPaginaDefecto = 12, maximo = 50) {
+    if (query.pagina === undefined) return null;
+    const pagina = Math.max(1, parseInt(query.pagina, 10) || 1);
+    const porPagina = Math.min(maximo, Math.max(1, parseInt(query.porPagina, 10) || porPaginaDefecto));
+    return { pagina, porPagina, offset: (pagina - 1) * porPagina };
+}
+const respuestaPaginada = (datos, total, p) => ({
+    datos,
+    total,
+    pagina: p.pagina,
+    porPagina: p.porPagina,
+    paginas: Math.max(1, Math.ceil(total / p.porPagina))
+});
+// Texto para buscar con LIKE: los comodines % y _ que escriba el usuario se toman literales
+const patronLike = (texto) => `%${String(texto).trim().slice(0, 100).replace(/[\\%_]/g, '\\$&')}%`;
+const enteroPositivo = (valor) => {
+    const n = Number(valor);
+    return Number.isInteger(n) && n > 0 ? n : null;
+};
 
 // CIERRE AUTOMÁTICO DE SUBASTAS VENCIDAS (ver subastas.js)
 const cierreSubastas = crearCierreSubastas({
@@ -226,7 +269,7 @@ app.post('/api/chat/ia', verificarToken, limites.kanMinuto, limites.kanDia, (req
 
     if (textoLimpio.includes('edito o elimino') || textoLimpio.includes('material que ya se agotó')) {
         return res.json({
-            respuesta: "Puedes gestionar tus publicaciones ingresando al Mercado o revisando tus ofertas activas. Al presionar el botón de eliminar en tu lote, el sistema retirará inmediatamente el material de la vista pública de los talleres."
+            respuesta: "En el Mercado, cada publicación tuya tiene los botones Editar y Eliminar. Con Editar cambias el título, el precio, la categoría o las fotos (si tiene una subasta abierta, también se actualiza su título). Con Eliminar retiras el material de la vista pública; si su subasta ya recibió pujas, tendrás que esperar a que cierre."
         });
     }
 
@@ -316,7 +359,7 @@ ${listaSubastasTexto}
                 if (!ai) throw new Error("Cliente de IA no configurado");
 
                 const response = await ai.models.generateContent({
-                    model: 'gemini-3.8-flash',
+                    model: MODELO_GEMINI,
                     contents: mensajeUsuario,
                     config: {
                         systemInstruction: systemInstruction,
@@ -403,12 +446,17 @@ app.post('/registro', limites.registro, (req, res) => {
                         return res.status(500).json({ message: "Error al iniciar la transacción." });
                     }
 
+                    // Si hay que confirmar el correo, la cuenta nace sin verificar y con un enlace de 24 h
+                    const tokenVerificacion = VERIFICAR_CORREO ? crypto.randomBytes(32).toString('hex') : null;
                     const sqlUsuario = `
-                        INSERT INTO Usuarios (CorreoElectronico, ContrasenaHash, TipoRol, EstadoCuenta) 
-                        VALUES (?, ?, ?, 'Activo')
+                        INSERT INTO Usuarios (CorreoElectronico, ContrasenaHash, TipoRol, EstadoCuenta,
+                                              CorreoVerificado, TokenVerificacion, ExpiracionVerificacion)
+                        VALUES (?, ?, ?, 'Activo', ?, ?, ?)
                     `;
+                    const paramsUsuario = [emailLimpio, passwordHash, rol, VERIFICAR_CORREO ? 0 : 1, tokenVerificacion,
+                        VERIFICAR_CORREO ? new Date(Date.now() + VIGENCIA_VERIFICACION_MS) : null];
 
-                    connection.query(sqlUsuario, [emailLimpio, passwordHash, rol], (errUser, resultUser) => {
+                    connection.query(sqlUsuario, paramsUsuario, (errUser, resultUser) => {
                         if (errUser) {
                             return connection.rollback(() => {
                                 connection.release();
@@ -486,7 +534,14 @@ app.post('/registro', limites.registro, (req, res) => {
                                         });
                                     }
                                     connection.release();
-                                    res.json({ message: "¡Registro exitoso en la plataforma!" });
+                                    if (!VERIFICAR_CORREO) {
+                                        return res.json({ message: "¡Registro exitoso en la plataforma!" });
+                                    }
+                                    enviarEnlaceVerificacion(emailLimpio, tokenVerificacion, urlPublica(req));
+                                    res.json({
+                                        message: `¡Registro exitoso! Te enviamos un correo a ${emailLimpio} para confirmar tu cuenta. Abre el enlace antes de iniciar sesión.`,
+                                        verificacionPendiente: true
+                                    });
                                 });
                             });
                         });
@@ -524,7 +579,7 @@ app.post('/api/login', limites.login, (req, res) => {
     }
 
     const sqlBuscarUsuario = `
-        SELECT u.UsuarioID, u.ContrasenaHash, u.TipoRol, u.EstadoCuenta, p.NombreRazonSocial, d.NombreDepartamento
+        SELECT u.UsuarioID, u.ContrasenaHash, u.TipoRol, u.EstadoCuenta, u.CorreoVerificado, p.NombreRazonSocial, d.NombreDepartamento
         FROM Usuarios u
         LEFT JOIN PerfilesUsuarios p ON u.UsuarioID = p.UsuarioID
         LEFT JOIN Departamentos d ON p.DepartamentoID = d.DepartamentoID
@@ -563,6 +618,14 @@ app.post('/api/login', limites.login, (req, res) => {
             const nuevoHash = bcrypt.hashSync(String(passIngresada), BCRYPT_RONDAS);
             db.query('UPDATE Usuarios SET ContrasenaHash = ? WHERE UsuarioID = ?', [nuevoHash, usuario.UsuarioID], (errHash) => {
                 if (errHash) console.error('⚠️ No se pudo migrar la contraseña a bcrypt:', errHash.message);
+            });
+        }
+
+        // Cuenta nueva que todavía no abrió el enlace de confirmación
+        if (Number(usuario.CorreoVerificado) === 0) {
+            return res.status(403).json({
+                message: "Antes de entrar, confirma tu correo: abre el enlace que te enviamos al registrarte. Si no te llegó (revisa también Spam), pide otro aquí.",
+                verificacionPendiente: true
             });
         }
 
@@ -624,8 +687,7 @@ app.post('/api/solicitar-recuperacion', limites.recuperacion, async (req, res) =
             [token, new Date(ahora + VIGENCIA_TOKEN_MS), usuarios[0].UsuarioID]
         );
 
-        // APP_URL (opcional) fija la dirección pública, p. ej. https://entrelazados.com
-        const base = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+        const base = urlPublica(req);
         const enlace = `${base}/restablecer.html?token=${token}`;
 
         if (!correo.configurado) {
@@ -689,7 +751,9 @@ app.post('/api/restablecer-password', limites.recuperacion, (req, res) => {
         const usuarioId = results[0].UsuarioID;
         const sqlActualizarPass = `
             UPDATE Usuarios 
-            SET ContrasenaHash = ?, TokenRecuperacion = NULL, ExpiracionToken = NULL 
+            SET ContrasenaHash = ?, TokenRecuperacion = NULL, ExpiracionToken = NULL,
+                -- Abrir el enlace que llegó al correo demuestra que el correo es suyo
+                CorreoVerificado = 1, TokenVerificacion = NULL, ExpiracionVerificacion = NULL
             WHERE UsuarioID = ?
         `;
 
@@ -701,6 +765,69 @@ app.post('/api/restablecer-password', limites.recuperacion, (req, res) => {
             res.json({ message: "¡Contraseña actualizada con éxito! Ahora puedes iniciar sesión." });
         });
     });
+});
+
+// CONFIRMACIÓN DEL CORREO AL REGISTRARSE
+// Manda el enlace (o lo escribe en el log si el correo no está configurado). No bloquea la respuesta.
+function enviarEnlaceVerificacion(email, token, base) {
+    const enlace = `${base}/verificar.html?token=${token}`;
+    if (!correo.configurado) {
+        console.warn(`✉️ Enlace para confirmar el correo de ${email} (correo no configurado): ${enlace}`);
+        return;
+    }
+    correo.enviarVerificacion(email, enlace)
+        .then(() => console.log(`📧 Correo de confirmación enviado a ${email}`))
+        .catch((err) => console.error(`❌ No se pudo enviar la confirmación a ${email}: ${err.message}`));
+}
+
+app.get('/api/verificar-correo', async (req, res) => {
+    const token = typeof req.query.token === 'string' ? req.query.token : '';
+    const invalido = { ok: false, message: "El enlace no es válido o ya venció. Inicia sesión y pide uno nuevo." };
+    if (!/^[a-f0-9]{64}$/i.test(token)) return res.status(400).json(invalido);
+    try {
+        const [resultado] = await db.promise().query(
+            `UPDATE Usuarios SET CorreoVerificado = 1, TokenVerificacion = NULL, ExpiracionVerificacion = NULL
+             WHERE TokenVerificacion = ? AND ExpiracionVerificacion > NOW()`,
+            [token]
+        );
+        if (resultado.affectedRows === 0) return res.status(400).json(invalido);
+        res.json({ ok: true, message: "¡Listo! Tu correo quedó confirmado. Ya puedes iniciar sesión." });
+    } catch (err) {
+        console.error('Error en verificar-correo:', err.message);
+        res.status(500).json({ ok: false, message: "No se pudo confirmar el correo. Intenta de nuevo." });
+    }
+});
+
+// Reenviar el enlace de confirmación. Responde siempre lo mismo para no revelar qué correos existen.
+const MENSAJE_REENVIO = "Si la cuenta existe y falta confirmarla, te enviamos un enlace nuevo. Revisa también la carpeta Spam.";
+app.post('/api/reenviar-verificacion', limites.recuperacion, async (req, res) => {
+    const emailLimpio = typeof req.body.email === 'string' ? req.body.email.trim() : '';
+    if (!emailLimpio || !REGEX_EMAIL.test(emailLimpio)) {
+        return res.status(400).json({ message: "Ingresa un correo electrónico válido." });
+    }
+    const clave = 'verificar:' + emailLimpio.toLowerCase();
+    const ahora = Date.now();
+    if (ultimosEnvios.has(clave) && ahora - ultimosEnvios.get(clave) < ESPERA_REENVIO_MS) {
+        return res.json({ message: MENSAJE_REENVIO });
+    }
+    ultimosEnvios.set(clave, ahora);
+    try {
+        const [usuarios] = await db.promise().query(
+            'SELECT UsuarioID, CorreoElectronico FROM Usuarios WHERE CorreoElectronico = ? AND CorreoVerificado = 0',
+            [emailLimpio]
+        );
+        if (usuarios.length === 0) return res.json({ message: MENSAJE_REENVIO });
+        const token = crypto.randomBytes(32).toString('hex');
+        await db.promise().query(
+            'UPDATE Usuarios SET TokenVerificacion = ?, ExpiracionVerificacion = ? WHERE UsuarioID = ?',
+            [token, new Date(ahora + VIGENCIA_VERIFICACION_MS), usuarios[0].UsuarioID]
+        );
+        enviarEnlaceVerificacion(usuarios[0].CorreoElectronico, token, urlPublica(req));
+        res.json({ message: MENSAJE_REENVIO });
+    } catch (err) {
+        console.error('Error en reenviar-verificacion:', err.message);
+        res.status(500).json({ message: "No se pudo enviar el enlace. Intenta de nuevo." });
+    }
 });
 
 // RUTAS PARA OFERTAS
@@ -730,19 +857,53 @@ async function urlsDeFotos(ofertaIds) {
     return mapa;
 }
 
+// Filtros opcionales: ?q=texto&categoria=ID&maxKm=30&proveedorId=ID
+// Con ?pagina=N&porPagina=M responde { datos, total, pagina, porPagina, paginas }.
+// Cada oferta trae el nombre de su proveedor y su calificación promedio.
 app.get('/api/ofertas', async (req, res) => {
+    const pag = leerPaginacion(req.query, 12);
+    const condiciones = [];
+    const params = [];
+    if (typeof req.query.q === 'string' && req.query.q.trim()) {
+        condiciones.push('o.TituloMaterial LIKE ?');
+        params.push(patronLike(req.query.q));
+    }
+    const categoria = enteroPositivo(req.query.categoria);
+    if (categoria) { condiciones.push('o.CategoriaID = ?'); params.push(categoria); }
+    const maxKm = Number(req.query.maxKm);
+    if (req.query.maxKm !== undefined && req.query.maxKm !== '' && Number.isFinite(maxKm)) {
+        condiciones.push('o.DistanciaSimuladaKm <= ?');
+        params.push(maxKm);
+    }
+    const proveedor = enteroPositivo(req.query.proveedorId);
+    if (proveedor) { condiciones.push('o.ProveedorID = ?'); params.push(proveedor); }
+    const where = condiciones.length ? 'WHERE ' + condiciones.join(' AND ') : '';
+
     try {
         const [ofertas] = await db.promise().query(`
             SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos,
-                   o.CategoriaID, c.NombreCategoria
+                   o.CategoriaID, c.NombreCategoria, o.FechaPublicacion,
+                   COALESCE(pr.NombreRazonSocial, 'Proveedor') AS NombreProveedor,
+                   cal.Promedio AS CalificacionProveedor, COALESCE(cal.Total, 0) AS TotalCalificaciones
             FROM Ofertas o
             JOIN CategoriasMateriales c ON o.CategoriaID = c.CategoriaID
-        `);
+            LEFT JOIN PerfilesUsuarios pr ON pr.UsuarioID = o.ProveedorID
+            LEFT JOIN (SELECT CalificadoID, AVG(Puntuacion) AS Promedio, COUNT(*) AS Total
+                       FROM Calificaciones GROUP BY CalificadoID) cal ON cal.CalificadoID = o.ProveedorID
+            ${where}
+            ORDER BY o.FechaPublicacion DESC, o.OfertaID DESC
+            ${pag ? 'LIMIT ? OFFSET ?' : ''}
+        `, pag ? [...params, pag.porPagina, pag.offset] : params);
         const fotosPorOferta = await urlsDeFotos(ofertas.map(o => o.OfertaID));
-        res.json(ofertas.map(oferta => ({
+        const lista = ofertas.map(oferta => ({
             ...oferta,
-            Fotos: fotosPorOferta.get(oferta.OfertaID) || leerFotosAntiguas(oferta.Fotos)
-        })));
+            Fotos: fotosPorOferta.get(oferta.OfertaID) || leerFotosAntiguas(oferta.Fotos),
+            CalificacionProveedor: oferta.CalificacionProveedor === null ? null : Math.round(Number(oferta.CalificacionProveedor) * 10) / 10,
+            TotalCalificaciones: Number(oferta.TotalCalificaciones)
+        }));
+        if (!pag) return res.json(lista);
+        const [[{ total }]] = await db.promise().query(`SELECT COUNT(*) AS total FROM Ofertas o ${where}`, params);
+        res.json(respuestaPaginada(lista, Number(total), pag));
     } catch (err) {
         console.error("❌ Error en GET /api/ofertas:", err.message);
         res.status(500).json([]);
@@ -755,6 +916,23 @@ const errorDeUsuario = (status, message) => Object.assign(new Error(message), { 
 // SUBASTAS: duración permitida y precio máximo (DECIMAL(10,2) llega hasta 99.999.999,99)
 const DIAS_SUBASTA = { minimo: 1, maximo: 14, porDefecto: 7 };
 const PRECIO_MAXIMO = 99999999;
+
+// Valida los campos de una publicación (al crearla y al editarla).
+// Devuelve { error } o los datos ya limpios.
+function validarOferta(body) {
+    const titulo = typeof body.titulo === 'string' ? body.titulo.trim() : '';
+    const unidad = typeof body.unidad === 'string' ? body.unidad.trim() : '';
+    const precio = Number(body.precio);
+    const categoriaId = enteroPositivo(body.categoriaId);
+    if (!titulo || !body.precio || !unidad || !categoriaId) return { error: "Por favor, llena todos los campos obligatorios." };
+    if (titulo.length > 120) return { error: "El título puede tener como máximo 120 caracteres." };
+    if (unidad.length > 30) return { error: "La unidad de medida puede tener como máximo 30 caracteres." };
+    if (!(precio > 0) || precio > PRECIO_MAXIMO) return { error: "El precio debe ser un número mayor que 0." };
+    const distancia = Math.max(0, Math.min(10000, Math.round(Number(body.distancia) || 0)));
+    return { titulo, unidad, precio, categoriaId, distancia };
+}
+
+const esCategoriaInvalida = (err) => err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW';
 
 // Crea una subasta dentro de una transacción ya abierta (conn).
 // ofertaId liga el lote a su publicación: así muestra sus fotos y se cancela si la publicación se borra.
@@ -771,21 +949,14 @@ async function insertarSubasta(conn, { proveedorId, ofertaId = null, categoriaId
 
 // Acepta JSON (sin fotos) o multipart/form-data con hasta 5 archivos en el campo "fotos"
 app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, fotos.recibirFotos, async (req, res) => {
-    const { titulo, precio, unidad, distancia, categoriaId } = req.body;
     // El proveedor es SIEMPRE el usuario de la sesión, nunca el que envíe el navegador
     const proveedorId = req.usuario.id;
     const archivos = req.files || [];
-    const tituloLimpio = typeof titulo === 'string' ? titulo.trim() : '';
-
-    if (!tituloLimpio || !precio || !unidad || !categoriaId) {
-        return res.status(400).json({ message: "Por favor, llena todos los campos obligatorios." });
+    const datos = validarOferta(req.body);
+    if (datos.error) {
+        return res.status(400).json({ message: datos.error });
     }
-    if (tituloLimpio.length > 120) {
-        return res.status(400).json({ message: "El título puede tener como máximo 120 caracteres." });
-    }
-    if (!(Number(precio) > 0) || Number(precio) > PRECIO_MAXIMO) {
-        return res.status(400).json({ message: "El precio debe ser un número mayor que 0." });
-    }
+    const { titulo: tituloLimpio, precio, unidad, distancia, categoriaId } = datos;
     const errorFotos = fotos.validarFotos(archivos);
     if (errorFotos) {
         return res.status(400).json({ message: errorFotos });
@@ -802,7 +973,7 @@ app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, 
         const [oferta] = await conn.query(
             `INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [proveedorId, tituloLimpio, categoriaId, precio, unidad, Number(distancia) || 0]
+            [proveedorId, tituloLimpio, categoriaId, precio, unidad, distancia]
         );
 
         if (urls.length > 0) {
@@ -829,10 +1000,103 @@ app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, 
     } catch (err) {
         if (conn) await conn.rollback().catch(() => { });
         await fotos.borrarFotos(urls);
-        console.error("❌ Error al publicar oferta:", err.message);
-        const categoriaInvalida = err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW';
+        const categoriaInvalida = esCategoriaInvalida(err);
+        if (!categoriaInvalida) console.error("❌ Error al publicar oferta:", err.message);
         res.status(categoriaInvalida ? 400 : 500).json({
             message: categoriaInvalida ? "La categoría elegida no existe." : "Error al guardar el material en la base de datos."
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+// EDITAR UNA PUBLICACIÓN (su dueño o el admin). Mismos campos que al publicar y, además:
+//   fotosQuitar: direcciones de fotos actuales que se borran (JSON o campo repetido)
+//   fotos:       fotos nuevas (multipart), hasta completar 5 en total
+// Si la publicación tiene una subasta abierta, esta toma el título y la categoría nuevos
+// (su precio no cambia: ya puede tener pujas).
+app.put('/api/ofertas/:id', verificarToken, soloRoles('proveedor'), limites.fotos, fotos.recibirFotos, async (req, res) => {
+    const ofertaId = enteroPositivo(req.params.id);
+    const archivos = req.files || [];
+    if (!ofertaId) return res.status(404).json({ message: "Esa publicación no existe o no es tuya." });
+    const datos = validarOferta(req.body);
+    if (datos.error) return res.status(400).json({ message: datos.error });
+    const errorFotos = fotos.validarFotos(archivos);
+    if (errorFotos) return res.status(400).json({ message: errorFotos });
+
+    let quitar = req.body.fotosQuitar === undefined ? [] : req.body.fotosQuitar;
+    if (typeof quitar === 'string') {
+        try { quitar = quitar.trim().startsWith('[') ? JSON.parse(quitar) : [quitar]; } catch (e) { quitar = null; }
+    }
+    if (!Array.isArray(quitar) || !quitar.every(u => typeof u === 'string')) {
+        return res.status(400).json({ message: "La lista de fotos a quitar no es válida." });
+    }
+
+    let urlsNuevas = [];
+    let conn;
+    try {
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+        const [[oferta]] = await conn.query(
+            `SELECT OfertaID, Fotos FROM Ofertas WHERE OfertaID = ? ${req.usuario.esAdmin ? '' : 'AND ProveedorID = ?'} FOR UPDATE`,
+            req.usuario.esAdmin ? [ofertaId] : [ofertaId, req.usuario.id]
+        );
+        if (!oferta) throw errorDeUsuario(404, "Esa publicación no existe o no es tuya.");
+
+        const [filasFotos] = await conn.query('SELECT FotoID, FotoURL FROM FotosOfertas WHERE OfertaID = ?', [ofertaId]);
+        // Fotos antiguas guardadas como texto (solo cuentan si no hay fotos en la tabla)
+        const antiguas = filasFotos.length ? [] : leerFotosAntiguas(oferta.Fotos);
+        const borradas = filasFotos.filter(f => quitar.includes(f.FotoURL));
+        const antiguasQuedan = antiguas.filter(u => !quitar.includes(u));
+        const totalFinal = filasFotos.length - borradas.length + antiguasQuedan.length + archivos.length;
+        if (totalFinal > fotos.MAX_FOTOS) {
+            throw errorDeUsuario(400, `Puedes tener como máximo ${fotos.MAX_FOTOS} fotos por publicación. Quita alguna antes de agregar más.`);
+        }
+
+        urlsNuevas = await fotos.guardarFotos(archivos);
+        await conn.query(
+            'UPDATE Ofertas SET TituloMaterial = ?, CategoriaID = ?, Precio = ?, UnidadMedida = ?, DistanciaSimuladaKm = ? WHERE OfertaID = ?',
+            [datos.titulo, datos.categoriaId, datos.precio, datos.unidad, datos.distancia, ofertaId]
+        );
+        if (antiguasQuedan.length !== antiguas.length) {
+            await conn.query('UPDATE Ofertas SET Fotos = ? WHERE OfertaID = ?', [JSON.stringify(antiguasQuedan), ofertaId]);
+        }
+        if (borradas.length) {
+            await conn.query('DELETE FROM FotosOfertas WHERE FotoID IN (?)', [borradas.map(f => f.FotoID)]);
+        }
+        if (urlsNuevas.length) {
+            await conn.query('INSERT INTO FotosOfertas (OfertaID, FotoURL, EsPrincipal) VALUES ?', [urlsNuevas.map(u => [ofertaId, u, 0])]);
+        }
+        // Si se quitó la foto principal, pasa a serlo la primera que queda
+        const [[principal]] = await conn.query(
+            'SELECT FotoID FROM FotosOfertas WHERE OfertaID = ? ORDER BY EsPrincipal DESC, FotoID LIMIT 1', [ofertaId]
+        );
+        if (principal) {
+            await conn.query('UPDATE FotosOfertas SET EsPrincipal = (FotoID = ?) WHERE OfertaID = ?', [principal.FotoID, ofertaId]);
+        }
+        const [subasta] = await conn.query(
+            "UPDATE Subastas SET TituloLote = ?, CategoriaID = ? WHERE OfertaID = ? AND Estado = 'Activa' AND FechaFin > NOW()",
+            [`Lote Subasta: ${datos.titulo}`, datos.categoriaId, ofertaId]
+        );
+        await conn.commit();
+
+        await fotos.borrarFotos(borradas.map(f => f.FotoURL));
+        const fotosFinales = (await urlsDeFotos([ofertaId])).get(ofertaId) || antiguasQuedan;
+        res.json({
+            message: subasta.affectedRows > 0
+                ? "Publicación actualizada. Su subasta abierta también muestra el título y la categoría nuevos."
+                : "Publicación actualizada.",
+            ofertaId,
+            fotos: fotosFinales
+        });
+    } catch (err) {
+        if (conn) await conn.rollback().catch(() => { });
+        await fotos.borrarFotos(urlsNuevas);
+        if (err.status) return res.status(err.status).json({ message: err.message });
+        const categoriaInvalida = esCategoriaInvalida(err);
+        if (!categoriaInvalida) console.error("❌ Error al editar oferta:", err.message);
+        res.status(categoriaInvalida ? 400 : 500).json({
+            message: categoriaInvalida ? "La categoría elegida no existe." : "No se pudo guardar la publicación."
         });
     } finally {
         if (conn) conn.release();
@@ -844,12 +1108,15 @@ app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, 
 // subasta abierta ya tiene pujas (no se le quita el lote a quien va ganando).
 // El admin (sin proveedorId) sí puede: la subasta queda 'Cancelada' igual.
 // Las subastas ya vencidas no se tocan: el cierre automático les da su ganador.
-// Devuelve { borrada, pujas, subastasCanceladas }.
-async function eliminarOferta(ofertaId, proveedorId = null) {
+// Si la borra el admin (moderadorId) y la subasta tenía pujas, se avisa a quienes pujaron.
+// Devuelve { borrada, pujas, subastasCanceladas, pujadoresAvisados }.
+const MOTIVO_MODERACION = 'por moderación del administrador';
+async function eliminarOferta(ofertaId, proveedorId = null, moderadorId = null) {
     const soloDelProveedor = proveedorId !== null;
     const conn = await db.promise().getConnection();
     let urlsFotos = [];
     let abiertas = [];
+    let avisos = [];
     try {
         await conn.beginTransaction();
         const [[oferta]] = await conn.query(
@@ -858,7 +1125,7 @@ async function eliminarOferta(ofertaId, proveedorId = null) {
         );
         if (!oferta) {
             await conn.rollback();
-            return { borrada: false, pujas: 0, subastasCanceladas: 0 };
+            return { borrada: false, pujas: 0, subastasCanceladas: 0, pujadoresAvisados: 0 };
         }
 
         // FOR UPDATE: una puja que llegue mientras tanto espera y luego ve la subasta cancelada
@@ -872,10 +1139,17 @@ async function eliminarOferta(ofertaId, proveedorId = null) {
         const pujas = abiertas.reduce((total, s) => total + Number(s.pujas), 0);
         if (soloDelProveedor && pujas > 0) {
             await conn.rollback();
-            return { borrada: false, pujas, subastasCanceladas: 0 };
+            return { borrada: false, pujas, subastasCanceladas: 0, pujadoresAvisados: 0 };
         }
         if (abiertas.length > 0) {
             await conn.query("UPDATE Subastas SET Estado = 'Cancelada' WHERE SubastaID IN (?)", [abiertas.map(s => s.SubastaID)]);
+            if (moderadorId && pujas > 0) {
+                avisos = await avisarPujadoresCancelacion(conn, {
+                    subastaIds: abiertas.filter(s => Number(s.pujas) > 0).map(s => s.SubastaID),
+                    remitenteId: moderadorId,
+                    motivo: MOTIVO_MODERACION
+                });
+            }
         }
 
         const [filasFotos] = await conn.query('SELECT FotoURL FROM FotosOfertas WHERE OfertaID = ?', [ofertaId]);
@@ -890,17 +1164,25 @@ async function eliminarOferta(ofertaId, proveedorId = null) {
         conn.release();
     }
     await fotos.borrarFotos(urlsFotos);
-    return { borrada: true, pujas: 0, subastasCanceladas: abiertas.length };
+    cierreSubastas.avisarCancelacionPorCorreo(avisos, MOTIVO_MODERACION)
+        .catch(err => console.error('⚠️ Aviso de subasta cancelada no enviado:', err.message));
+    const pujadoresAvisados = new Set(avisos.map(a => a.emprendedorId)).size;
+    return { borrada: true, pujas: 0, subastasCanceladas: abiertas.length, pujadoresAvisados };
 }
 
-const mensajeOfertaBorrada = (resultado, base) => resultado.subastasCanceladas > 0
-    ? `${base} Su subasta abierta también se canceló.`
-    : base;
+const mensajeOfertaBorrada = (resultado, base) => {
+    let texto = base;
+    if (resultado.subastasCanceladas > 0) texto += ' Su subasta abierta también se canceló.';
+    if (resultado.pujadoresAvisados > 0) texto += ` Avisamos por el chat a ${resultado.pujadoresAvisados} persona(s) que habían pujado.`;
+    return texto;
+};
 
 app.delete('/api/ofertas/:id', verificarToken, async (req, res) => {
     try {
         // Un proveedor solo puede borrar sus propias ofertas; el admin puede borrar cualquiera
-        const resultado = await eliminarOferta(req.params.id, req.usuario.esAdmin ? null : req.usuario.id);
+        const resultado = req.usuario.esAdmin
+            ? await eliminarOferta(req.params.id, null, req.usuario.id)
+            : await eliminarOferta(req.params.id, req.usuario.id);
         if (resultado.pujas > 0) {
             return res.status(409).json({
                 message: `Esta publicación tiene una subasta abierta con ${resultado.pujas} puja(s). Podrás borrarla cuando la subasta cierre.`,
@@ -910,7 +1192,12 @@ app.delete('/api/ofertas/:id', verificarToken, async (req, res) => {
         if (!resultado.borrada) {
             return res.status(403).json({ message: "No tienes permiso para eliminar esta oferta o no existe." });
         }
-        res.json({ success: true, message: mensajeOfertaBorrada(resultado, "Oferta eliminada correctamente."), subastasCanceladas: resultado.subastasCanceladas });
+        res.json({
+            success: true,
+            message: mensajeOfertaBorrada(resultado, "Oferta eliminada correctamente."),
+            subastasCanceladas: resultado.subastasCanceladas,
+            pujadoresAvisados: resultado.pujadoresAvisados
+        });
     } catch (err) {
         console.error("❌ Error al eliminar oferta:", err.message);
         res.status(500).json({ message: "Error al remover la oferta." });
@@ -921,7 +1208,18 @@ app.delete('/api/ofertas/:id', verificarToken, async (req, res) => {
 // Solo las que siguen abiertas: una vencida desaparece de la lista aunque el
 // cierre automático todavía no haya pasado por ella
 // Cada una trae la foto principal y la categoría de su publicación. Primero las que cierran antes.
+// Filtros opcionales: ?q=texto&categoria=ID. Con ?pagina=N&porPagina=M responde paginado.
 app.get('/api/subastas', async (req, res) => {
+    const pag = leerPaginacion(req.query, 10);
+    const condiciones = ["s.Estado = 'Activa'", 's.FechaFin > NOW()'];
+    const params = [];
+    if (typeof req.query.q === 'string' && req.query.q.trim()) {
+        condiciones.push('s.TituloLote LIKE ?');
+        params.push(patronLike(req.query.q));
+    }
+    const categoria = enteroPositivo(req.query.categoria);
+    if (categoria) { condiciones.push('s.CategoriaID = ?'); params.push(categoria); }
+    const where = 'WHERE ' + condiciones.join(' AND ');
     try {
         const [subastas] = await db.promise().query(`
             SELECT s.SubastaID, s.ProveedorID, s.OfertaID, s.CategoriaID, s.TituloLote, s.PrecioBase,
@@ -930,15 +1228,19 @@ app.get('/api/subastas', async (req, res) => {
             FROM Subastas s
             LEFT JOIN CategoriasMateriales c ON c.CategoriaID = s.CategoriaID
             LEFT JOIN Ofertas o ON o.OfertaID = s.OfertaID
-            WHERE s.Estado = 'Activa' AND s.FechaFin > NOW()
+            ${where}
             ORDER BY s.FechaFin, s.SubastaID
-        `);
+            ${pag ? 'LIMIT ? OFFSET ?' : ''}
+        `, pag ? [...params, pag.porPagina, pag.offset] : params);
         const fotosPorOferta = await urlsDeFotos([...new Set(subastas.map(s => s.OfertaID).filter(Boolean))]);
-        res.json(subastas.map(({ FotosAntiguas, ...s }) => ({
+        const lista = subastas.map(({ FotosAntiguas, ...s }) => ({
             ...s,
             TotalPujas: Number(s.TotalPujas),
             Foto: (fotosPorOferta.get(s.OfertaID) || leerFotosAntiguas(FotosAntiguas))[0] || null
-        })));
+        }));
+        if (!pag) return res.json(lista);
+        const [[{ total }]] = await db.promise().query(`SELECT COUNT(*) AS total FROM Subastas s ${where}`, params);
+        res.json(respuestaPaginada(lista, Number(total), pag));
     } catch (err) {
         console.error("❌ Error en GET /api/subastas:", err.message);
         res.status(500).json([]);
@@ -1064,23 +1366,46 @@ app.post('/api/pujas', verificarToken, soloRoles('emprendedor'), (req, res) => {
 
 // CHAT Y ESTADÍSTICAS GENERALES
 app.get('/api/chat/contactos', verificarToken, (req, res) => {
-    // Se excluye al propio usuario de su lista de contactos
+    // Se excluye al propio usuario de su lista de contactos.
+    // Primero los que tienen mensajes sin leer, luego las conversaciones más recientes.
+    const yo = req.usuario.id;
     const query = `
         SELECT
             p.UsuarioID,
             p.NombreRazonSocial,
             COALESCE(u.TipoRol, 'Usuario') AS TipoRol,
-            COALESCE(d.NombreDepartamento, 'Nicaragua') AS NombreDepartamento
+            COALESCE(d.NombreDepartamento, 'Nicaragua') AS NombreDepartamento,
+            (SELECT COUNT(*) FROM MensajesChat m
+              WHERE m.RemitenteID = p.UsuarioID AND m.DestinatarioID = ? AND m.EsLeido = 0) AS NoLeidos,
+            (SELECT MAX(m.FechaEnvio) FROM MensajesChat m
+              WHERE (m.RemitenteID = p.UsuarioID AND m.DestinatarioID = ?)
+                 OR (m.RemitenteID = ? AND m.DestinatarioID = p.UsuarioID)) AS UltimoMensaje
         FROM PerfilesUsuarios p
         LEFT JOIN Usuarios u ON p.UsuarioID = u.UsuarioID
         LEFT JOIN Departamentos d ON p.DepartamentoID = d.DepartamentoID
         WHERE p.UsuarioID <> ?
+        ORDER BY NoLeidos > 0 DESC, UltimoMensaje IS NULL, UltimoMensaje DESC, p.NombreRazonSocial
     `;
 
-    db.query(query, [req.usuario.id], (err, results) => {
+    db.query(query, [yo, yo, yo, yo], (err, results) => {
         if (err) return res.status(500).json([]);
-        res.json(results || []);
+        res.json((results || []).map(c => ({ ...c, NoLeidos: Number(c.NoLeidos) })));
     });
+});
+
+// MENSAJES NO LEÍDOS: total y por contacto (el menú de todas las páginas lo consulta cada 30 s)
+app.get('/api/chat/no-leidos', verificarToken, async (req, res) => {
+    try {
+        const [filas] = await db.promise().query(
+            'SELECT RemitenteID, COUNT(*) AS n FROM MensajesChat WHERE DestinatarioID = ? AND EsLeido = 0 GROUP BY RemitenteID',
+            [req.usuario.id]
+        );
+        const porContacto = Object.fromEntries(filas.map(f => [f.RemitenteID, Number(f.n)]));
+        res.json({ total: filas.reduce((suma, f) => suma + Number(f.n), 0), porContacto });
+    } catch (err) {
+        console.error('❌ Error en GET /api/chat/no-leidos:', err.message);
+        res.status(500).json({ total: 0, porContacto: {} });
+    }
 });
 
 app.get('/api/chat/mensajes', verificarToken, (req, res) => {
@@ -1093,16 +1418,25 @@ app.get('/api/chat/mensajes', verificarToken, (req, res) => {
     }
 
     const query = `
-        SELECT MensajeID, RemitenteID, DestinatarioID, ContenidoTexto, FechaEnvio 
-        FROM MensajesChat 
-        WHERE (RemitenteID = ? AND DestinatarioID = ?) 
+        SELECT MensajeID, RemitenteID, DestinatarioID, ContenidoTexto, FechaEnvio, EsLeido
+        FROM MensajesChat
+        WHERE (RemitenteID = ? AND DestinatarioID = ?)
            OR (RemitenteID = ? AND DestinatarioID = ?)
-        ORDER BY FechaEnvio ASC
+        ORDER BY FechaEnvio ASC, MensajeID ASC
     `;
 
-    db.query(query, [remitenteId, destinatarioId, destinatarioId, remitenteId], (err, results) => {
-        if (err) return res.status(500).json([]);
-        res.json(results || []);
+    // Abrir la conversación marca como leídos los mensajes que me envió esa persona
+    const marcarLeidos = `
+        UPDATE MensajesChat SET EsLeido = 1, FechaLectura = NOW()
+        WHERE RemitenteID = ? AND DestinatarioID = ? AND EsLeido = 0
+    `;
+
+    db.query(marcarLeidos, [destinatarioId, remitenteId], (errLeidos) => {
+        if (errLeidos) console.error('⚠️ No se pudieron marcar los mensajes como leídos:', errLeidos.message);
+        db.query(query, [remitenteId, destinatarioId, destinatarioId, remitenteId], (err, results) => {
+            if (err) return res.status(500).json([]);
+            res.json((results || []).map(m => ({ ...m, EsLeido: !!m.EsLeido })));
+        });
     });
 });
 
@@ -1213,10 +1547,12 @@ app.get('/api/admin/metricas', verificarAdmin, (req, res) => {
             (SELECT COUNT(*) FROM Usuarios WHERE LOWER(TipoRol) IN ('administrador', 'admin')) AS totalAdmins,
             (SELECT COUNT(*) FROM Ofertas) AS totalOfertas,
             (SELECT COUNT(*) FROM Subastas WHERE Estado = 'Activa') AS subastasActivas,
-            (SELECT COUNT(*) FROM MensajesChat) AS totalMensajes
+            (SELECT COUNT(*) FROM MensajesChat) AS totalMensajes,
+            (SELECT COUNT(*) FROM Usuarios WHERE CorreoElectronico NOT REGEXP ?) AS correosInvalidos,
+            (SELECT COUNT(*) FROM Usuarios WHERE CorreoVerificado = 0) AS cuentasSinVerificar
     `;
 
-    db.query(sqlMetricas, (err, results) => {
+    db.query(sqlMetricas, [REGEXP_EMAIL_SQL], (err, results) => {
         if (err) {
             console.error("❌ Error al obtener métricas de admin:", err.message);
             return res.status(500).json({ message: "Error al consultar métricas del sistema." });
@@ -1225,31 +1561,94 @@ app.get('/api/admin/metricas', verificarAdmin, (req, res) => {
     });
 });
 
-// 2. LISTAR TODOS LOS USUARIOS DEL SISTEMA CON DETALLES
-app.get('/api/admin/usuarios', verificarAdmin, (req, res) => {
-    const sqlUsuarios = `
-        SELECT 
-            u.UsuarioID,
-            u.CorreoElectronico,
-            u.TipoRol,
-            COALESCE(u.EstadoCuenta, 'Activo') AS EstadoCuenta,
-            u.FechaRegistro AS FechaCreacion,
-            p.NombreRazonSocial,
-            p.TelefonoWhatsApp,
-            d.NombreDepartamento
+// 2. LISTAR LOS USUARIOS DEL SISTEMA CON DETALLES
+// ?buscar=texto (nombre o correo), ?problemas=1 (correo inválido o sin confirmar),
+// ?pagina=N&porPagina=M para paginar (sin ?pagina devuelve la lista completa).
+app.get('/api/admin/usuarios', verificarAdmin, async (req, res) => {
+    const pag = leerPaginacion(req.query, 20, 100);
+    const condiciones = [];
+    const params = [];
+    if (typeof req.query.buscar === 'string' && req.query.buscar.trim()) {
+        condiciones.push('(u.CorreoElectronico LIKE ? OR p.NombreRazonSocial LIKE ?)');
+        params.push(patronLike(req.query.buscar), patronLike(req.query.buscar));
+    }
+    if (req.query.problemas === '1') {
+        condiciones.push('(u.CorreoVerificado = 0 OR u.CorreoElectronico NOT REGEXP ?)');
+        params.push(REGEXP_EMAIL_SQL);
+    }
+    const where = condiciones.length ? 'WHERE ' + condiciones.join(' AND ') : '';
+    const desde = `
         FROM Usuarios u
         LEFT JOIN PerfilesUsuarios p ON u.UsuarioID = p.UsuarioID
         LEFT JOIN Departamentos d ON p.DepartamentoID = d.DepartamentoID
-        ORDER BY u.UsuarioID DESC
-    `;
+        ${where}`;
 
-    db.query(sqlUsuarios, (err, results) => {
-        if (err) {
-            console.error("❌ Error al listar usuarios:", err.message);
-            return res.status(500).json({ message: "Error al obtener lista de usuarios." });
-        }
-        res.json(results || []);
-    });
+    try {
+        const [filas] = await db.promise().query(`
+            SELECT
+                u.UsuarioID,
+                u.CorreoElectronico,
+                u.TipoRol,
+                COALESCE(u.EstadoCuenta, 'Activo') AS EstadoCuenta,
+                u.FechaRegistro AS FechaCreacion,
+                u.CorreoVerificado,
+                p.NombreRazonSocial,
+                p.TelefonoWhatsApp,
+                d.NombreDepartamento
+            ${desde}
+            ORDER BY u.UsuarioID DESC
+            ${pag ? 'LIMIT ? OFFSET ?' : ''}
+        `, pag ? [...params, pag.porPagina, pag.offset] : params);
+        // CorreoValido = false: el correo no tiene dominio completo (p. ej. "erick@gmail") y no puede iniciar sesión
+        const lista = filas.map(u => ({ ...u, CorreoVerificado: !!u.CorreoVerificado, CorreoValido: REGEX_EMAIL.test(u.CorreoElectronico || '') }));
+        if (!pag) return res.json(lista);
+        const [[{ total }]] = await db.promise().query(`SELECT COUNT(*) AS total ${desde}`, params);
+        res.json(respuestaPaginada(lista, Number(total), pag));
+    } catch (err) {
+        console.error("❌ Error al listar usuarios:", err.message);
+        res.status(500).json({ message: "Error al obtener lista de usuarios." });
+    }
+});
+
+// 2b. CORREGIR EL CORREO DE UNA CUENTA (p. ej. "erick@gmail" sin ".com", que no puede entrar).
+// El administrador lo confirma con la persona, así que la cuenta queda verificada.
+app.put('/api/admin/usuarios/:id/correo', verificarAdmin, async (req, res) => {
+    const usuarioId = enteroPositivo(req.params.id);
+    const correoNuevo = typeof req.body.correo === 'string' ? req.body.correo.trim() : '';
+    if (!REGEX_EMAIL.test(correoNuevo) || correoNuevo.length > 100) {
+        return res.status(400).json({ message: "Escribe un correo válido con su dominio completo (ejemplo: usuario@gmail.com)." });
+    }
+    if (!usuarioId) return res.status(404).json({ message: "Usuario no encontrado." });
+    try {
+        const [resultado] = await db.promise().query(
+            `UPDATE Usuarios SET CorreoElectronico = ?, CorreoVerificado = 1, TokenVerificacion = NULL, ExpiracionVerificacion = NULL
+             WHERE UsuarioID = ?`,
+            [correoNuevo, usuarioId]
+        );
+        if (resultado.affectedRows === 0) return res.status(404).json({ message: "Usuario no encontrado." });
+        res.json({ success: true, message: `Correo actualizado a ${correoNuevo}. La persona ya puede iniciar sesión con él.` });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: "Ese correo ya lo usa otra cuenta." });
+        console.error("❌ Error al corregir correo:", err.message);
+        res.status(500).json({ message: "No se pudo actualizar el correo." });
+    }
+});
+
+// 2c. DAR POR CONFIRMADO EL CORREO DE UNA CUENTA (si no le llega el enlace)
+app.put('/api/admin/usuarios/:id/verificar', verificarAdmin, async (req, res) => {
+    const usuarioId = enteroPositivo(req.params.id);
+    if (!usuarioId) return res.status(404).json({ message: "Usuario no encontrado." });
+    try {
+        const [resultado] = await db.promise().query(
+            'UPDATE Usuarios SET CorreoVerificado = 1, TokenVerificacion = NULL, ExpiracionVerificacion = NULL WHERE UsuarioID = ?',
+            [usuarioId]
+        );
+        if (resultado.affectedRows === 0) return res.status(404).json({ message: "Usuario no encontrado." });
+        res.json({ success: true, message: "Correo marcado como confirmado. La cuenta ya puede iniciar sesión." });
+    } catch (err) {
+        console.error("❌ Error al verificar cuenta:", err.message);
+        res.status(500).json({ message: "No se pudo actualizar la cuenta." });
+    }
 });
 
 // 3. CAMBIAR ESTADO DE UN USUARIO (Activo, Inactivo, Suspendido)
@@ -1277,11 +1676,15 @@ app.put('/api/admin/usuarios/:id/estado', verificarAdmin, (req, res) => {
 });
 
 // 4. ELIMINAR USUARIO POR COMPLETO (SOLO ADMIN)
-app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
+const MOTIVO_BAJA = 'porque la cuenta del proveedor fue dada de baja';
+app.delete('/api/admin/usuarios/:id', verificarAdmin, async (req, res) => {
     const usuarioIdTarget = Number(req.params.id);
 
     if (usuarioIdTarget === req.usuario.id) {
         return res.status(400).json({ message: "No puedes eliminar tu propia cuenta de administrador." });
+    }
+    if (!enteroPositivo(usuarioIdTarget)) {
+        return res.status(404).json({ message: "El usuario a eliminar no existe." });
     }
 
     // Ofertas, Subastas, Pujas, MensajesChat y TratosCerrados apuntan al usuario SIN
@@ -1289,6 +1692,7 @@ app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
     // Se eliminan primero sus registros, todo dentro de una transacción
     // (si algo falla no se borra nada).
     const pasos = [
+        ['DELETE FROM Calificaciones WHERE AutorID = ? OR CalificadoID = ?', [usuarioIdTarget, usuarioIdTarget]],
         ['DELETE FROM MensajesChat WHERE RemitenteID = ? OR DestinatarioID = ?', [usuarioIdTarget, usuarioIdTarget]],
         ['DELETE FROM TratosCerrados WHERE ProveedorID = ? OR EmprendedorID = ?', [usuarioIdTarget, usuarioIdTarget]],
         ['DELETE FROM Pujas WHERE EmprendedorID = ?', [usuarioIdTarget]],
@@ -1297,63 +1701,68 @@ app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
         ['DELETE FROM Usuarios WHERE UsuarioID = ?', [usuarioIdTarget]]      // perfil, roles, etc. en cascada
     ];
 
-    // Las fotos de sus ofertas se anotan antes, para borrar los archivos al final
-    const sqlFotos = 'SELECT f.FotoURL FROM FotosOfertas f JOIN Ofertas o ON o.OfertaID = f.OfertaID WHERE o.ProveedorID = ?';
-    db.query(sqlFotos, [usuarioIdTarget], (errFotos, filasFotos) => {
-    if (errFotos) return res.status(500).json({ message: "Error al eliminar usuario del sistema." });
-    const urlsFotos = filasFotos.map(f => f.FotoURL);
+    let conn;
+    let urlsFotos = [];
+    let avisos = [];
+    try {
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+        const [[existe]] = await conn.query('SELECT UsuarioID FROM Usuarios WHERE UsuarioID = ? FOR UPDATE', [usuarioIdTarget]);
+        if (!existe) throw errorDeUsuario(404, "El usuario a eliminar no existe.");
 
-    db.getConnection((errConn, conn) => {
-        if (errConn) return res.status(500).json({ message: "Error al conectar con la base de datos." });
+        // Las fotos de sus ofertas se anotan antes, para borrar los archivos al final
+        const [filasFotos] = await conn.query(
+            'SELECT f.FotoURL FROM FotosOfertas f JOIN Ofertas o ON o.OfertaID = f.OfertaID WHERE o.ProveedorID = ?',
+            [usuarioIdTarget]
+        );
+        urlsFotos = filasFotos.map(f => f.FotoURL);
 
-        const fallar = (err) => conn.rollback(() => {
-            conn.release();
-            console.error("❌ Error al eliminar usuario:", err.message);
-            res.status(500).json({ message: "Error al eliminar usuario del sistema." });
+        // Sus subastas abiertas desaparecen: se avisa por el chat a quienes habían pujado
+        const [abiertas] = await conn.query(
+            "SELECT SubastaID FROM Subastas WHERE ProveedorID = ? AND Estado = 'Activa' AND FechaFin > NOW()",
+            [usuarioIdTarget]
+        );
+        avisos = await avisarPujadoresCancelacion(conn, {
+            subastaIds: abiertas.map(s => s.SubastaID),
+            remitenteId: req.usuario.id,
+            motivo: MOTIVO_BAJA
         });
 
-        conn.beginTransaction((errTx) => {
-            if (errTx) { conn.release(); return res.status(500).json({ message: "Error al eliminar usuario del sistema." }); }
+        for (const [sql, params] of pasos) await conn.query(sql, params);
+        await conn.commit();
+    } catch (err) {
+        if (conn) await conn.rollback().catch(() => { });
+        if (err.status) return res.status(err.status).json({ message: err.message });
+        console.error("❌ Error al eliminar usuario:", err.message);
+        return res.status(500).json({ message: "Error al eliminar usuario del sistema." });
+    } finally {
+        if (conn) conn.release();
+    }
 
-            const ejecutar = (i) => {
-                const [sql, params] = pasos[i];
-                conn.query(sql, params, (err, result) => {
-                    if (err) return fallar(err);
-
-                    if (i < pasos.length - 1) return ejecutar(i + 1);
-
-                    // Último paso: el usuario en sí
-                    if (!result || result.affectedRows === 0) {
-                        return conn.rollback(() => {
-                            conn.release();
-                            res.status(404).json({ message: "El usuario a eliminar no existe." });
-                        });
-                    }
-                    conn.commit((errCommit) => {
-                        if (errCommit) return fallar(errCommit);
-                        conn.release();
-                        fotos.borrarFotos(urlsFotos);
-                        res.json({ success: true, message: "Usuario y sus registros asociados eliminados correctamente." });
-                    });
-                });
-            };
-            ejecutar(0);
-        });
-    });
+    await fotos.borrarFotos(urlsFotos);
+    cierreSubastas.avisarCancelacionPorCorreo(avisos, MOTIVO_BAJA)
+        .catch(err => console.error('⚠️ Aviso de subasta cancelada no enviado:', err.message));
+    const pujadoresAvisados = new Set(avisos.map(a => a.emprendedorId)).size;
+    res.json({
+        success: true,
+        message: "Usuario y sus registros asociados eliminados correctamente." +
+            (pujadoresAvisados ? ` Avisamos por el chat a ${pujadoresAvisados} persona(s) que habían pujado en sus subastas.` : ''),
+        pujadoresAvisados
     });
 });
 
 // 5. MODERACIÓN DE CONTENIDO: ELIMINAR CUALQUIER OFERTA POR ADMIN
 app.delete('/api/admin/ofertas/:id', verificarAdmin, async (req, res) => {
     try {
-        const resultado = await eliminarOferta(req.params.id);
+        const resultado = await eliminarOferta(req.params.id, null, req.usuario.id);
         if (!resultado.borrada) {
             return res.status(404).json({ message: "La oferta no existe o ya fue eliminada." });
         }
         res.json({
             success: true,
             message: mensajeOfertaBorrada(resultado, "Publicación eliminada por moderación administrativa."),
-            subastasCanceladas: resultado.subastasCanceladas
+            subastasCanceladas: resultado.subastasCanceladas,
+            pujadoresAvisados: resultado.pujadoresAvisados
         });
     } catch (err) {
         console.error("❌ Error al moderar oferta:", err.message);
@@ -1385,13 +1794,15 @@ app.get('/api/tratos', verificarToken, async (req, res) => {
                    t.EstadoTrato AS estado, t.FechaCierre AS fecha,
                    (t.ProveedorID = ?) AS soyProveedor,
                    IF(t.ProveedorID = ?, t.EmprendedorID, t.ProveedorID) AS contraparteId,
-                   COALESCE(p.NombreRazonSocial, 'Usuario') AS contraparte
+                   COALESCE(p.NombreRazonSocial, 'Usuario') AS contraparte,
+                   (SELECT c.Puntuacion FROM Calificaciones c WHERE c.TratoID = t.TratoID AND c.AutorID = ?) AS miCalificacion,
+                   (SELECT c.Puntuacion FROM Calificaciones c WHERE c.TratoID = t.TratoID AND c.AutorID <> ?) AS suCalificacion
             FROM TratosCerrados t
             LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = IF(t.ProveedorID = ?, t.EmprendedorID, t.ProveedorID)
             WHERE t.ProveedorID = ? OR t.EmprendedorID = ?
             ORDER BY (t.EstadoTrato IN ('Pendiente', 'EnProceso')) DESC, t.FechaCierre DESC, t.TratoID DESC
             LIMIT 50
-        `, Array(5).fill(req.usuario.id));
+        `, Array(7).fill(req.usuario.id));
         res.json(filas.map(t => ({ ...t, monto: Number(t.monto), soyProveedor: !!t.soyProveedor })));
     } catch (err) {
         console.error('❌ Error en GET /api/tratos:', err.message);
@@ -1419,6 +1830,35 @@ app.put('/api/tratos/:id/estado', verificarToken, async (req, res) => {
         if (err.status) return res.status(err.status).json({ message: err.message });
         console.error('❌ Error al cambiar el estado del trato:', err.message);
         res.status(500).json({ message: 'No se pudo actualizar el trato.' });
+    }
+});
+
+// CALIFICAR UN TRATO COMPLETADO: { puntuacion: 1..5, comentario? } (ver tratos.js)
+app.post('/api/tratos/:id/calificacion', verificarToken, async (req, res) => {
+    try {
+        const resultado = await tratos.calificar({
+            tratoId: Number(req.params.id),
+            usuarioId: req.usuario.id,
+            puntuacion: req.body.puntuacion,
+            comentario: req.body.comentario
+        });
+        res.status(201).json({ message: '¡Gracias por calificar! Le avisamos a la otra parte por el chat.', ...resultado });
+    } catch (err) {
+        if (err.status) return res.status(err.status).json({ message: err.message });
+        console.error('❌ Error al calificar el trato:', err.message);
+        res.status(500).json({ message: 'No se pudo guardar la calificación.' });
+    }
+});
+
+// REPUTACIÓN DE UN USUARIO: promedio, total y últimas calificaciones recibidas
+app.get('/api/usuarios/:id/reputacion', verificarToken, async (req, res) => {
+    const usuarioId = enteroPositivo(req.params.id);
+    if (!usuarioId) return res.status(404).json({ message: 'Usuario no encontrado.' });
+    try {
+        res.json(await tratos.reputacion(usuarioId));
+    } catch (err) {
+        console.error('❌ Error en reputación:', err.message);
+        res.status(500).json({ message: 'No se pudo consultar la reputación.' });
     }
 });
 
@@ -1599,6 +2039,13 @@ app.get('/api/dashboard', verificarToken, async (req, res) => {
                     (SELECT COALESCE(SUM(MontoTotal), 0) FROM TratosCerrados WHERE EmprendedorID = ? AND TipoOrigen = 'Subasta' AND EstadoTrato <> 'Cancelado') AS montoGanado
             `, [yo, yo, yo, yo, yo, yo, yo]);
             miActividad = { ...miActividad, ...m };
+        }
+
+        // Calificación que me dieron en mis tratos completados
+        if (req.usuario.rol === 'proveedor' || req.usuario.rol === 'emprendedor') {
+            const [cal] = await q('SELECT COUNT(*) AS total, AVG(Puntuacion) AS promedio FROM Calificaciones WHERE CalificadoID = ?', [yo]);
+            miActividad.misCalificaciones = Number(cal.total);
+            miActividad.miCalificacion = cal.promedio === null ? null : Math.round(Number(cal.promedio) * 10) / 10;
         }
 
         // mysql2 devuelve DECIMAL y SUM como texto: se convierten a número

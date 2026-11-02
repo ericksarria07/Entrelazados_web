@@ -12,6 +12,10 @@
 // Completado y Cancelado son finales. Cualquiera de las dos partes puede
 // cambiar el estado; la otra parte recibe un mensaje automático en el chat
 // (queda como registro de quién hizo qué) y un correo si está configurado.
+//
+// CALIFICACIONES: cuando el trato está Completado, cada parte califica a la
+// otra una sola vez (1 a 5 estrellas y un comentario opcional). El promedio
+// se muestra en el Mercado junto a cada proveedor y en el dashboard.
 // ==========================================================================
 const { nombreLote } = require('./subastas');
 
@@ -30,6 +34,7 @@ const ETIQUETAS = {
 };
 
 const LARGO_MAXIMO_MOTIVO = 200;
+const LARGO_MAXIMO_COMENTARIO = 300;
 
 // "Subasta ganada: Lote Subasta: Cuero café" → "Cuero café"
 const loteDelTrato = (descripcion) => nombreLote(String(descripcion || '').replace(/^Subasta ganada:\s*/i, ''));
@@ -135,7 +140,82 @@ function crearServicioTratos({ db, correo, urlBase }) {
         });
     }
 
-    return { cambiarEstado };
+    // Califica a la otra parte de un trato completado. Lanza un error con .status (400, 404 o 409).
+    async function calificar({ tratoId, usuarioId, puntuacion, comentario }) {
+        const estrellas = Number(puntuacion);
+        if (!Number.isInteger(estrellas) || estrellas < 1 || estrellas > 5) {
+            throw fallo(400, 'La calificación debe ser de 1 a 5 estrellas.');
+        }
+        if (!Number.isInteger(tratoId) || tratoId <= 0) {
+            throw fallo(404, 'Ese trato no existe o no participas en él.');
+        }
+        const comentarioLimpio = typeof comentario === 'string' ? comentario.trim().slice(0, LARGO_MAXIMO_COMENTARIO) : '';
+
+        const conn = await db.promise().getConnection();
+        try {
+            await conn.beginTransaction();
+            const [[trato]] = await conn.query(
+                `SELECT TratoID, ProveedorID, EmprendedorID, DescripcionResumen, EstadoTrato
+                 FROM TratosCerrados
+                 WHERE TratoID = ? AND (ProveedorID = ? OR EmprendedorID = ?)
+                 FOR UPDATE`,
+                [tratoId, usuarioId, usuarioId]
+            );
+            if (!trato) throw fallo(404, 'Ese trato no existe o no participas en él.');
+            if (trato.EstadoTrato !== 'Completado') {
+                throw fallo(409, 'Solo puedes calificar un trato completado.');
+            }
+            const calificadoId = trato.ProveedorID === usuarioId ? trato.EmprendedorID : trato.ProveedorID;
+            try {
+                await conn.query(
+                    'INSERT INTO Calificaciones (TratoID, AutorID, CalificadoID, Puntuacion, Comentario) VALUES (?, ?, ?, ?, ?)',
+                    [tratoId, usuarioId, calificadoId, estrellas, comentarioLimpio || null]
+                );
+            } catch (err) {
+                if (err.code === 'ER_DUP_ENTRY') throw fallo(409, 'Ya calificaste este trato.');
+                throw err;
+            }
+            const lote = loteDelTrato(trato.DescripcionResumen);
+            await conn.query(
+                'INSERT INTO MensajesChat (RemitenteID, DestinatarioID, ContenidoTexto) VALUES (?, ?, ?)',
+                [usuarioId, calificadoId,
+                    `⭐ [Aviso automático de EntreLazados] Califiqué el trato «${lote}» con ${estrellas} de 5 estrellas.` +
+                    (comentarioLimpio ? ` Comentario: ${comentarioLimpio}` : '')]
+            );
+            await conn.commit();
+            return { tratoId, puntuacion: estrellas, calificadoId };
+        } catch (err) {
+            await conn.rollback().catch(() => { });
+            throw err;
+        } finally {
+            conn.release();
+        }
+    }
+
+    // Promedio, total y las últimas calificaciones (con comentario) que recibió un usuario
+    async function reputacion(usuarioId) {
+        const [[resumen]] = await db.promise().query(
+            'SELECT COUNT(*) AS total, AVG(Puntuacion) AS promedio FROM Calificaciones WHERE CalificadoID = ?',
+            [usuarioId]
+        );
+        const [ultimas] = await db.promise().query(
+            `SELECT c.Puntuacion AS puntuacion, c.Comentario AS comentario, c.FechaCalificacion AS fecha,
+                    COALESCE(p.NombreRazonSocial, 'Usuario') AS autor
+             FROM Calificaciones c LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = c.AutorID
+             WHERE c.CalificadoID = ?
+             ORDER BY c.FechaCalificacion DESC, c.CalificacionID DESC
+             LIMIT 5`, [usuarioId]
+        );
+        const total = Number(resumen.total);
+        return {
+            usuarioId,
+            total,
+            promedio: total ? Math.round(Number(resumen.promedio) * 10) / 10 : null,
+            ultimas
+        };
+    }
+
+    return { cambiarEstado, calificar, reputacion };
 }
 
 module.exports = { crearServicioTratos, ESTADOS_ORIGEN, loteDelTrato };

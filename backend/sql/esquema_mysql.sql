@@ -2,6 +2,8 @@
 -- Cambios respecto al original, necesarios para que funcione el código actual:
 --   * Usuarios.TipoRol acepta tambien Administrador / Admin (panel de administracion)
 --   * CategoriasMateriales.Descripcion (formulario de nuevas categorias del admin)
+--   * Usuarios.CorreoVerificado / TokenVerificacion (confirmar el correo al registrarse)
+--   * Calificaciones (1 a 5 estrellas al completar un trato)
 -- Uso: crear la base, seleccionarla con USE y ejecutar este archivo.
 
 CREATE TABLE Departamentos (
@@ -154,12 +156,35 @@ CREATE TABLE MensajesChat (
     EsLeido TINYINT(1) DEFAULT 0,
     FechaLectura DATETIME NULL,
     FOREIGN KEY (RemitenteID) REFERENCES Usuarios(UsuarioID),
-    FOREIGN KEY (DestinatarioID) REFERENCES Usuarios(UsuarioID)
+    FOREIGN KEY (DestinatarioID) REFERENCES Usuarios(UsuarioID),
+    -- Contador de mensajes no leídos
+    INDEX idx_mensajes_no_leidos (DestinatarioID, EsLeido)
+) ENGINE=InnoDB;
+
+CREATE TABLE Calificaciones (
+    CalificacionID INT AUTO_INCREMENT PRIMARY KEY,
+    TratoID INT NOT NULL,
+    AutorID INT NOT NULL,
+    CalificadoID INT NOT NULL,
+    Puntuacion TINYINT NOT NULL,
+    Comentario VARCHAR(300) NULL,
+    FechaCalificacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_calificaciones_puntuacion CHECK (Puntuacion BETWEEN 1 AND 5),
+    -- Una sola calificación por persona y trato
+    CONSTRAINT uq_calificaciones_trato_autor UNIQUE (TratoID, AutorID),
+    CONSTRAINT fk_calificaciones_trato FOREIGN KEY (TratoID) REFERENCES TratosCerrados(TratoID) ON DELETE CASCADE,
+    CONSTRAINT fk_calificaciones_autor FOREIGN KEY (AutorID) REFERENCES Usuarios(UsuarioID),
+    CONSTRAINT fk_calificaciones_calificado FOREIGN KEY (CalificadoID) REFERENCES Usuarios(UsuarioID),
+    INDEX idx_calificaciones_calificado (CalificadoID)
 ) ENGINE=InnoDB;
 
 ALTER TABLE Usuarios 
 ADD COLUMN TokenRecuperacion VARCHAR(255) NULL,
-ADD COLUMN ExpiracionToken DATETIME NULL;
+ADD COLUMN ExpiracionToken DATETIME NULL,
+-- Las cuentas nuevas empiezan en 0 si la verificación está activa (ver /registro)
+ADD COLUMN CorreoVerificado TINYINT(1) NOT NULL DEFAULT 1,
+ADD COLUMN TokenVerificacion VARCHAR(64) NULL,
+ADD COLUMN ExpiracionVerificacion DATETIME NULL;
 ALTER TABLE Ofertas ADD COLUMN Fotos LONGTEXT;
 
 INSERT INTO CategoriasMateriales (NombreCategoria) VALUES 

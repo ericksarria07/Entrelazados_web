@@ -131,6 +131,19 @@ function crearServicioCorreo() {
             }
         },
 
+        // Confirmación del correo al registrarse (el enlace vence en 24 horas)
+        async enviarVerificacion(destino, enlace) {
+            return this.enviarAviso(destino, {
+                asunto: 'Confirma tu correo',
+                titulo: '¡Bienvenido a EntreLazados!',
+                parrafos: [
+                    'Solo falta un paso: confirma que este correo es tuyo para activar tu cuenta.',
+                    'El enlace vence en 24 horas. Si no creaste una cuenta en EntreLazados, ignora este correo.'
+                ],
+                boton: { texto: 'Confirmar mi correo', enlace }
+            });
+        },
+
         // Aviso general (p. ej. cierre de subastas): { asunto, titulo, parrafos: [...], boton: { texto, enlace } | null }
         async enviarAviso(destino, aviso) {
             if (!transporte) throw new Error('El correo no está configurado.');

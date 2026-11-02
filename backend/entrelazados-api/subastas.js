@@ -20,6 +20,30 @@ const nombreLote = (titulo) => String(titulo || '').replace(/^Lote Subasta:\s*/i
 
 const formatoCordobas = (monto) => 'C$' + Number(monto).toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// SUBASTAS CANCELADAS CON PUJAS (moderación del administrador o cuenta dada de baja):
+// deja un mensaje automático en el chat de cada persona que pujó, dentro de la misma
+// transacción (conn) que cancela la subasta. El remitente es quien la canceló.
+// Devuelve [{ subastaId, emprendedorId, lote }] para avisar también por correo.
+async function avisarPujadoresCancelacion(conn, { subastaIds, remitenteId, motivo }) {
+    if (!subastaIds || subastaIds.length === 0) return [];
+    const [filas] = await conn.query(
+        `SELECT DISTINCT p.SubastaID, p.EmprendedorID, s.TituloLote
+         FROM Pujas p JOIN Subastas s ON s.SubastaID = p.SubastaID
+         WHERE p.SubastaID IN (?) AND p.EmprendedorID <> ?`,
+        [subastaIds, remitenteId]
+    );
+    const avisos = filas.map(f => ({ subastaId: f.SubastaID, emprendedorId: f.EmprendedorID, lote: nombreLote(f.TituloLote) }));
+    if (avisos.length > 0) {
+        await conn.query(
+            'INSERT INTO MensajesChat (RemitenteID, DestinatarioID, ContenidoTexto) VALUES ?',
+            [avisos.map(a => [remitenteId, a.emprendedorId,
+                `⚠️ [Aviso automático de EntreLazados] La subasta «${a.lote}» en la que pujaste fue cancelada ${motivo}. ` +
+                'Tu puja ya no tiene efecto y no tienes nada que pagar.'])]
+        );
+    }
+    return avisos;
+}
+
 function crearCierreSubastas({ db, correo, urlBase }) {
     let enCurso = false;
 
@@ -152,6 +176,29 @@ function crearCierreSubastas({ db, correo, urlBase }) {
         }
     }
 
+    // Correo para quienes pujaron en una subasta cancelada (ver avisarPujadoresCancelacion).
+    // Se llama después de confirmar la cancelación y sin esperar: si falla, solo queda en el log.
+    async function avisarCancelacionPorCorreo(avisos, motivo) {
+        if (!correo.configurado || !avisos || avisos.length === 0) return;
+        const [usuarios] = await db.promise().query(
+            'SELECT UsuarioID, CorreoElectronico FROM Usuarios WHERE UsuarioID IN (?)',
+            [[...new Set(avisos.map(a => a.emprendedorId))]]
+        );
+        const porId = new Map(usuarios.map(u => [u.UsuarioID, u]));
+        const envios = avisos.filter(a => porId.has(a.emprendedorId)).map(a => correo.enviarAviso(porId.get(a.emprendedorId).CorreoElectronico, {
+            asunto: `Subasta cancelada: ${a.lote}`,
+            titulo: 'Una subasta en la que pujaste fue cancelada',
+            parrafos: [
+                `La subasta «${a.lote}» fue cancelada ${motivo}.`,
+                'Tu puja ya no tiene efecto y no tienes nada que pagar. Puedes buscar otros lotes en el Mercado.'
+            ],
+            boton: urlBase ? { texto: 'Ir al Mercado', enlace: `${urlBase}/mercado.html` } : null
+        }));
+        for (const resultado of await Promise.allSettled(envios)) {
+            if (resultado.status === 'rejected') console.error('⚠️ Aviso de subasta cancelada no enviado:', resultado.reason.message);
+        }
+    }
+
     // Arranca la revisión periódica
     function iniciar(intervaloSegundos) {
         const ejecutar = () => cerrarVencidas().catch(err => console.error('❌ Error al cerrar subastas vencidas:', err.message));
@@ -160,7 +207,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
         console.log(`✅ Cierre automático de subastas activo (cada ${intervaloSegundos} s).`);
     }
 
-    return { cerrarVencidas, iniciar };
+    return { cerrarVencidas, iniciar, avisarCancelacionPorCorreo };
 }
 
-module.exports = { crearCierreSubastas, nombreLote };
+module.exports = { crearCierreSubastas, nombreLote, avisarPujadoresCancelacion };

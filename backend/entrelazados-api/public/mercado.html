@@ -1116,6 +1116,28 @@
         .kan-send-btn:hover {
             background-color: var(--color-terciario);
         }
+
+        /* PAGINACIÓN DE OFERTAS Y SUBASTAS */
+        .paginacion {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin: 18px 0 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .paginacion:empty { display: none; }
+        .paginacion button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* CALIFICACIÓN DEL PROVEEDOR */
+        .estrellas { color: #c98500; font-weight: 700; white-space: nowrap; }
+        .estrellas small { color: var(--text-muted); font-weight: 400; }
+        .sin-calificar { color: var(--text-muted); font-style: italic; }
+
+        /* FOTOS QUE YA TIENE UNA PUBLICACIÓN (al editarla) */
+        .photo-preview-item.existente { outline: 2px solid var(--color-principal); outline-offset: -2px; }
     </style>
     <!-- AJUSTES RESPONSIVOS PARA CELULAR (cabecera y sub-barra) -->
     <style>
@@ -1150,7 +1172,7 @@
         </div>
 
         <form id="searchForm" class="search-bar" onsubmit="ejecutarBusqueda(event)">
-            <select id="searchCategory" class="search-category" aria-label="Categoría" onchange="renderizarOfertasFiltradas(document.getElementById('range-km').value)">
+            <select id="searchCategory" class="search-category" aria-label="Categoría" onchange="renderizarOfertasFiltradas()">
                 <option value="todos">Todos los insumos</option>
             </select>
             <input type="text" id="searchInput" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
@@ -1199,6 +1221,7 @@
             <div class="listings" id="contenedor-ofertas">
                 <p style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando materiales disponibles...</p>
             </div>
+            <div class="paginacion" id="paginacion-ofertas"></div>
         </div>
 
         <div id="tab-auctions" class="section" style="display:none;">
@@ -1213,6 +1236,7 @@
             <div id="contenedor-subastas">
                 <p style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando subastas activas...</p>
             </div>
+            <div class="paginacion" id="paginacion-subastas"></div>
         </div>
 
         <div id="tab-map" class="section" style="display:none;">
@@ -1229,7 +1253,7 @@
         <div class="modal-content">
             <span class="close-btn" onclick="cerrarModal()">&times;</span>
             <h3 style="margin-bottom: 18px; color: var(--color-secundario); display: flex; align-items: center; gap: 8px;">
-                <i class="ti ti-package" style="color: var(--color-principal);"></i> Publicar Oferta Directa
+                <i class="ti ti-package" style="color: var(--color-principal);"></i> <span id="tituloModalOferta">Publicar Oferta Directa</span>
             </h3>
             
             <div class="form-group">
@@ -1264,7 +1288,7 @@
                 <div class="upload-box" onclick="document.getElementById('inputFotos').click()">
                     <i class="ti ti-camera-plus upload-box-icon"></i>
                     <div class="upload-box-text">Tomar o seleccionar fotos del material</div>
-                    <div class="upload-box-subtext">Hasta 5 fotos (JPG, PNG o WebP). Se reducen automáticamente antes de subirlas.</div>
+                    <div class="upload-box-subtext">Hasta 5 fotos en total (JPG, PNG o WebP). Se reducen automáticamente antes de subirlas.</div>
                 </div>
                 <input type="file" id="inputFotos" accept="image/jpeg,image/png,image/webp" multiple style="display: none;" onchange="procesarFotosSeleccionadas(event)">
                 
@@ -1398,8 +1422,18 @@
         const API_URL = window.location.origin;
         // Escapa el texto escrito por usuarios antes de insertarlo como HTML (evita XSS)
         const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        // Ofertas de la página que se está viendo (el servidor filtra y pagina)
         let todasLasOfertas = [];
         let fotosPublicacion = [];
+        // Edición de una publicación: su ID, las fotos que ya tiene y las que se quitarán
+        let ofertaEditando = null;
+        let fotosExistentes = [];
+        let fotosQuitar = [];
+        let misPublicaciones = [];
+        const POR_PAGINA_OFERTAS = 10;
+        const POR_PAGINA_SUBASTAS = 8;
+        let paginaOfertas = 1;
+        let paginaSubastas = 1;
 
         document.addEventListener('DOMContentLoaded', async () => {
             const userEmail = localStorage.getItem('userEmail');
@@ -1493,9 +1527,10 @@
                 document.getElementById('range-val').textContent = `${radioParam}km`;
             }
 
-            prepararCategorias(catParam);
-            cargarOfertasDesdeBD();
-            cargarSubastasDesdeBD();
+            // Primero las categorías: ?categoria= tiene que estar elegida antes de pedir las ofertas
+            await prepararCategorias(catParam);
+            cargarOfertasDesdeBD(1);
+            cargarSubastasDesdeBD(1);
             reiniciarTemporizadorInactividad();
         });
 
@@ -1546,7 +1581,7 @@
             const archivos = Array.from(event.target.files);
             event.target.value = '';
 
-            const espacio = MAX_FOTOS - fotosPublicacion.length;
+            const espacio = MAX_FOTOS - fotosPublicacion.length - fotosExistentesVisibles().length;
             if (archivos.length > espacio) {
                 alert(espacio > 0
                     ? `Puedes subir como máximo ${MAX_FOTOS} fotos. Se agregarán solo las primeras ${espacio}.`
@@ -1568,14 +1603,29 @@
             }
         }
 
+        // Al editar: fotos que la publicación ya tiene y que no se marcaron para quitar
+        const fotosExistentesVisibles = () => fotosExistentes.filter(url => !fotosQuitar.includes(url));
+
         function renderizarVistaPreviaFotos() {
             const grid = document.getElementById('previewGrid');
-            grid.innerHTML = fotosPublicacion.map((foto, index) => `
+            const existentes = fotosExistentes.map((url, index) => fotosQuitar.includes(url) ? '' : `
+                    <div class="photo-preview-item existente" title="Foto actual">
+                        <img src="${esc(url)}" alt="Foto actual ${index + 1}">
+                        <div class="photo-preview-remove" onclick="quitarFotoExistente(${index})" title="Quitar esta foto">&times;</div>
+                    </div>
+                `).join('');
+            grid.innerHTML = existentes + fotosPublicacion.map((foto, index) => `
                     <div class="photo-preview-item">
                         <img src="${foto.url}" alt="Vista previa ${index + 1}">
                         <div class="photo-preview-remove" onclick="eliminarFoto(${index})">&times;</div>
                     </div>
                 `).join('');
+        }
+
+        function quitarFotoExistente(index) {
+            const url = fotosExistentes[index];
+            if (url && !fotosQuitar.includes(url)) fotosQuitar.push(url);
+            renderizarVistaPreviaFotos();
         }
 
         function eliminarFoto(index) {
@@ -1597,57 +1647,82 @@
             const placeholder = { valor: '', texto: '-- Selecciona una categoría --', deshabilitada: true };
             Categorias.llenarSelect(document.getElementById('ofertaCategoria'), lista, { primera: placeholder });
             Categorias.llenarSelect(document.getElementById('subastaCategoria'), lista, { primera: placeholder });
-            if (elegida && todasLasOfertas.length) renderizarOfertasFiltradas(document.getElementById('range-km').value);
         }
 
-        async function cargarOfertasDesdeBD() {
-            try {
-                const response = await fetch(`${API_URL}/api/ofertas`);
-                if (!response.ok) throw new Error("Error backend");
+        // Filtros del buscador (texto y categoría) compartidos por ofertas y subastas
+        function parametrosBusqueda() {
+            const params = new URLSearchParams();
+            const texto = document.getElementById('searchInput').value.trim();
+            const categoria = document.getElementById('searchCategory').value;
+            if (texto) params.set('q', texto);
+            if (categoria && categoria !== 'todos') params.set('categoria', categoria);
+            return params;
+        }
 
-                todasLasOfertas = await response.json();
-                const radioActual = document.getElementById('range-km').value;
-                renderizarOfertasFiltradas(radioActual);
+        // Controles "Anterior / Página X de Y / Siguiente" bajo cada lista
+        function pintarPaginacion(idContenedor, datos, funcion) {
+            const caja = document.getElementById(idContenedor);
+            if (!datos || datos.total === 0 || datos.paginas <= 1) { caja.innerHTML = ''; return; }
+            caja.innerHTML = `
+                <button class="btn-sm" ${datos.pagina <= 1 ? 'disabled' : ''} onclick="${funcion}(${datos.pagina - 1}, true)"><i class="ti ti-chevron-left"></i> Anterior</button>
+                <span>Página <strong>${datos.pagina}</strong> de ${datos.paginas} · ${datos.total} resultado${datos.total === 1 ? '' : 's'}</span>
+                <button class="btn-sm" ${datos.pagina >= datos.paginas ? 'disabled' : ''} onclick="${funcion}(${datos.pagina + 1}, true)">Siguiente <i class="ti ti-chevron-right"></i></button>`;
+        }
+
+        // "★ 4.5 (3)" o "Sin calificaciones"
+        function estrellasHTML(promedio, total) {
+            if (!total) return '<span class="sin-calificar">Sin calificaciones</span>';
+            return `<span class="estrellas" title="${esc(promedio)} de 5 en ${total} trato${total === 1 ? '' : 's'} completado${total === 1 ? '' : 's'}"><i class="ti ti-star-filled"></i> ${Number(promedio).toFixed(1)} <small>(${total})</small></span>`;
+        }
+
+        async function cargarOfertasDesdeBD(pagina = paginaOfertas, desplazar = false) {
+            paginaOfertas = pagina;
+            const params = parametrosBusqueda();
+            params.set('pagina', pagina);
+            params.set('porPagina', POR_PAGINA_OFERTAS);
+            params.set('maxKm', document.getElementById('range-km').value);
+            try {
+                const response = await fetch(`${API_URL}/api/ofertas?${params}`);
+                if (!response.ok) throw new Error("Error backend");
+                const datos = await response.json();
+                // Se borró lo último de la última página: se muestra la anterior
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarOfertasDesdeBD(datos.paginas);
+                todasLasOfertas = datos.datos;
+                renderizarListaOfertas(datos);
+                if (desplazar) document.getElementById('tab-listings').scrollIntoView({ behavior: 'smooth' });
             } catch (error) {
                 document.getElementById('contenedor-ofertas').innerHTML = `<p style="text-align:center; color:#c92a2a; padding: 20px;">Error al conectar con la base de datos.</p>`;
+                document.getElementById('paginacion-ofertas').innerHTML = '';
             }
         }
 
-        function limpiarTexto(str) {
-            return (str || '')
-                .toLowerCase()
-                .replace(/&/g, 'y')
-                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                .trim();
+        // Al cambiar un filtro se vuelve a pedir la página 1 (con una pequeña espera
+        // para no hacer una petición por cada movimiento del control de distancia)
+        let temporizadorFiltros = null;
+        function renderizarOfertasFiltradas() {
+            clearTimeout(temporizadorFiltros);
+            temporizadorFiltros = setTimeout(() => {
+                cargarOfertasDesdeBD(1);
+                cargarSubastasDesdeBD(1);
+            }, 250);
         }
 
-        function renderizarOfertasFiltradas(maxKm) {
+        function renderizarListaOfertas(datos) {
             const contenedor = document.getElementById('contenedor-ofertas');
             const miUserId = localStorage.getItem('userId');
             const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
             const esAdmin = (miRol === 'administrador' || miRol === 'admin');
-
-            const queryInput = limpiarTexto(document.getElementById('searchInput').value);
-            const categoriaSelect = document.getElementById('searchCategory').value;
-
-            const ofertasFiltradas = todasLasOfertas.filter(oferta => {
-                const dentroDelRadio = parseInt(oferta.DistanciaSimuladaKm || 0, 10) <= parseInt(maxKm, 10);
-
-                const tituloOfertaLimpio = limpiarTexto(oferta.TituloMaterial);
-                const coincideTexto = queryInput === '' || tituloOfertaLimpio.includes(queryInput);
-                const coincideCategoria = categoriaSelect === 'todos' || String(oferta.CategoriaID) === categoriaSelect;
-
-                return dentroDelRadio && coincideTexto && coincideCategoria;
-            });
+            const maxKm = document.getElementById('range-km').value;
 
             contenedor.innerHTML = '';
+            pintarPaginacion('paginacion-ofertas', datos, 'cargarOfertasDesdeBD');
 
-            if (ofertasFiltradas.length === 0) {
-                contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas disponibles que coincidan con tus filtros dentro de un radio de ${maxKm}km.</p>`;
+            if (datos.datos.length === 0) {
+                contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas disponibles que coincidan con tus filtros dentro de un radio de ${esc(maxKm)}km.</p>`;
                 return;
             }
 
-            ofertasFiltradas.forEach(oferta => {
+            datos.datos.forEach(oferta => {
                 const iconoCat = (oferta.NombreCategoria || '').toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
 
                 const tieneImagen = oferta.Fotos && oferta.Fotos.length > 0;
@@ -1655,15 +1730,23 @@
                     ? `<img src="${esc(oferta.Fotos[0])}" alt="${esc(oferta.TituloMaterial)}">`
                     : `<i class="ti ${iconoCat}"></i>`;
 
-                const esDueno = (miRol === 'proveedor' && parseInt(miUserId) === parseInt(oferta.ProveedorID));
+                const esDueno = parseInt(miUserId) === parseInt(oferta.ProveedorID);
+                const id = Number(oferta.OfertaID);
 
-                // BOTÓN DE ELIMINACIÓN HABILITADO TAMBIÉN PARA ADMINISTRADORES
-                let botonEliminar = '';
-                if (esDueno) {
-                    botonEliminar = `<button class="btn-sm" style="background-color: #c92a2a; color: white; border: none; margin-left: auto;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-trash"></i> Eliminar</button>`;
+                // Editar y eliminar: el dueño de la publicación y el administrador
+                let botonesGestion = '';
+                if (esDueno && (miRol === 'proveedor' || esAdmin)) {
+                    botonesGestion = `
+                        <button class="btn-sm" style="margin-left: auto;" onclick="abrirModalEdicion(${id})"><i class="ti ti-pencil"></i> Editar</button>
+                        <button class="btn-sm" style="background-color: #c92a2a; color: white; border: none;" onclick="eliminarOferta(${id})"><i class="ti ti-trash"></i> Eliminar</button>`;
                 } else if (esAdmin) {
-                    botonEliminar = `<button class="btn-sm" style="background-color: #d9480f; color: white; border: none; margin-left: auto;" onclick="eliminarOferta(${oferta.OfertaID})"><i class="ti ti-shield-x"></i> Admin: Eliminar</button>`;
+                    botonesGestion = `
+                        <button class="btn-sm" style="margin-left: auto;" onclick="abrirModalEdicion(${id})"><i class="ti ti-pencil"></i> Admin: Editar</button>
+                        <button class="btn-sm" style="background-color: #d9480f; color: white; border: none;" onclick="eliminarOferta(${id})"><i class="ti ti-shield-x"></i> Admin: Eliminar</button>`;
                 }
+                // "Contactar Proveedor" abre el chat directamente con quien publicó (no con uno mismo)
+                const botonContactar = esDueno ? '<span style="font-size:12px; color:var(--text-muted);"><i class="ti ti-user-check"></i> Tu publicación</span>'
+                    : `<a href="chat.html?contacto=${Number(oferta.ProveedorID)}" class="btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><i class="ti ti-message-circle"></i> Contactar Proveedor</a>`;
 
                 contenedor.innerHTML += `
                     <div class="listing-card">
@@ -1671,7 +1754,7 @@
                             <div class="listing-avatar">${contenidoAvatar}</div>
                             <div class="listing-info">
                                 <div class="listing-name">${esc(oferta.TituloMaterial)}</div>
-                                <div class="listing-sub">Proveedor Local · Nicaragua · Ubicado a ${oferta.DistanciaSimuladaKm} km</div>
+                                <div class="listing-sub">${esc(oferta.NombreProveedor || 'Proveedor local')} · ${estrellasHTML(oferta.CalificacionProveedor, oferta.TotalCalificaciones)} · Ubicado a ${Number(oferta.DistanciaSimuladaKm) || 0} km</div>
                                 <div class="listing-badges">
                                     <span class="badge badge-verified"><i class="ti ti-shield-check" style="font-size:10px"></i> Verificado</span>
                                     <span class="badge badge-mat">${esc(oferta.NombreCategoria)}</span>
@@ -1680,12 +1763,12 @@
                             </div>
                             <div style="text-align:right;">
                                 <div class="listing-price">C$ ${parseFloat(oferta.Precio).toFixed(2)}</div>
-                                <div class="listing-punit">${oferta.UnidadMedida}</div>
+                                <div class="listing-punit">${esc(oferta.UnidadMedida)}</div>
                             </div>
                         </div>
                         <div class="listing-bottom" style="display:flex; align-items:center; gap:10px;">
-                            <a href="chat.html" class="btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><i class="ti ti-message-circle"></i> Contactar Proveedor</a>
-                            ${botonEliminar}
+                            ${botonContactar}
+                            ${botonesGestion}
                         </div>
                     </div>
                 `;
@@ -1694,7 +1777,7 @@
 
         function actualizarFiltroKilometros(valor) {
             document.getElementById('range-val').textContent = valor + 'km';
-            renderizarOfertasFiltradas(valor);
+            renderizarOfertasFiltradas();
         }
 
         async function eliminarOferta(ofertaId) {
@@ -1712,6 +1795,7 @@
                     alert(res.message || "Oferta eliminada exitosamente.");
                     cargarOfertasDesdeBD();
                     cargarSubastasDesdeBD();
+                    misPublicaciones = [];
                 } else {
                     alert(res.message);
                 }
@@ -1720,20 +1804,29 @@
             }
         }
 
-        async function cargarSubastasDesdeBD() {
+        async function cargarSubastasDesdeBD(pagina = paginaSubastas, desplazar = false) {
+            paginaSubastas = pagina;
             const contenedor = document.getElementById('contenedor-subastas');
             const miUserId = parseInt(localStorage.getItem('userId'));
             const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
             const esAdmin = (miRol === 'administrador' || miRol === 'admin');
+            const params = parametrosBusqueda();
+            params.set('pagina', pagina);
+            params.set('porPagina', POR_PAGINA_SUBASTAS);
 
             try {
-                const response = await fetch(`${API_URL}/api/subastas`);
+                const response = await fetch(`${API_URL}/api/subastas?${params}`);
                 if (!response.ok) throw new Error("Error consultando subastas");
-                const subastas = await response.json();
+                const datos = await response.json();
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarSubastasDesdeBD(datos.paginas);
+                const subastas = datos.datos;
                 contenedor.innerHTML = '';
+                pintarPaginacion('paginacion-subastas', datos, 'cargarSubastasDesdeBD');
+                if (desplazar) document.getElementById('tab-auctions').scrollIntoView({ behavior: 'smooth' });
 
                 if (subastas.length === 0) {
-                    contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;">No hay lotes en subasta activa actualmente.</p>`;
+                    const hayFiltros = [...parametrosBusqueda().keys()].length > 0;
+                    contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;">${hayFiltros ? 'No hay subastas activas que coincidan con tu búsqueda.' : 'No hay lotes en subasta activa actualmente.'}</p>`;
                     return;
                 }
 
@@ -1786,6 +1879,7 @@
                 });
             } catch (error) {
                 contenedor.innerHTML = `<p style="text-align:center; color:#c92a2a; padding: 20px;">No se pudieron cargar las subastas.</p>`;
+                document.getElementById('paginacion-subastas').innerHTML = '';
             }
         }
 
@@ -1849,6 +1943,8 @@
 
             // Los datos y las fotos viajan juntos como formulario (multipart/form-data)
             const formulario = new FormData();
+            const editando = ofertaEditando !== null;
+            if (editando && fotosQuitar.length) formulario.append('fotosQuitar', JSON.stringify(fotosQuitar));
             formulario.append('titulo', titulo);
             formulario.append('precio', parseFloat(precio));
             formulario.append('unidad', unidad);
@@ -1861,15 +1957,19 @@
             const boton = document.getElementById('btnGuardarOferta');
             const textoBoton = boton.innerHTML;
             boton.disabled = true;
-            boton.innerHTML = fotosPublicacion.length ? 'Subiendo fotos…' : 'Publicando…';
+            boton.innerHTML = fotosPublicacion.length ? 'Subiendo fotos…' : (editando ? 'Guardando…' : 'Publicando…');
 
             try {
-                const response = await fetch(`${API_URL}/api/ofertas`, { method: 'POST', body: formulario });
+                const response = editando
+                    ? await fetch(`${API_URL}/api/ofertas/${ofertaEditando}`, { method: 'PUT', body: formulario })
+                    : await fetch(`${API_URL}/api/ofertas`, { method: 'POST', body: formulario });
                 const resData = await response.json();
                 if (response.ok) {
                     alert("¡Éxito! " + resData.message);
                     cerrarModal();
-                    cargarOfertasDesdeBD();
+                    cargarOfertasDesdeBD(editando ? paginaOfertas : 1);
+                    cargarSubastasDesdeBD();
+                    misPublicaciones = [];
                 } else { alert("Error: " + resData.message); }
             } catch (error) {
                 alert("Error de red al guardar la oferta.");
@@ -1928,7 +2028,7 @@
         function elegirPublicacionSubasta() {
             const ofertaId = document.getElementById('subastaOferta').value;
             const categoria = document.getElementById('subastaCategoria');
-            const oferta = todasLasOfertas.find(o => String(o.OfertaID) === ofertaId);
+            const oferta = misPublicaciones.find(o => String(o.OfertaID) === ofertaId);
             categoria.disabled = !!oferta;
             if (!oferta) return;
             document.getElementById('subastaTitulo').value = oferta.TituloMaterial;
@@ -1937,6 +2037,25 @@
         }
 
         function abrirModal() { document.getElementById('modalOferta').style.display = 'block'; }
+
+        // EDITAR una publicación: el mismo formulario, con sus datos y fotos actuales
+        function abrirModalEdicion(ofertaId) {
+            const oferta = todasLasOfertas.find(o => Number(o.OfertaID) === ofertaId);
+            if (!oferta) return;
+            cerrarModal();
+            ofertaEditando = ofertaId;
+            fotosExistentes = Array.isArray(oferta.Fotos) ? [...oferta.Fotos] : [];
+            fotosQuitar = [];
+            document.getElementById('ofertaTitulo').value = oferta.TituloMaterial;
+            document.getElementById('ofertaPrecio').value = parseFloat(oferta.Precio);
+            document.getElementById('ofertaUnidad').value = oferta.UnidadMedida;
+            document.getElementById('ofertaDistancia').value = Number(oferta.DistanciaSimuladaKm) || 0;
+            document.getElementById('ofertaCategoria').value = String(oferta.CategoriaID);
+            document.getElementById('tituloModalOferta').textContent = 'Editar publicación';
+            document.getElementById('btnGuardarOferta').innerHTML = 'Guardar cambios <i class="ti ti-device-floppy"></i>';
+            renderizarVistaPreviaFotos();
+            abrirModal();
+        }
 
         function cerrarModal() {
             document.getElementById('modalOferta').style.display = 'none';
@@ -1947,18 +2066,27 @@
             document.getElementById('ofertaCategoria').selectedIndex = 0;
             fotosPublicacion.forEach(f => URL.revokeObjectURL(f.url));
             fotosPublicacion = [];
+            ofertaEditando = null;
+            fotosExistentes = [];
+            fotosQuitar = [];
+            document.getElementById('tituloModalOferta').textContent = 'Publicar Oferta Directa';
+            document.getElementById('btnGuardarOferta').innerHTML = 'Guardar y Publicar Oferta ↗';
             renderizarVistaPreviaFotos();
         }
 
-        function abrirModalSubasta() {
-            // Lista de MIS publicaciones, por si el lote sale de una de ellas
+        async function abrirModalSubasta() {
+            // Lista de MIS publicaciones (todas, no solo las de la página que se ve), por si el lote sale de una de ellas
             const miUserId = String(localStorage.getItem('userId'));
             const select = document.getElementById('subastaOferta');
             select.innerHTML = '<option value="">No, es un lote nuevo</option>';
-            todasLasOfertas
-                .filter(o => String(o.ProveedorID) === miUserId)
-                .forEach(o => select.add(new Option(`${o.TituloMaterial} · C$ ${parseFloat(o.Precio).toFixed(2)}`, String(o.OfertaID))));
             document.getElementById('modalSubasta').style.display = 'block';
+            try {
+                const res = await fetch(`${API_URL}/api/ofertas?proveedorId=${encodeURIComponent(miUserId)}`);
+                misPublicaciones = res.ok ? await res.json() : [];
+            } catch (e) {
+                misPublicaciones = [];
+            }
+            misPublicaciones.forEach(o => select.add(new Option(`${o.TituloMaterial} · C$ ${parseFloat(o.Precio).toFixed(2)}`, String(o.OfertaID))));
         }
 
         function cerrarModalSubasta() {
@@ -2020,8 +2148,7 @@
 
         async function ejecutarBusqueda(event) {
             event.preventDefault();
-            const radioKm = document.getElementById('range-km').value;
-            renderizarOfertasFiltradas(radioKm);
+            renderizarOfertasFiltradas();
         }
 
         function cerrarSesion() {
