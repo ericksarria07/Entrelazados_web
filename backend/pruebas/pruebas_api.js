@@ -30,7 +30,7 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     seccion('1. Registro');
     const reg = (email, rol, extra = {}) => api('POST', '/registro', { body: { nombre: extra.nombre || email.split('@')[0], email, telefono: '88887777', rol, deptoId: 'Managua', password: 'Clave123', ...extra } });
     let r = await reg('prov1@prueba.com', 'Proveedor', { nombre: 'Curtiembre Uno' });
-    check('Registrar proveedor 1', r.status === 200, JSON.stringify(r));
+    check('Registrar proveedor 1 (avisa que falta confirmar el correo)', r.status === 200 && r.data.verificacionPendiente === true && /confirmar tu cuenta/.test(r.data.message), JSON.stringify(r));
     r = await reg('prov2@prueba.com', 'Proveedor', { nombre: 'Curtiembre Dos' });
     check('Registrar proveedor 2', r.status === 200, JSON.stringify(r));
     r = await reg('emp1@prueba.com', 'Emprendedor', { nombre: 'Zapatería Uno' });
@@ -46,9 +46,39 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     const filaP1 = (await q('SELECT ContrasenaHash FROM Usuarios WHERE CorreoElectronico = ?', ['prov1@prueba.com']))[0];
     check('La contraseña se guarda cifrada con bcrypt', /^\$2[aby]\$/.test(filaP1.ContrasenaHash), filaP1.ContrasenaHash);
 
+    // ---------------------------------------------------------------- CONFIRMAR EL CORREO
+    seccion('1b. Confirmar el correo (VERIFICAR_CORREO=1)');
+    const login = async (email, password) => api('POST', '/api/login', { body: { email, password } });
+    const tokenVerif = async (email) => ((await q('SELECT TokenVerificacion FROM Usuarios WHERE CorreoElectronico = ?', [email]))[0] || {}).TokenVerificacion;
+    const verificar = async (email) => api('GET', '/api/verificar-correo?token=' + await tokenVerif(email));
+    const sinConfirmar = (await q("SELECT CorreoVerificado, TokenVerificacion, ExpiracionVerificacion > NOW() + INTERVAL 23 HOUR AS vigente FROM Usuarios WHERE CorreoElectronico = 'prov1@prueba.com'"))[0];
+    check('La cuenta nueva queda sin confirmar, con un enlace de 24 h', sinConfirmar.CorreoVerificado === 0 && /^[a-f0-9]{64}$/.test(sinConfirmar.TokenVerificacion || '') && sinConfirmar.vigente === 1, JSON.stringify(sinConfirmar));
+    r = await login('prov1@prueba.com', 'Clave123');
+    check('Entrar sin confirmar el correo → 403 con verificacionPendiente', r.status === 403 && r.data.verificacionPendiente === true, JSON.stringify(r));
+    r = await api('GET', '/api/verificar-correo?token=zzz');
+    check('Enlace con formato inválido → 400', r.status === 400 && r.data.ok === false);
+    r = await api('GET', '/api/verificar-correo?token=' + 'a'.repeat(64));
+    check('Enlace inexistente → 400', r.status === 400);
+    r = await api('POST', '/api/reenviar-verificacion', { body: { email: 'no-es-correo' } });
+    check('Reenviar a un correo inválido → 400', r.status === 400);
+    const respNadie = await api('POST', '/api/reenviar-verificacion', { body: { email: 'nadie@prueba.com' } });
+    const tokViejo = await tokenVerif('prov1@prueba.com');
+    r = await api('POST', '/api/reenviar-verificacion', { body: { email: 'prov1@prueba.com' } });
+    const tokNuevo = await tokenVerif('prov1@prueba.com');
+    check('Reenviar responde lo mismo exista o no la cuenta (no revela correos)', respNadie.status === 200 && r.status === 200 && respNadie.data.message === r.data.message, JSON.stringify([respNadie, r]));
+    check('…y crea un enlace nuevo', /^[a-f0-9]{64}$/.test(tokNuevo || '') && tokNuevo !== tokViejo);
+    r = await api('GET', '/api/verificar-correo?token=' + tokViejo);
+    check('…el enlace anterior ya no sirve', r.status === 400);
+    const confirmados = [];
+    for (const email of ['prov1@prueba.com', 'prov2@prueba.com', 'emp1@prueba.com', 'emp2@prueba.com']) confirmados.push(await verificar(email));
+    check('Las 4 cuentas confirman su correo con su enlace', confirmados.every(x => x.status === 200 && x.data.ok === true), JSON.stringify(confirmados));
+    r = await api('GET', '/api/verificar-correo?token=' + tokNuevo);
+    check('…y cada enlace sirve una sola vez', r.status === 400);
+    const viejas = await q("SELECT CorreoVerificado FROM Usuarios WHERE CorreoElectronico IN ('admin@prueba.com', 'antiguo@prueba.com')");
+    check('Las cuentas que ya existían no necesitan confirmar', viejas.length === 2 && viejas.every(v => v.CorreoVerificado === 1));
+
     // ---------------------------------------------------------------- LOGIN
     seccion('2. Inicio de sesión');
-    const login = async (email, password) => api('POST', '/api/login', { body: { email, password } });
     const sesiones = {};
     for (const [k, email, pass] of [['p1', 'prov1@prueba.com', 'Clave123'], ['p2', 'prov2@prueba.com', 'Clave123'], ['e1', 'emp1@prueba.com', 'Clave123'], ['e2', 'emp2@prueba.com', 'Clave123'], ['admin', 'admin@prueba.com', 'Admin123!']]) {
         r = await login(email, pass);
@@ -469,6 +499,213 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     const ganoQuien = aLaVez[0].status === 200 ? 'Completado' : 'Cancelado';
     check('Proveedor completa y comprador cancela a la vez: solo uno gana y el otro recibe 409', aLaVez.filter(x => x.status === 200).length === 1 && aLaVez.filter(x => x.status === 409).length === 1 && await estadoTrato(tratoDoble) === ganoQuien, JSON.stringify(aLaVez.map(x => x.status)));
 
+    // ---------------------------------------------------------------- EDITAR PUBLICACIONES
+    seccion('18. Editar publicaciones');
+    // Un proveedor nuevo, para no gastar el límite de publicaciones por hora del proveedor 2
+    r = await reg('prov3@prueba.com', 'Proveedor', { nombre: 'Curtiembre Tres' });
+    await verificar('prov3@prueba.com');
+    const p3 = (await login('prov3@prueba.com', 'Clave123')).data;
+    check('Proveedor 3 se registra, confirma su correo y entra', p3 && p3.token, JSON.stringify(p3));
+    async function formulario(metodo, ruta, token, campos, archivos = []) {
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(campos)) fd.append(k, String(v));
+        for (const a of archivos) fd.append('fotos', new Blob([a.datos], { type: a.tipo }), a.nombre);
+        const resp = await fetch(B + ruta, { method: metodo, headers: token ? { Authorization: 'Bearer ' + token } : {}, body: fd });
+        let data = null;
+        try { data = await resp.json(); } catch (e) { }
+        return { status: resp.status, data };
+    }
+    r = await formulario('POST', '/api/ofertas', p3.token, { titulo: 'Badana cruda', precio: 90, unidad: 'pie²', distancia: 8, categoriaId: 1 },
+        [{ datos: PNG, tipo: 'image/png', nombre: 'a.png' }, { datos: WEBP, tipo: 'image/webp', nombre: 'b.webp' }]);
+    const ofEditar = r.data.ofertaId;
+    const [fotoA, fotoB] = r.data.fotos;
+    const subEditar = (await q('SELECT SubastaID FROM Subastas WHERE OfertaID = ?', [ofEditar]))[0].SubastaID;
+    const cambios = { titulo: 'Badana curtida al vegetal', precio: 110, unidad: 'pie²', distancia: 5, categoriaId: 2 };
+
+    r = await api('PUT', `/api/ofertas/${ofEditar}`, { body: cambios });
+    check('Editar sin sesión → 401', r.status === 401);
+    r = await api('PUT', `/api/ofertas/${ofEditar}`, { token: e1.token, body: cambios });
+    check('Un emprendedor intenta editar → 403', r.status === 403);
+    r = await api('PUT', `/api/ofertas/${ofEditar}`, { token: p2.token, body: cambios });
+    check('Otro proveedor intenta editarla → 404 (no es suya)', r.status === 404, JSON.stringify(r));
+    r = await api('PUT', '/api/ofertas/999999', { token: p3.token, body: cambios });
+    check('Editar una publicación que no existe → 404', r.status === 404);
+    for (const [nombre, cambio] of [['precio 0', { precio: 0 }], ['sin título', { titulo: ' ' }], ['unidad de 31 letras', { unidad: 'x'.repeat(31) }], ['fotosQuitar que no es lista', { fotosQuitar: { a: 1 } }]]) {
+        r = await api('PUT', `/api/ofertas/${ofEditar}`, { token: p3.token, body: { ...cambios, ...cambio } });
+        check(`Editar con ${nombre} → 400`, r.status === 400, JSON.stringify(r));
+    }
+    r = await api('PUT', `/api/ofertas/${ofEditar}`, { token: p3.token, body: { ...cambios, categoriaId: 9999 } });
+    check('Editar con una categoría que no existe → 400', r.status === 400 && /categoría/.test(r.data.message), JSON.stringify(r));
+    check('…ningún intento rechazado cambió la publicación', (await q('SELECT TituloMaterial FROM Ofertas WHERE OfertaID = ?', [ofEditar]))[0].TituloMaterial === 'Badana cruda');
+
+    r = await formulario('PUT', `/api/ofertas/${ofEditar}`, p3.token, { ...cambios, fotosQuitar: JSON.stringify([fotoA]) }, [{ datos: PNG, tipo: 'image/png', nombre: 'c.png' }]);
+    check('El dueño cambia datos, quita una foto y agrega otra', r.status === 200 && r.data.fotos.length === 2 && r.data.fotos[0] === fotoB && !r.data.fotos.includes(fotoA), JSON.stringify(r));
+    const filaEditada = (await q('SELECT TituloMaterial, Precio, CategoriaID, DistanciaSimuladaKm FROM Ofertas WHERE OfertaID = ?', [ofEditar]))[0];
+    check('…los datos nuevos quedan guardados', filaEditada.TituloMaterial === cambios.titulo && Number(filaEditada.Precio) === 110 && filaEditada.CategoriaID === 2 && filaEditada.DistanciaSimuladaKm === 5, JSON.stringify(filaEditada));
+    check('…la foto quitada se borra del disco', (await fetch(B + fotoA)).status === 404 && (await fetch(B + r.data.fotos[1])).status === 200);
+    const principales = await q('SELECT FotoURL FROM FotosOfertas WHERE OfertaID = ? AND EsPrincipal = 1', [ofEditar]);
+    check('…y la que queda primero pasa a ser la principal (solo una)', principales.length === 1 && principales[0].FotoURL === fotoB, JSON.stringify(principales));
+    const subEditada = (await q('SELECT TituloLote, CategoriaID, PrecioBase FROM Subastas WHERE SubastaID = ?', [subEditar]))[0];
+    check('…su subasta abierta toma el título y la categoría nuevos (el precio no cambia)', subEditada.TituloLote === 'Lote Subasta: Badana curtida al vegetal' && subEditada.CategoriaID === 2 && Number(subEditada.PrecioBase) === 90, JSON.stringify(subEditada));
+
+    r = await formulario('PUT', `/api/ofertas/${ofEditar}`, p3.token, cambios, Array.from({ length: 4 }, (_, i) => ({ datos: PNG, tipo: 'image/png', nombre: `n${i}.png` })));
+    check('Pasar de 5 fotos en total → 400', r.status === 400 && /máximo 5/.test(r.data.message), JSON.stringify(r));
+    check('…y no quedan fotos de más', (await q('SELECT COUNT(*) n FROM FotosOfertas WHERE OfertaID = ?', [ofEditar]))[0].n === 2);
+    r = await api('PUT', `/api/ofertas/${ofEditar}`, { token: admin.token, body: { ...cambios, titulo: 'Badana curtida (revisada)' } });
+    check('El administrador también puede editarla (sin tocar las fotos)', r.status === 200 && r.data.fotos.length === 2, JSON.stringify(r));
+
+    // ---------------------------------------------------------------- PAGINACIÓN Y FILTROS
+    seccion('19. Paginación y filtros');
+    const totalOfertas = (await q('SELECT COUNT(*) n FROM Ofertas'))[0].n;
+    const pag1 = (await api('GET', '/api/ofertas?pagina=1&porPagina=2')).data;
+    const pag2 = (await api('GET', '/api/ofertas?pagina=2&porPagina=2')).data;
+    check('Ofertas por páginas: total, páginas y 2 por página', pag1.total === totalOfertas && pag1.paginas === Math.ceil(totalOfertas / 2) && pag1.datos.length === Math.min(2, totalOfertas) && pag1.pagina === 1, JSON.stringify({ ...pag1, datos: pag1.datos.length }));
+    check('…la página 2 no repite ofertas de la 1', pag2.datos.every(o => !pag1.datos.some(x => x.OfertaID === o.OfertaID)));
+    r = await api('GET', '/api/ofertas?pagina=999&porPagina=2');
+    check('Página que no existe → lista vacía con el total', r.status === 200 && r.data.datos.length === 0 && r.data.total === totalOfertas);
+    r = await api('GET', '/api/ofertas?pagina=abc&porPagina=1000');
+    check('Valores raros se corrigen (página 1, máximo 50 por página)', r.status === 200 && r.data.pagina === 1 && r.data.porPagina === 50);
+    r = await api('GET', '/api/ofertas?pagina=1&q=BADANA');
+    check('Buscar por texto (sin importar mayúsculas)', r.data.total === 1 && r.data.datos[0].OfertaID === ofEditar, JSON.stringify(r.data));
+    r = await api('GET', '/api/ofertas?pagina=1&q=' + encodeURIComponent('%'));
+    check('Un "%" en la búsqueda se toma literal (no trae todo)', r.data.total === 0, JSON.stringify(r.data.total));
+    r = await api('GET', '/api/ofertas?pagina=1&porPagina=50&categoria=2');
+    check('Filtrar por categoría', r.data.total >= 1 && r.data.datos.every(o => o.CategoriaID === 2));
+    r = await api('GET', '/api/ofertas?pagina=1&porPagina=50&maxKm=4');
+    check('Filtrar por distancia máxima', r.data.datos.every(o => o.DistanciaSimuladaKm <= 4) && r.data.total === (await q('SELECT COUNT(*) n FROM Ofertas WHERE DistanciaSimuladaKm <= 4'))[0].n);
+    r = await api('GET', `/api/ofertas?proveedorId=${p3.id}`);
+    check('Sin ?pagina devuelve la lista (filtrada por proveedor) con su nombre', Array.isArray(r.data) && r.data.length === 1 && r.data[0].NombreProveedor === 'Curtiembre Tres' && r.data[0].TotalCalificaciones === 0 && r.data[0].CalificacionProveedor === null, JSON.stringify(r.data));
+    const subastasAbiertas = (await q("SELECT COUNT(*) n FROM Subastas WHERE Estado = 'Activa' AND FechaFin > NOW()"))[0].n;
+    r = await api('GET', '/api/subastas?pagina=1&porPagina=1');
+    check('Subastas por páginas', r.data.total === subastasAbiertas && r.data.datos.length === Math.min(1, subastasAbiertas), JSON.stringify(r.data));
+    r = await api('GET', '/api/subastas?pagina=1&q=badana');
+    check('Buscar subastas por texto', r.data.total === 1 && r.data.datos[0].SubastaID === subEditar, JSON.stringify(r.data));
+    const totalUsuarios = (await q('SELECT COUNT(*) n FROM Usuarios'))[0].n;
+    r = await api('GET', '/api/admin/usuarios?pagina=1&porPagina=2', { token: admin.token });
+    check('Admin: usuarios por páginas', r.data.total === totalUsuarios && r.data.datos.length === 2, JSON.stringify(r.data && r.data.total));
+    r = await api('GET', '/api/admin/usuarios?pagina=1&buscar=prov3', { token: admin.token });
+    check('Admin: buscar usuarios por correo', r.data.total === 1 && r.data.datos[0].UsuarioID === p3.id);
+    r = await api('GET', '/api/admin/usuarios?pagina=1', { token: p3.token });
+    check('…un proveedor no puede listar usuarios → 403', r.status === 403);
+
+    // ---------------------------------------------------------------- MENSAJES NO LEÍDOS
+    seccion('20. Mensajes no leídos');
+    r = await api('GET', '/api/chat/no-leidos');
+    check('Contador sin sesión → 401', r.status === 401);
+    const noLeidosAntes = (await api('GET', '/api/chat/no-leidos', { token: e1.token })).data;
+    await api('POST', '/api/chat/enviar', { token: p3.token, body: { destinatarioId: e1.id, texto: '¿Le interesa la badana?' } });
+    await api('POST', '/api/chat/enviar', { token: p3.token, body: { destinatarioId: e1.id, texto: 'Tengo 40 pies' } });
+    r = await api('GET', '/api/chat/no-leidos', { token: e1.token });
+    check('El emprendedor tiene 2 mensajes sin leer del proveedor 3', r.data.porContacto[p3.id] === 2 && r.data.total === noLeidosAntes.total + 2, JSON.stringify([noLeidosAntes, r.data]));
+    r = await api('GET', '/api/chat/contactos', { token: e1.token });
+    check('…en sus contactos aparece primero alguien con mensajes sin leer, y el proveedor 3 con 2', r.data[0].NoLeidos > 0 && r.data.find(c => c.UsuarioID === p3.id).NoLeidos === 2, JSON.stringify(r.data.slice(0, 3)));
+    await api('GET', `/api/chat/mensajes?destinatarioId=${p3.id}`, { token: p2.token });
+    check('Que otra persona abra SU chat con el proveedor 3 no los marca leídos', (await api('GET', '/api/chat/no-leidos', { token: e1.token })).data.porContacto[p3.id] === 2);
+    r = await api('GET', `/api/chat/mensajes?destinatarioId=${p3.id}`, { token: e1.token });
+    check('Al abrir la conversación se ven los 2 mensajes', r.status === 200 && r.data.length === 2);
+    r = await api('GET', '/api/chat/no-leidos', { token: e1.token });
+    check('…y quedan leídos (el contador baja)', !r.data.porContacto[p3.id] && r.data.total === noLeidosAntes.total, JSON.stringify(r.data));
+    r = await api('GET', `/api/chat/mensajes?destinatarioId=${e1.id}`, { token: p3.token });
+    check('El proveedor 3 ve sus mensajes como "Visto"', r.data.length === 2 && r.data.every(m => m.EsLeido === true), JSON.stringify(r.data));
+
+    // ---------------------------------------------------------------- CALIFICACIONES
+    seccion('21. Calificaciones de los tratos');
+    const calificar = (sesion, id, body) => api('POST', `/api/tratos/${id}/calificacion`, { token: sesion && sesion.token, body });
+    r = await calificar(null, tratoId, { puntuacion: 5 });
+    check('Calificar sin sesión → 401', r.status === 401);
+    r = await calificar(perdedor, tratoId, { puntuacion: 5 });
+    check('Alguien que no es parte del trato → 404', r.status === 404);
+    for (const mala of [0, 6, 4.5, 'cinco', null]) {
+        r = await calificar(ganador, tratoId, { puntuacion: mala });
+        check(`Puntuación ${JSON.stringify(mala)} → 400`, r.status === 400, JSON.stringify(r));
+    }
+    r = await calificar(ganador, tratoCancelar, { puntuacion: 3 });
+    check('Un trato cancelado no se califica → 409', r.status === 409 && /completado/.test(r.data.message), JSON.stringify(r));
+    r = await calificar(ganador, tratoId, { puntuacion: 4, comentario: '  Buen cuero, entrega puntual ' + 'x'.repeat(400) });
+    check('El comprador califica al proveedor con 4 estrellas', r.status === 201 && r.data.calificadoId === p1.id, JSON.stringify(r));
+    const filaCal = (await q('SELECT Puntuacion, Comentario FROM Calificaciones WHERE TratoID = ? AND AutorID = ?', [tratoId, ganador.id]))[0];
+    check('…el comentario se guarda recortado a 300 letras', filaCal.Puntuacion === 4 && filaCal.Comentario.startsWith('Buen cuero') && filaCal.Comentario.length === 300, JSON.stringify(filaCal).slice(0, 120));
+    check('…y el proveedor recibe un aviso en el chat', /4 de 5 estrellas/.test(await ultimoMensaje(ganador.id, p1.id)));
+    r = await calificar(ganador, tratoId, { puntuacion: 1 });
+    check('Calificar dos veces el mismo trato → 409', r.status === 409 && /Ya calificaste/.test(r.data.message));
+    r = await calificar(p1, tratoId, { puntuacion: 5 });
+    check('El proveedor también califica al comprador', r.status === 201 && r.data.calificadoId === ganador.id, JSON.stringify(r));
+    r = await api('GET', '/api/tratos', { token: ganador.token });
+    const tratoCalificado = r.data.find(t => t.id === tratoId);
+    check('/api/tratos muestra mi calificación y la que me dieron', tratoCalificado.miCalificacion === 4 && tratoCalificado.suCalificacion === 5, JSON.stringify(tratoCalificado));
+    r = await api('GET', `/api/usuarios/${p1.id}/reputacion`, { token: e1.token });
+    check('Reputación del proveedor: promedio 4 de 1 calificación, con el comentario', r.status === 200 && r.data.promedio === 4 && r.data.total === 1 && r.data.ultimas[0].comentario.startsWith('Buen cuero'), JSON.stringify(r.data).slice(0, 200));
+    r = await api('GET', `/api/usuarios/${p1.id}/reputacion`);
+    check('…ver la reputación pide sesión (401)', r.status === 401);
+    r = await api('GET', `/api/ofertas?proveedorId=${p1.id}`);
+    check('Las ofertas del proveedor muestran su calificación en el Mercado', r.data.length >= 1 && r.data.every(o => o.CalificacionProveedor === 4 && o.TotalCalificaciones === 1), JSON.stringify(r.data.map(o => [o.CalificacionProveedor, o.TotalCalificaciones])));
+    r = await api('GET', '/api/dashboard', { token: p1.token });
+    check('El dashboard muestra "Mi calificación"', r.data.miActividad.miCalificacion === 4 && r.data.miActividad.misCalificaciones === 1, JSON.stringify(r.data.miActividad));
+
+    // ---------------------------------------------------------------- AVISOS AL CANCELAR SUBASTAS
+    seccion('22. Avisar a quienes pujaron si se cancela una subasta');
+    r = await api('POST', '/api/ofertas', { token: p3.token, body: { titulo: 'Hilo encerado 1mm', precio: 40, unidad: 'rollo', distancia: 3, categoriaId: 9 } });
+    const ofHilo = r.data.ofertaId;
+    const subHilo = (await q('SELECT SubastaID FROM Subastas WHERE OfertaID = ?', [ofHilo]))[0].SubastaID;
+    const pujaHilo1 = await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subHilo, montoPuja: 45 } });
+    const pujaHilo2 = await api('POST', '/api/pujas', { token: e2.token, body: { subastaId: subHilo, montoPuja: 50 } });
+    const pujaHilo3 = await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subHilo, montoPuja: 55 } });
+    check('Dos emprendedores pujan (uno de ellos dos veces)', [pujaHilo1, pujaHilo2, pujaHilo3].every(x => x.status === 200));
+    r = await api('DELETE', `/api/admin/ofertas/${ofHilo}`, { token: admin.token });
+    check('El admin retira la publicación: avisa a las 2 personas que pujaron', r.status === 200 && r.data.pujadoresAvisados === 2 && /Avisamos por el chat a 2/.test(r.data.message), JSON.stringify(r));
+    const avisoE1 = await q('SELECT ContenidoTexto FROM MensajesChat WHERE RemitenteID = ? AND DestinatarioID = ? AND ContenidoTexto LIKE ?', [admin.id, e1.id, '%Hilo encerado 1mm%']);
+    const avisoE2 = await q('SELECT ContenidoTexto FROM MensajesChat WHERE RemitenteID = ? AND DestinatarioID = ? AND ContenidoTexto LIKE ?', [admin.id, e2.id, '%Hilo encerado 1mm%']);
+    check('…cada una recibe UN mensaje que explica la cancelación', avisoE1.length === 1 && avisoE2.length === 1 && /cancelada por moderación del administrador/.test(avisoE1[0].ContenidoTexto), JSON.stringify(avisoE1));
+    // Para la sección 12: una subasta abierta del proveedor 1 con una puja del emprendedor 1
+    r = await api('POST', '/api/ofertas', { token: p1.token, body: { titulo: 'Suela crepé', precio: 60, unidad: 'par', distancia: 2, categoriaId: 13 } });
+    const subSuela = (await q('SELECT SubastaID FROM Subastas WHERE OfertaID = ?', [r.data.ofertaId]))[0].SubastaID;
+    r = await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subSuela, montoPuja: 65 } });
+    check('El emprendedor 1 puja en una subasta abierta del proveedor 1', r.status === 200, JSON.stringify(r));
+
+    // ---------------------------------------------------------------- CORREOS INVÁLIDOS Y CONFIRMACIÓN
+    seccion('23. Correos inválidos y confirmación por el admin');
+    const roto = await q("INSERT INTO Usuarios (CorreoElectronico, ContrasenaHash, TipoRol) VALUES ('roto@gmail', 'clave_rota', 'Emprendedor')");
+    await q("INSERT INTO PerfilesUsuarios (UsuarioID, NombreRazonSocial, TelefonoWhatsApp, DepartamentoID) VALUES (?, 'Taller Roto', '88882222', 1)", [roto.insertId]);
+    r = await login('roto@gmail', 'clave_rota');
+    check('Una cuenta con correo sin ".com" no puede entrar (400)', r.status === 400);
+    r = await api('GET', '/api/admin/metricas', { token: admin.token });
+    check('Las métricas del admin cuentan los correos inválidos', r.data.correosInvalidos === 1, JSON.stringify(r.data));
+    r = await api('GET', '/api/admin/usuarios?pagina=1&problemas=1', { token: admin.token });
+    check('…y el filtro "con problemas" la muestra marcada como inválida', r.data.datos.some(u => u.UsuarioID === roto.insertId && u.CorreoValido === false), JSON.stringify(r.data.datos));
+    r = await api('PUT', `/api/admin/usuarios/${roto.insertId}/correo`, { token: p3.token, body: { correo: 'roto@gmail.com' } });
+    check('Un proveedor no puede corregir correos → 403', r.status === 403);
+    r = await api('PUT', `/api/admin/usuarios/${roto.insertId}/correo`, { token: admin.token, body: { correo: 'roto@gmail' } });
+    check('Corregir con otro correo inválido → 400', r.status === 400);
+    r = await api('PUT', `/api/admin/usuarios/${roto.insertId}/correo`, { token: admin.token, body: { correo: 'prov2@prueba.com' } });
+    check('Corregir con el correo de otra cuenta → 409', r.status === 409, JSON.stringify(r));
+    r = await api('PUT', '/api/admin/usuarios/999999/correo', { token: admin.token, body: { correo: 'nuevo@prueba.com' } });
+    check('Corregir el correo de un usuario que no existe → 404', r.status === 404);
+    r = await api('PUT', `/api/admin/usuarios/${roto.insertId}/correo`, { token: admin.token, body: { correo: 'roto@gmail.com' } });
+    check('El admin corrige el correo', r.status === 200, JSON.stringify(r));
+    r = await login('roto@gmail.com', 'clave_rota');
+    check('…y la persona ya puede entrar con su contraseña de siempre', r.status === 200, JSON.stringify(r));
+    check('…y ya no quedan correos inválidos', (await api('GET', '/api/admin/metricas', { token: admin.token })).data.correosInvalidos === 0);
+
+    r = await reg('pendiente@prueba.com', 'Emprendedor', { nombre: 'Taller Pendiente' });
+    const pendienteId = (await q("SELECT UsuarioID FROM Usuarios WHERE CorreoElectronico = 'pendiente@prueba.com'"))[0].UsuarioID;
+    check('Las métricas cuentan las cuentas sin confirmar', (await api('GET', '/api/admin/metricas', { token: admin.token })).data.cuentasSinVerificar === 1);
+    r = await api('PUT', `/api/admin/usuarios/${pendienteId}/verificar`, { token: admin.token });
+    check('El admin da por confirmado un correo (si no le llega el enlace)', r.status === 200 && (await login('pendiente@prueba.com', 'Clave123')).status === 200, JSON.stringify(r));
+
+    r = await reg('olvido@prueba.com', 'Emprendedor', { nombre: 'Taller Olvido' });
+    await q("UPDATE Usuarios SET TokenRecuperacion = 'tok-olvido', ExpiracionToken = NOW() + INTERVAL 1 HOUR WHERE CorreoElectronico = 'olvido@prueba.com'");
+    r = await api('POST', '/api/restablecer-password', { body: { token: 'tok-olvido', nuevaContrasena: 'NuevaClave9' } });
+    const filaOlvido = (await q("SELECT CorreoVerificado FROM Usuarios WHERE CorreoElectronico = 'olvido@prueba.com'"))[0];
+    check('Restablecer la contraseña con el enlace del correo también lo confirma', r.status === 200 && filaOlvido.CorreoVerificado === 1 && (await login('olvido@prueba.com', 'NuevaClave9')).status === 200);
+
+    r = await reg('tarde@prueba.com', 'Emprendedor', { nombre: 'Taller Tarde' });
+    await q("UPDATE Usuarios SET ExpiracionVerificacion = NOW() - INTERVAL 1 MINUTE WHERE CorreoElectronico = 'tarde@prueba.com'");
+    r = await verificar('tarde@prueba.com');
+    check('Un enlace de confirmación vencido → 400', r.status === 400);
+    await api('POST', '/api/reenviar-verificacion', { body: { email: 'tarde@prueba.com' } });
+    r = await verificar('tarde@prueba.com');
+    check('…se pide uno nuevo y ese sí funciona', r.status === 200 && (await login('tarde@prueba.com', 'Clave123')).status === 200, JSON.stringify(r));
+
     seccion('12. Eliminar usuarios (admin)');
     r = await api('DELETE', `/api/admin/usuarios/${admin.id}`, { token: admin.token });
     check('Admin no puede eliminarse a sí mismo → 400', r.status === 400);
@@ -479,7 +716,10 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     const restos = (await q('SELECT (SELECT COUNT(*) FROM Pujas WHERE EmprendedorID=?) p, (SELECT COUNT(*) FROM MensajesChat WHERE RemitenteID=? OR DestinatarioID=?) m, (SELECT COUNT(*) FROM PerfilesUsuarios WHERE UsuarioID=?) pf', [e2.id, e2.id, e2.id, e2.id]))[0];
     check('…sin dejar pujas, mensajes ni perfil huérfanos', restos.p === 0 && restos.m === 0 && restos.pf === 0, JSON.stringify(restos));
     r = await api('DELETE', `/api/admin/usuarios/${p1.id}`, { token: admin.token });
-    check('Eliminar proveedor con subastas, pujas recibidas y mensajes', r.status === 200, JSON.stringify(r));
+    check('Eliminar proveedor con subastas, pujas recibidas, calificaciones y mensajes', r.status === 200, JSON.stringify(r));
+    const avisoBaja = (await q('SELECT ContenidoTexto FROM MensajesChat WHERE RemitenteID = ? AND DestinatarioID = ? ORDER BY MensajeID DESC LIMIT 1', [admin.id, e1.id]))[0];
+    check('…y avisó por el chat a quien pujaba en su subasta abierta', r.data.pujadoresAvisados === 1 && /Suela crepé/.test(avisoBaja.ContenidoTexto) && /dada de baja/.test(avisoBaja.ContenidoTexto), JSON.stringify([r.data, avisoBaja]));
+    check('…sin dejar calificaciones huérfanas', (await q('SELECT COUNT(*) n FROM Calificaciones WHERE AutorID = ? OR CalificadoID = ?', [p1.id, p1.id]))[0].n === 0);
     const restosP = (await q('SELECT (SELECT COUNT(*) FROM Subastas WHERE ProveedorID=?) s, (SELECT COUNT(*) FROM Ofertas WHERE ProveedorID=?) o', [p1.id, p1.id]))[0];
     check('…sin dejar subastas ni ofertas huérfanas', restosP.s === 0 && restosP.o === 0, JSON.stringify(restosP));
     r = await api('GET', '/api/chat/contactos', { token: p1.token });

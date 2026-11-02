@@ -416,6 +416,17 @@
                     } else {
                         window.location.href = 'index.html';
                     }
+                } else if (data.verificacionPendiente) {
+                    // Cuenta nueva que todavía no confirmó su correo: se ofrece reenviar el enlace
+                    if (confirm(`${data.message}\n\n¿Quieres que te enviemos un enlace nuevo a ${email}?`)) {
+                        const reenvio = await fetch(`${API_URL}/api/reenviar-verificacion`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email })
+                        });
+                        const datosReenvio = await reenvio.json().catch(() => ({}));
+                        alert(datosReenvio.message || 'Listo. Revisa tu correo.');
+                    }
                 } else {
                     alert(data.message || "Correo o contraseña incorrectos.");
                 }

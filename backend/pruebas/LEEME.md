@@ -1,7 +1,8 @@
 # Pruebas locales de la API
 
 Pruebas de integración que levantan el flujo completo (registro, login, ofertas,
-fotos, subastas, pujas, cierre de subastas, seguimiento de tratos, chat, perfil,
+confirmación del correo, editar y paginar ofertas, fotos, subastas, pujas, cierre de
+subastas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil,
 panel de administrador, restablecer contraseña y límites de intentos) contra una
 base MySQL **local** de pruebas. Nunca usan la base de producción.
 
@@ -46,10 +47,13 @@ prioridad sobre el `.env`, que no se modifica):
 DB_HOST=localhost DB_USER=entrelazados_pruebas DB_PASSWORD=UNA_CLAVE_DE_PRUEBA \
 DB_NAME=entrelazados_pruebas GEMINI_API_KEY=sin-clave JWT_SECRET=secreto-de-pruebas PORT=3055 \
 UPLOADS_DIR=/tmp/uploads_pruebas LIMITE_REGISTRO=40 LIMITE_RECUPERACION=30 LIMITE_LOGIN=30 \
+LIMITE_API=2000 VERIFICAR_CORREO=1 EMAIL_USER= EMAIL_PASS= \
 INTERVALO_CIERRE_SUBASTAS_SEG=3600 node index.js
 ```
 
-Los límites se suben porque las pruebas crean muchas cuentas desde la misma IP. La sección 15
+Los límites se suben porque las pruebas crean muchas cuentas y hacen cientos de peticiones desde la
+misma IP. `VERIFICAR_CORREO=1` obliga a confirmar el correo aunque no haya correo configurado: las
+pruebas leen el enlace de la base de datos (y el servidor lo escribe en su log). La sección 15
 comprueba igual que los límites funcionan: sigue intentando hasta recibir el 429. El cierre de
 subastas se pone cada hora para que las pruebas lo controlen con
 `POST /api/admin/subastas/cerrar-vencidas`. Las fotos de prueba quedan en `UPLOADS_DIR` y se pueden

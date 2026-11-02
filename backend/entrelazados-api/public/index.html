@@ -1142,32 +1142,15 @@
             const radioMaximo = parseInt(document.getElementById('distanceRange').value, 10);
             const departamentoUsuario = localStorage.getItem('userDepartamento') || 'Managua';
 
-            const limpiarTexto = (str) => {
-                return (str || '')
-                    .toLowerCase()
-                    .replace(/&/g, 'y')
-                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                    .trim();
-            };
-
             try {
-                const res = await fetch(`${API_URL}/api/ofertas`);
+                // El servidor filtra y solo cuenta: basta pedir una oferta para saber si hay alguna
+                const filtros = new URLSearchParams({ pagina: 1, porPagina: 1, maxKm: radioMaximo });
+                if (query) filtros.set('q', query);
+                if (categoria && categoria !== 'todos') filtros.set('categoria', categoria);
+                const res = await fetch(`${API_URL}/api/ofertas?${filtros}`);
                 if (!res.ok) throw new Error("Error al obtener ofertas");
 
-                const ofertas = await res.json();
-
-                const queryLimpia = limpiarTexto(query);
-
-                const coincidencia = ofertas.some(oferta => {
-                    const tituloOfertaLimpio = limpiarTexto(oferta.TituloMaterial);
-                    const coincideTexto = queryLimpia === '' || tituloOfertaLimpio.includes(queryLimpia);
-                    const coincideCategoria = categoria === 'todos' || String(oferta.CategoriaID) === categoria;
-
-                    const distanciaOferta = parseInt(oferta.DistanciaSimuladaKm || 0, 10);
-                    const dentroDelRadio = distanciaOferta <= radioMaximo;
-
-                    return coincideTexto && coincideCategoria && dentroDelRadio;
-                });
+                const coincidencia = (await res.json()).total > 0;
 
                 if (coincidencia) {
                     const urlParams = new URLSearchParams();

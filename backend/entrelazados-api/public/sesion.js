@@ -3,11 +3,13 @@
    Agrega automáticamente el token JWT (guardado al iniciar sesión) a todas
    las peticiones /api del sitio. Si el servidor responde 401 (sesión vencida
    o inválida) se cierra la sesión y se vuelve a login.html.
+   También muestra el número de mensajes sin leer junto a los enlaces al chat
+   (se revisa cada 30 segundos mientras la pestaña está visible).
    Debe cargarse en el <head>, antes de los demás scripts de la página.
    ========================================================================== */
 (function () {
     const fetchOriginal = window.fetch.bind(window);
-    const PAGINAS_PUBLICAS = ['login.html', 'unirse.html', 'preview.html', 'restablecer.html'];
+    const PAGINAS_PUBLICAS = ['login.html', 'unirse.html', 'preview.html', 'restablecer.html', 'verificar.html'];
 
     function esApiPropia(url) {
         try {
@@ -45,4 +47,47 @@
         }
         return res;
     };
+
+    // ---------------------------------------------------------------- MENSAJES NO LEÍDOS
+    // Cada enlace a chat.html (menos los del pie de página) lleva un globito con el total.
+    // La página del chat escucha el evento "entrelazados:no-leidos" para marcar cada contacto.
+    const INTERVALO_NO_LEIDOS_MS = 30000;
+
+    function ponerGlobito(enlace, total) {
+        let globo = enlace.querySelector('.globo-no-leidos');
+        if (!total) { if (globo) globo.remove(); return; }
+        if (!globo) {
+            globo = document.createElement('span');
+            globo.className = 'globo-no-leidos';
+            globo.style.cssText = 'display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;' +
+                'background:#c92a2a;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;vertical-align:middle;';
+            enlace.appendChild(globo);
+        }
+        globo.textContent = total > 99 ? '99+' : String(total);
+        globo.title = `${total} mensaje${total === 1 ? '' : 's'} sin leer`;
+    }
+
+    async function actualizarNoLeidos() {
+        let token = null;
+        try { token = localStorage.getItem('token'); } catch (e) { }
+        if (!token || document.hidden) return;
+        try {
+            const res = await window.fetch('/api/chat/no-leidos');
+            if (!res.ok) return;
+            const datos = await res.json();
+            document.querySelectorAll('a[href^="chat.html"]').forEach(enlace => {
+                if (!enlace.closest('footer')) ponerGlobito(enlace, datos.total);
+            });
+            document.dispatchEvent(new CustomEvent('entrelazados:no-leidos', { detail: datos }));
+        } catch (e) { /* sin conexión: se intenta en la siguiente vuelta */ }
+    }
+    window.actualizarNoLeidosEntrelazados = actualizarNoLeidos;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const pagina = window.location.pathname.split('/').pop() || 'preview.html';
+        if (PAGINAS_PUBLICAS.includes(pagina)) return;
+        actualizarNoLeidos();
+        setInterval(actualizarNoLeidos, INTERVALO_NO_LEIDOS_MS);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizarNoLeidos(); });
+    });
 })();
