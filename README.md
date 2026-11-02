@@ -11,17 +11,25 @@ Los proveedores publican sus materiales, y cada publicación abre una subasta. L
 ## Funcionalidades
 
 ### Proveedor
-- Publica materiales con título, precio, unidad y categoría. Cada publicación crea automáticamente una **subasta** con el mismo precio base.
+- Publica materiales con título, precio, unidad, categoría y **hasta 5 fotos**. Las fotos se reducen en el navegador antes de subirlas (una foto de celular de 5 MB queda en unos 400 KB).
+- Cada publicación crea automáticamente una **subasta** de 7 días con el mismo precio base.
 - Elimina sus publicaciones (las subastas y pujas asociadas se borran juntas).
-- Ve su actividad en el dashboard: ofertas, subastas y pujas recibidas.
+- Ve su actividad en el dashboard: ofertas, subastas, pujas recibidas y **subastas vendidas**.
 
 ### Emprendedor
 - **Mercado** con filtros por categoría y radio de cercanía (km), y mapa interactivo.
 - **Subastas**: puja por encima del precio actual. La validación es atómica: dos pujas simultáneas nunca dejan un precio menor.
+- **Subastas ganadas** en el dashboard, con un botón para coordinar la entrega por chat.
 - **Chat** directo con los proveedores.
 
 ### Administrador
 - Métricas de la plataforma, lista de usuarios, suspender o reactivar cuentas, eliminar usuarios o publicaciones y crear categorías.
+
+### Cierre automático de subastas
+Cada minuto el servidor cierra las subastas vencidas. Si hubo pujas, gana la más alta:
+- la subasta pasa a `Finalizada` y el trato queda registrado en `TratosCerrados` (estado `Pendiente`);
+- se abre el chat entre proveedor y ganador con un mensaje automático;
+- ambos reciben un correo (si el correo está configurado). Si no hubo pujas, el proveedor recibe un aviso.
 
 ### Para todos
 - **Dashboard** con 8 indicadores, gráficas (Chart.js), precios de referencia por categoría, subastas en curso y **exportación a Excel** (6 hojas).
@@ -38,7 +46,8 @@ Los proveedores publican sus materiales, y cada publicación abre una subasta. L
 | Frontend | HTML, CSS y JavaScript sin frameworks; Chart.js, ExcelJS, Leaflet, Tabler Icons |
 | Backend | Node.js 22 + Express 5 |
 | Base de datos | MySQL 8 (`mysql2`) |
-| Seguridad | `bcrypt` (contraseñas), `jsonwebtoken` (sesiones), `dotenv` (claves) |
+| Seguridad | `bcrypt` (contraseñas), `jsonwebtoken` (sesiones), `dotenv` (claves), `express-rate-limit` (límite de intentos) |
+| Fotos | `multer` (recibir archivos); se guardan en disco, no en la base de datos |
 | Correo | `nodemailer` (Gmail con contraseña de aplicación u otro SMTP) |
 | IA | `@google/genai` (Gemini) |
 | Producción | VM Ubuntu 24.04 en Azure, PM2 y MySQL en la misma máquina |
@@ -54,7 +63,11 @@ Entrelazados_web/
     ├── package.json              # dependencias (npm install se ejecuta aquí)
     ├── entrelazados-api/
     │   ├── index.js              # servidor Express: API + archivos de public/
-    │   ├── correo.js             # envío de correos (recuperar contraseña)
+    │   ├── correo.js             # envío de correos (recuperación y avisos de subastas)
+    │   ├── limites.js            # límites de intentos (login, registro, Kan...)
+    │   ├── fotos.js              # recibir, validar, guardar y borrar fotos
+    │   ├── subastas.js           # cierre automático de subastas vencidas
+    │   ├── uploads/              # fotos subidas (NO se sube a git; va en los respaldos)
     │   ├── .env.example          # plantilla de variables de entorno
     │   ├── .env                  # claves reales (NO se sube a git)
     │   └── public/               # lo único que ve el navegador
@@ -68,10 +81,15 @@ Entrelazados_web/
     │       └── *.webp, logo.png  # imágenes
     ├── sql/
     │   ├── esquema_mysql.sql     # crea la base completa desde cero
-    │   └── migracion_v7.sql      # actualiza una base existente
+    │   ├── migracion_v7.sql      # rol Administrador
+    │   └── migracion_v8.sql      # fotos en disco y cierre de subastas
+    ├── scripts/
+    │   ├── LEEME.md              # cómo programar los respaldos diarios
+    │   ├── respaldo.sh           # respaldo de MySQL + fotos (rota a los 7 días)
+    │   └── restaurar.sh          # restaurar un respaldo
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
-        ├── pruebas_api.js        # 89 pruebas de integración
+        ├── pruebas_api.js        # 130 pruebas de integración
         ├── cargar_esquema.js
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
@@ -108,7 +126,7 @@ Después carga las tablas y las 15 categorías de materiales (los departamentos 
 mysql -u entrelazados_app -p entrelazadosdb < sql/esquema_mysql.sql
 ```
 
-Si ya tienes una base de una versión anterior, usa `sql/migracion_v7.sql` en lugar del esquema completo.
+Si ya tienes una base de una versión anterior, en lugar del esquema completo aplica las migraciones que te falten, en orden: `sql/migracion_v7.sql` y `sql/migracion_v8.sql`.
 
 ### 3. Configurar el `.env`
 
@@ -125,7 +143,11 @@ cp entrelazados-api/.env.example entrelazados-api/.env
 | `GEMINI_API_KEY` | No | Clave de Google AI Studio para Kan. Sin ella, Kan solo contesta sus preguntas frecuentes predefinidas |
 | `EMAIL_USER`, `EMAIL_PASS` | No | Cuenta de Gmail y [contraseña de aplicación](https://myaccount.google.com/apppasswords) para enviar los correos de recuperación |
 | `EMAIL_HOST`, `EMAIL_PORT` | No | Solo si usas otro servidor SMTP en lugar de Gmail |
-| `APP_URL` | No | Dirección pública del sitio para los enlaces del correo |
+| `APP_URL` | No | Dirección pública del sitio para los enlaces de los correos |
+| `LIMITE_LOGIN`, `LIMITE_REGISTRO`, `LIMITE_KAN_MINUTO`… | No | Cambiar los límites de intentos (valores por defecto en `.env.example`) |
+| `UPLOADS_DIR` | No | Carpeta de las fotos (por defecto `entrelazados-api/uploads`) |
+| `TRUST_PROXY` | No | `1` solo si pones nginx delante, para que los límites vean la IP real |
+| `CORS_ORIGENES` | No | Otros sitios que pueden usar la API. Vacío = solo el propio sitio |
 
 Si falta una variable obligatoria, el servidor no arranca y dice cuál falta. Si no configuras el correo, el enlace de recuperación se escribe en el log del servidor.
 
@@ -156,7 +178,7 @@ node correo.js tu_correo@gmail.com
 
 ## Pruebas
 
-Hay 89 pruebas de integración que recorren registro, login, ofertas, subastas, pujas, chat, perfil, panel de administrador y recuperación de contraseña. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+Hay 130 pruebas de integración que recorren registro, login, ofertas, fotos, subastas, pujas, cierre de subastas, chat, perfil, panel de administrador, recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
@@ -169,6 +191,10 @@ Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/prueb
 - Las rutas usan el usuario del token, **nunca un id enviado por el navegador**. Solo los proveedores publican y solo los emprendedores pujan.
 - **Consultas SQL parametrizadas** contra inyección SQL, y **escape de HTML** contra XSS.
 - Recuperación de contraseña: 1 solicitud por minuto por correo, la misma respuesta exista o no la cuenta, y enlace de un solo uso.
+- **Límites de intentos**: 10 logins fallidos cada 15 min por IP, 5 cuentas por hora, 5 recuperaciones cada 15 min, y Kan con 10 preguntas por minuto y 150 al día por usuario. Al pasarse, responde 429 con el tiempo de espera.
+- **Kan** solo responde con sesión iniciada y toma el rol del token, así nadie de fuera gasta la cuota de Gemini.
+- **Fotos**: máximo 5 por oferta y 5 MB cada una. El tipo real se comprueba por el contenido del archivo (no por la extensión) y el nombre lo pone el servidor.
+- **CORS cerrado**: la API solo acepta peticiones de las páginas del propio sitio.
 - Solo la carpeta `public/` es accesible desde el navegador.
 
 ---
@@ -185,15 +211,17 @@ Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer <token>` 
 | GET | `/api/validar-token-recuperacion` | Comprobar si un enlace sigue vigente |
 | POST | `/api/restablecer-password` | Guardar la nueva contraseña |
 | GET | `/api/ofertas`, `/api/subastas`, `/api/categorias`, `/api/estadisticas` | Datos públicos del mercado |
-| POST | `/api/ofertas` 🔒 | Publicar material (proveedor) |
+| POST | `/api/ofertas` 🔒 | Publicar material (proveedor). JSON, o `multipart/form-data` con hasta 5 archivos en `fotos` |
 | DELETE | `/api/ofertas/:id` 🔒 | Eliminar una publicación propia |
 | POST | `/api/pujas` 🔒 | Pujar en una subasta (emprendedor) |
 | GET | `/api/chat/contactos`, `/api/chat/mensajes` 🔒 | Conversaciones propias |
 | POST | `/api/chat/enviar` 🔒 | Enviar un mensaje |
-| POST | `/api/chat/ia` | Preguntar a Kan |
+| POST | `/api/chat/ia` 🔒 | Preguntar a Kan |
+| GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas |
 | GET | `/api/perfil/:id` 🔒 | Perfil propio (o cualquiera si eres admin) |
 | GET | `/api/dashboard` 🔒 | Datos del dashboard según el rol |
 | GET/PUT/DELETE/POST | `/api/admin/...` 🔒 | Panel de administrador (solo admin) |
+| POST | `/api/admin/subastas/cerrar-vencidas` 🔒 | Cerrar ya las subastas vencidas, sin esperar al minuto (solo admin) |
 
 ---
 
@@ -223,6 +251,12 @@ Si un cambio trae un archivo nuevo en `sql/`, aplícalo antes de reiniciar:
 ```bash
 mysql -u entrelazados_app -p entrelazadosdb < backend/sql/<archivo>.sql
 ```
+
+### Respaldos
+
+`backend/scripts/respaldo.sh` guarda cada día la base de datos y las fotos en `~/respaldos/entrelazados` y conserva 7 días. Cómo programarlo con `cron` y cómo restaurar: [`backend/scripts/LEEME.md`](backend/scripts/LEEME.md).
+
+> Las fotos viven en `backend/entrelazados-api/uploads/` en la VM: `git pull` no las toca, pero si se pierde la VM solo quedan las de los respaldos.
 
 ---
 

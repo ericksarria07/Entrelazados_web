@@ -7,6 +7,9 @@ const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
 const { crearServicioCorreo } = require('./correo');
+const limites = require('./limites');
+const fotos = require('./fotos');
+const { crearCierreSubastas } = require('./subastas');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { GoogleGenAI } = require('@google/genai');
@@ -23,12 +26,23 @@ const BCRYPT_RONDAS = 10;
 
 const app = express();
 
-// CONFIGURACIÓN DE CORS
-app.use(cors());
+// PROXY: si algún día se pone nginx delante, TRUST_PROXY=1 en el .env para que
+// req.ip sea la IP real del visitante (y no la de nginx) en los límites de intentos.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 
-// PARSEO DE PETICIONES JSON
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// CORS: las páginas salen de este mismo servidor, así que no hace falta abrir
+// la API a otros sitios. Si se necesitara, se listan en CORS_ORIGENES (separados por coma).
+const origenesPermitidos = (process.env.CORS_ORIGENES || '').split(',').map(o => o.trim()).filter(Boolean);
+if (origenesPermitidos.length > 0) {
+    app.use(cors({ origin: origenesPermitidos }));
+}
+
+// PARSEO DE PETICIONES JSON (las fotos viajan aparte como archivos, ver fotos.js)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
+
+// Límite general de peticiones a la API por IP (ver limites.js)
+app.use('/api', limites.api);
 
 // INICIALIZACIÓN SEGURA DE GEMINI API
 let ai = null;
@@ -80,6 +94,15 @@ if (!correo.configurado) {
         else console.error(`❌ El correo de recuperación NO funciona: ${motivo}`);
     });
 }
+
+// CIERRE AUTOMÁTICO DE SUBASTAS VENCIDAS (ver subastas.js)
+const cierreSubastas = crearCierreSubastas({
+    db,
+    correo,
+    urlBase: (process.env.APP_URL || '').replace(/\/+$/, '') || null
+});
+const intervaloCierre = Number(process.env.INTERVALO_CIERRE_SUBASTAS_SEG);
+cierreSubastas.iniciar(Number.isInteger(intervaloCierre) && intervaloCierre >= 10 ? intervaloCierre : 60);
 
 /* ==========================================================================
    MIDDLEWARE DE VERIFICACIÓN DE ROL ADMINISTRADOR
@@ -143,14 +166,18 @@ const verificarAdmin = [
 
 // RUTA DE PRUEBA DE SALUD DE LA API
 app.get('/api/ping', (req, res) => {
-    res.json({ status: 'ok', message: 'API operando en SmarterASP.NET' });
+    res.json({ status: 'ok', message: 'API de EntreLazados operando.' });
 });
 
 /* ==========================================================================
    ENDPOINT PARA LA IA DE KAN (RANDAL) - CON SOPORTE ADMIN
+   Requiere sesión: así cada pregunta cuenta para un usuario concreto y nadie
+   puede gastar la cuota de Gemini desde fuera de la plataforma.
    ========================================================================== */
-app.post('/api/chat/ia', (req, res) => {
-    const { mensajeUsuario, rolUsuario } = req.body;
+app.post('/api/chat/ia', verificarToken, limites.kanMinuto, limites.kanDia, (req, res) => {
+    const { mensajeUsuario } = req.body;
+    // El rol sale de la sesión, no de lo que diga el navegador
+    const rolUsuario = req.usuario.rol;
 
     if (typeof mensajeUsuario !== 'string' || !mensajeUsuario.trim()) {
         return res.status(400).json({ error: "El mensaje del usuario es obligatorio." });
@@ -304,7 +331,7 @@ ${listaSubastasTexto}
 });
 
 // RUTA PARA REGISTRAR USUARIOS
-app.post('/registro', (req, res) => {
+app.post('/registro', limites.registro, (req, res) => {
     const {
         nombre,
         email,
@@ -475,7 +502,7 @@ app.post('/registro', (req, res) => {
 });
 
 // RUTA DE LOGIN (INCLUYE SOPORTE PARA ESTADO Y ROL ADMIN)
-app.post('/api/login', (req, res) => {
+app.post('/api/login', limites.login, (req, res) => {
     const { email, password, contrasena } = req.body;
     const emailLimpio = email ? email.trim() : '';
     const passIngresada = password || contrasena;
@@ -558,7 +585,7 @@ function ocultarCorreo(correo) {
     return `${visible}@${dominio}`;
 }
 
-app.post('/api/solicitar-recuperacion', async (req, res) => {
+app.post('/api/solicitar-recuperacion', limites.recuperacion, async (req, res) => {
     const emailLimpio = typeof req.body.email === 'string' ? req.body.email.trim() : '';
 
     if (!emailLimpio || !REGEX_EMAIL.test(emailLimpio)) {
@@ -626,7 +653,7 @@ app.get('/api/validar-token-recuperacion', async (req, res) => {
     }
 });
 
-app.post('/api/restablecer-password', (req, res) => {
+app.post('/api/restablecer-password', limites.recuperacion, (req, res) => {
     const { token, nuevaContrasena } = req.body;
 
     if (!token || !nuevaContrasena) {
@@ -669,132 +696,162 @@ app.post('/api/restablecer-password', (req, res) => {
 });
 
 // RUTAS PARA OFERTAS
-app.get('/api/ofertas', (req, res) => {
-    const query = `
-        SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos, c.NombreCategoria 
-        FROM Ofertas o
-        JOIN CategoriasMateriales c ON o.CategoriaID = c.CategoriaID
-    `;
 
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error("❌ Error en GET /api/ofertas:", err.message);
-            return res.status(500).json([]);
-        }
+// Las fotos nuevas están en la tabla FotosOfertas (archivos en disco, ver fotos.js).
+// Las ofertas antiguas guardaban sus fotos como texto JSON en Ofertas.Fotos:
+// se siguen mostrando mientras no tengan fotos en la tabla.
+const leerFotosAntiguas = (valor) => {
+    try {
+        const lista = valor ? JSON.parse(valor) : [];
+        return Array.isArray(lista) ? lista.filter(f => typeof f === 'string') : [];
+    } catch (e) { return []; }
+};
 
-        const leerFotos = (valor) => {
-            try { return valor ? JSON.parse(valor) : []; } catch (e) { return []; }
-        };
-        const ofertasFormateadas = (results || []).map(oferta => ({
+// Direcciones de las fotos (en disco) de las ofertas indicadas, por OfertaID
+async function urlsDeFotos(ofertaIds) {
+    if (!ofertaIds.length) return new Map();
+    const [filas] = await db.promise().query(
+        'SELECT OfertaID, FotoURL FROM FotosOfertas WHERE OfertaID IN (?) ORDER BY EsPrincipal DESC, FotoID',
+        [ofertaIds]
+    );
+    const mapa = new Map();
+    for (const f of filas) {
+        if (!mapa.has(f.OfertaID)) mapa.set(f.OfertaID, []);
+        mapa.get(f.OfertaID).push(f.FotoURL);
+    }
+    return mapa;
+}
+
+app.get('/api/ofertas', async (req, res) => {
+    try {
+        const [ofertas] = await db.promise().query(`
+            SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos, c.NombreCategoria
+            FROM Ofertas o
+            JOIN CategoriasMateriales c ON o.CategoriaID = c.CategoriaID
+        `);
+        const fotosPorOferta = await urlsDeFotos(ofertas.map(o => o.OfertaID));
+        res.json(ofertas.map(oferta => ({
             ...oferta,
-            Fotos: leerFotos(oferta.Fotos)
-        }));
-
-        res.json(ofertasFormateadas);
-    });
+            Fotos: fotosPorOferta.get(oferta.OfertaID) || leerFotosAntiguas(oferta.Fotos)
+        })));
+    } catch (err) {
+        console.error("❌ Error en GET /api/ofertas:", err.message);
+        res.status(500).json([]);
+    }
 });
 
-app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), (req, res) => {
-    const { titulo, precio, unidad, distancia, categoriaId, fotos } = req.body;
+// Acepta JSON (sin fotos) o multipart/form-data con hasta 5 archivos en el campo "fotos"
+app.post('/api/ofertas', verificarToken, soloRoles('proveedor'), limites.fotos, fotos.recibirFotos, async (req, res) => {
+    const { titulo, precio, unidad, distancia, categoriaId } = req.body;
     // El proveedor es SIEMPRE el usuario de la sesión, nunca el que envíe el navegador
     const proveedorId = req.usuario.id;
+    const archivos = req.files || [];
+    const tituloLimpio = typeof titulo === 'string' ? titulo.trim() : '';
 
-    if (!titulo || !precio || !unidad || !categoriaId) {
+    if (!tituloLimpio || !precio || !unidad || !categoriaId) {
         return res.status(400).json({ message: "Por favor, llena todos los campos obligatorios." });
     }
-
+    if (tituloLimpio.length > 120) {
+        return res.status(400).json({ message: "El título puede tener como máximo 120 caracteres." });
+    }
     if (!(Number(precio) > 0)) {
         return res.status(400).json({ message: "El precio debe ser un número mayor que 0." });
     }
+    const errorFotos = fotos.validarFotos(archivos);
+    if (errorFotos) {
+        return res.status(400).json({ message: errorFotos });
+    }
 
-    db.getConnection((errConn, connection) => {
-        if (errConn) {
-            return res.status(500).json({ message: "Error al conectar con la base de datos." });
+    // Primero se guardan los archivos; si la base de datos falla, se borran
+    let urls = [];
+    let conn;
+    try {
+        urls = await fotos.guardarFotos(archivos);
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        const [oferta] = await conn.query(
+            `INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [proveedorId, tituloLimpio, categoriaId, precio, unidad, Number(distancia) || 0]
+        );
+
+        if (urls.length > 0) {
+            await conn.query(
+                'INSERT INTO FotosOfertas (OfertaID, FotoURL, EsPrincipal) VALUES ?',
+                [urls.map((url, i) => [oferta.insertId, url, i === 0 ? 1 : 0])]
+            );
         }
 
-        connection.beginTransaction((errTx) => {
-            if (errTx) {
-                connection.release();
-                return res.status(500).json({ message: "Error al procesar el servidor." });
-            }
+        const fechaFin = new Date();
+        fechaFin.setDate(fechaFin.getDate() + 7);
+        await conn.query(
+            `INSERT INTO Subastas (ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado)
+             VALUES (?, ?, ?, ?, ?, 'Activa')`,
+            [proveedorId, `Lote Subasta: ${tituloLimpio}`, precio, precio, fechaFin]
+        );
 
-            const fotosJSON = JSON.stringify(fotos || []);
-
-            const queryInsertarOferta = `
-                INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm, Fotos) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `;
-
-            connection.query(queryInsertarOferta, [proveedorId, titulo, categoriaId, precio, unidad, distancia || 0, fotosJSON], (errOferta) => {
-                if (errOferta) {
-                    return connection.rollback(() => {
-                        connection.release();
-                        res.status(500).json({ message: "Error al guardar el material en la base de datos." });
-                    });
-                }
-
-                const fechaFinSimulada = new Date();
-                fechaFinSimulada.setDate(fechaFinSimulada.getDate() + 7);
-
-                const queryInsertarSubasta = `
-                    INSERT INTO Subastas (ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado)
-                    VALUES (?, ?, ?, ?, ?, 'Activa')
-                `;
-
-                const tituloLote = `Lote Subasta: ${titulo}`;
-
-                connection.query(queryInsertarSubasta, [proveedorId, tituloLote, precio, precio, fechaFinSimulada], (errSubasta) => {
-                    if (errSubasta) {
-                        return connection.rollback(() => {
-                            connection.release();
-                            res.status(500).json({ message: "Error al crear la subasta en la base de datos." });
-                        });
-                    }
-
-                    connection.commit((errCommit) => {
-                        if (errCommit) {
-                            return connection.rollback(() => {
-                                connection.release();
-                                res.status(500).json({ message: "Error al asentar los cambios." });
-                            });
-                        }
-                        connection.release();
-                        res.json({ message: "¡Material publicado y lote en subasta activo exitosamente!" });
-                    });
-                });
-            });
+        await conn.commit();
+        res.json({
+            message: "¡Material publicado y lote en subasta activo exitosamente!",
+            ofertaId: oferta.insertId,
+            fotos: urls
         });
-    });
+    } catch (err) {
+        if (conn) await conn.rollback().catch(() => { });
+        await fotos.borrarFotos(urls);
+        console.error("❌ Error al publicar oferta:", err.message);
+        const categoriaInvalida = err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW';
+        res.status(categoriaInvalida ? 400 : 500).json({
+            message: categoriaInvalida ? "La categoría elegida no existe." : "Error al guardar el material en la base de datos."
+        });
+    } finally {
+        if (conn) conn.release();
+    }
 });
 
-app.delete('/api/ofertas/:id', verificarToken, (req, res) => {
-    const ofertaId = req.params.id;
+// Borra una oferta con sus fotos (de la tabla y del disco).
+// Si se indica proveedorId, solo la borra si es de ese proveedor.
+// Devuelve false si no existía o no le pertenece.
+async function eliminarOferta(ofertaId, proveedorId = null) {
+    const soloDelProveedor = proveedorId !== null;
+    const parametros = soloDelProveedor ? [ofertaId, proveedorId] : [ofertaId];
+    const [filasFotos] = await db.promise().query(
+        `SELECT f.FotoURL FROM FotosOfertas f JOIN Ofertas o ON o.OfertaID = f.OfertaID
+         WHERE o.OfertaID = ? ${soloDelProveedor ? 'AND o.ProveedorID = ?' : ''}`,
+        parametros
+    );
+    const [resultado] = await db.promise().query(
+        `DELETE FROM Ofertas WHERE OfertaID = ? ${soloDelProveedor ? 'AND ProveedorID = ?' : ''}`,
+        parametros
+    );   // las filas de FotosOfertas se borran en cascada
+    if (resultado.affectedRows === 0) return false;
+    await fotos.borrarFotos(filasFotos.map(f => f.FotoURL));
+    return true;
+}
 
-    // Un proveedor solo puede borrar sus propias ofertas; el admin puede borrar cualquiera
-    const queryBorrarOferta = req.usuario.esAdmin
-        ? `DELETE FROM Ofertas WHERE OfertaID = ?`
-        : `DELETE FROM Ofertas WHERE OfertaID = ? AND ProveedorID = ?`;
-    const parametros = req.usuario.esAdmin ? [ofertaId] : [ofertaId, req.usuario.id];
-
-    db.query(queryBorrarOferta, parametros, (errOferta, resultOferta) => {
-        if (errOferta) {
-            return res.status(500).json({ message: "Error al remover la oferta." });
-        }
-
-        if (!resultOferta || resultOferta.affectedRows === 0) {
+app.delete('/api/ofertas/:id', verificarToken, async (req, res) => {
+    try {
+        // Un proveedor solo puede borrar sus propias ofertas; el admin puede borrar cualquiera
+        const borrada = await eliminarOferta(req.params.id, req.usuario.esAdmin ? null : req.usuario.id);
+        if (!borrada) {
             return res.status(403).json({ message: "No tienes permiso para eliminar esta oferta o no existe." });
         }
-
         res.json({ success: true, message: "Oferta eliminada correctamente." });
-    });
+    } catch (err) {
+        console.error("❌ Error al eliminar oferta:", err.message);
+        res.status(500).json({ message: "Error al remover la oferta." });
+    }
 });
 
 // RUTAS PARA SUBASTAS Y PUJAS
+// Solo las que siguen abiertas: una vencida desaparece de la lista aunque el
+// cierre automático todavía no haya pasado por ella
 app.get('/api/subastas', (req, res) => {
     const query = `
-        SELECT SubastaID, ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado 
-        FROM Subastas 
-        WHERE Estado = 'Activa'
+        SELECT SubastaID, ProveedorID, TituloLote, PrecioBase, PrecioActual, FechaFin, Estado
+        FROM Subastas
+        WHERE Estado = 'Activa' AND FechaFin > NOW()
     `;
     db.query(query, (err, results) => {
         if (err) {
@@ -1089,6 +1146,12 @@ app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
         ['DELETE FROM Usuarios WHERE UsuarioID = ?', [usuarioIdTarget]]      // perfil, roles, etc. en cascada
     ];
 
+    // Las fotos de sus ofertas se anotan antes, para borrar los archivos al final
+    const sqlFotos = 'SELECT f.FotoURL FROM FotosOfertas f JOIN Ofertas o ON o.OfertaID = f.OfertaID WHERE o.ProveedorID = ?';
+    db.query(sqlFotos, [usuarioIdTarget], (errFotos, filasFotos) => {
+    if (errFotos) return res.status(500).json({ message: "Error al eliminar usuario del sistema." });
+    const urlsFotos = filasFotos.map(f => f.FotoURL);
+
     db.getConnection((errConn, conn) => {
         if (errConn) return res.status(500).json({ message: "Error al conectar con la base de datos." });
 
@@ -1118,6 +1181,7 @@ app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
                     conn.commit((errCommit) => {
                         if (errCommit) return fallar(errCommit);
                         conn.release();
+                        fotos.borrarFotos(urlsFotos);
                         res.json({ success: true, message: "Usuario y sus registros asociados eliminados correctamente." });
                     });
                 });
@@ -1125,24 +1189,58 @@ app.delete('/api/admin/usuarios/:id', verificarAdmin, (req, res) => {
             ejecutar(0);
         });
     });
+    });
 });
 
 // 5. MODERACIÓN DE CONTENIDO: ELIMINAR CUALQUIER OFERTA POR ADMIN
-app.delete('/api/admin/ofertas/:id', verificarAdmin, (req, res) => {
-    const ofertaId = req.params.id;
-
-    const queryBorrarOfertaAdmin = `DELETE FROM Ofertas WHERE OfertaID = ?`;
-
-    db.query(queryBorrarOfertaAdmin, [ofertaId], (err, result) => {
-        if (err) {
-            console.error("❌ Error al moderar oferta:", err.message);
-            return res.status(500).json({ message: "Error al eliminar la publicación." });
-        }
-        if (!result || result.affectedRows === 0) {
+app.delete('/api/admin/ofertas/:id', verificarAdmin, async (req, res) => {
+    try {
+        const borrada = await eliminarOferta(req.params.id);
+        if (!borrada) {
             return res.status(404).json({ message: "La oferta no existe o ya fue eliminada." });
         }
         res.json({ success: true, message: "Publicación eliminada por moderación administrativa." });
-    });
+    } catch (err) {
+        console.error("❌ Error al moderar oferta:", err.message);
+        res.status(500).json({ message: "Error al eliminar la publicación." });
+    }
+});
+
+// 6b. CERRAR AHORA LAS SUBASTAS VENCIDAS (normalmente lo hace solo cada minuto)
+app.post('/api/admin/subastas/cerrar-vencidas', verificarAdmin, async (req, res) => {
+    try {
+        const cerradas = await cierreSubastas.cerrarVencidas();
+        res.json({
+            message: cerradas.length ? `Se cerraron ${cerradas.length} subasta(s) vencida(s).` : 'No había subastas vencidas por cerrar.',
+            cerradas
+        });
+    } catch (err) {
+        console.error('❌ Error al cerrar subastas:', err.message);
+        res.status(500).json({ message: 'No se pudieron cerrar las subastas vencidas.' });
+    }
+});
+
+// MIS TRATOS: subastas que gané (emprendedor) o que vendí (proveedor)
+app.get('/api/tratos', verificarToken, async (req, res) => {
+    try {
+        const [filas] = await db.promise().query(`
+            SELECT t.TratoID AS id, t.TipoOrigen AS origen, t.OrigenID AS origenId,
+                   t.DescripcionResumen AS descripcion, t.MontoTotal AS monto,
+                   t.EstadoTrato AS estado, t.FechaCierre AS fecha,
+                   (t.ProveedorID = ?) AS soyProveedor,
+                   IF(t.ProveedorID = ?, t.EmprendedorID, t.ProveedorID) AS contraparteId,
+                   COALESCE(p.NombreRazonSocial, 'Usuario') AS contraparte
+            FROM TratosCerrados t
+            LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = IF(t.ProveedorID = ?, t.EmprendedorID, t.ProveedorID)
+            WHERE t.ProveedorID = ? OR t.EmprendedorID = ?
+            ORDER BY t.FechaCierre DESC, t.TratoID DESC
+            LIMIT 50
+        `, Array(5).fill(req.usuario.id));
+        res.json(filas.map(t => ({ ...t, monto: Number(t.monto), soyProveedor: !!t.soyProveedor })));
+    } catch (err) {
+        console.error('❌ Error en GET /api/tratos:', err.message);
+        res.status(500).json({ message: 'No se pudieron cargar tus tratos.' });
+    }
 });
 
 // 6. GESTIÓN DE CATEGORÍAS (AGREGAR NUEVAS CATEGORÍAS)
@@ -1301,8 +1399,10 @@ app.get('/api/dashboard', verificarToken, async (req, res) => {
                     (SELECT COUNT(*) FROM Subastas WHERE ProveedorID = ? AND Estado = 'Activa' AND FechaFin > NOW()) AS misSubastasActivas,
                     (SELECT COUNT(*) FROM Pujas pj JOIN Subastas s ON s.SubastaID = pj.SubastaID WHERE s.ProveedorID = ?) AS pujasRecibidas,
                     (SELECT COALESCE(SUM(PrecioActual), 0) FROM Subastas WHERE ProveedorID = ? AND Estado = 'Activa' AND FechaFin > NOW()) AS valorMisSubastas,
-                    (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos
-            `, [yo, yo, yo, yo, yo]);
+                    (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos,
+                    (SELECT COUNT(*) FROM TratosCerrados WHERE ProveedorID = ? AND TipoOrigen = 'Subasta') AS subastasVendidas,
+                    (SELECT COALESCE(SUM(MontoTotal), 0) FROM TratosCerrados WHERE ProveedorID = ? AND TipoOrigen = 'Subasta') AS montoVendido
+            `, [yo, yo, yo, yo, yo, yo, yo]);
             miActividad = { ...miActividad, ...m };
         } else if (req.usuario.rol === 'emprendedor') {
             const [m] = await q(`
@@ -1315,8 +1415,10 @@ app.get('/api/dashboard', verificarToken, async (req, res) => {
                     (SELECT COALESCE(SUM(s.PrecioActual), 0) FROM Subastas s
                        WHERE s.Estado = 'Activa' AND s.FechaFin > NOW()
                          AND s.PrecioActual = (SELECT MAX(MontoPuja) FROM Pujas WHERE SubastaID = s.SubastaID AND EmprendedorID = ?)) AS montoLiderando,
-                    (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos
-            `, [yo, yo, yo, yo, yo]);
+                    (SELECT COUNT(*) FROM MensajesChat WHERE DestinatarioID = ?) AS mensajesRecibidos,
+                    (SELECT COUNT(*) FROM TratosCerrados WHERE EmprendedorID = ? AND TipoOrigen = 'Subasta') AS subastasGanadas,
+                    (SELECT COALESCE(SUM(MontoTotal), 0) FROM TratosCerrados WHERE EmprendedorID = ? AND TipoOrigen = 'Subasta') AS montoGanado
+            `, [yo, yo, yo, yo, yo, yo, yo]);
             miActividad = { ...miActividad, ...m };
         }
 
@@ -1347,6 +1449,16 @@ app.get('/api/dashboard', verificarToken, async (req, res) => {
 // nunca se pueden descargar desde el navegador.
 // La raíz "/" muestra preview.html (igual que en web.config de IIS)
 app.use(express.static(path.join(__dirname, 'public'), { index: 'preview.html' }));
+
+// Fotos subidas por los proveedores (fuera de public/ y fuera de git, ver fotos.js).
+// Los nombres son aleatorios y nunca cambian, así que el navegador puede guardarlas en caché.
+app.use('/uploads', express.static(fotos.CARPETA_UPLOADS, {
+    index: false,
+    dotfiles: 'deny',
+    maxAge: '30d',
+    immutable: true,
+    setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff')
+}));
 
 // Rutas de API inexistentes
 app.use('/api', (req, res) => {

@@ -1375,7 +1375,7 @@
                 const data = await res.json();
 
                 cambiarBannerKan('respondiendo');
-                agregarMsgBot(data.respuesta || data.error);
+                agregarMsgBot(data.respuesta || data.error || data.message);
 
                 setTimeout(() => {
                     cambiarBannerKan('dudando');

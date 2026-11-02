@@ -976,6 +976,13 @@
                     </div>
                 `).join('');
 
+                // chat.html?contacto=ID abre directamente esa conversación (p. ej. desde el dashboard)
+                const contactoInicial = Number(new URLSearchParams(window.location.search).get('contacto'));
+                if (contactoInicial) {
+                    const elemento = document.getElementById(`contacto-${contactoInicial}`);
+                    if (elemento) elemento.click();
+                }
+
             } catch (error) {
                 console.error("Error al cargar contactos:", error);
                 listaContactos.innerHTML = htmlKan + `
@@ -1205,7 +1212,7 @@
                     const data = await res.json();
 
                     // 2. Transición de poses de Kan con la respuesta devuelta por la IA
-                    procesarSecuenciaKan(data.respuesta || data.error);
+                    procesarSecuenciaKan(data.respuesta || data.error || data.message);
 
                 } catch (err) {
                     console.error("Error al conectar con Kan IA:", err);

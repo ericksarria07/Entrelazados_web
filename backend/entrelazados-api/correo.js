@@ -71,6 +71,26 @@ function plantillaRecuperacion(enlace, base, logo) {
     </div>`;
 }
 
+// Los textos de los avisos pueden traer datos escritos por usuarios (p. ej. el
+// nombre de un lote), así que se escapan antes de meterlos en el HTML
+const escaparHtml = (texto) => String(texto ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function plantillaAviso({ titulo, parrafos, boton }, logo) {
+    const cuerpo = parrafos.map(p => `<p style="font-size:15px;line-height:1.5;margin:0 0 14px">${escaparHtml(p)}</p>`).join('');
+    const htmlBoton = boton ? `
+        <p style="text-align:center;margin:20px 0 4px">
+          <a href="${escaparHtml(boton.enlace)}" style="display:inline-block;background:#7D381B;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:4px">${escaparHtml(boton.texto)}</a>
+        </p>` : '';
+    return `
+    <div style="background:#f5efe9;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
+      <div style="max-width:480px;margin:0 auto;background:#ffffff;border-top:4px solid #993D24;border-radius:8px;padding:28px 24px;color:#3D170A">
+        ${logo ? '<img src="cid:logo@entrelazados" alt="EntreLazados" height="48" style="display:block;margin:0 auto 16px">' : ''}
+        <h1 style="font-size:20px;text-align:center;margin:0 0 16px">${escaparHtml(titulo)}</h1>
+        ${cuerpo}${htmlBoton}
+      </div>
+    </div>`;
+}
+
 function crearServicioCorreo() {
     const config = leerConfiguracion();
     const transporte = config.configurado ? crearTransporte(config) : null;
@@ -102,6 +122,27 @@ function crearServicioCorreo() {
                         `Para elegir una nueva abre este enlace (vence en 1 hora y solo sirve una vez):\n${enlace}\n\n` +
                         `Si no pediste este cambio, ignora este correo.`,
                     html: plantillaRecuperacion(enlace, base, hayLogo),
+                    attachments: hayLogo ? [{ filename: 'logo.png', path: RUTA_LOGO, cid: 'logo@entrelazados', contentDisposition: 'inline' }] : []
+                });
+            } catch (error) {
+                const e = new Error(explicarError(error));
+                e.original = error;
+                throw e;
+            }
+        },
+
+        // Aviso general (p. ej. cierre de subastas): { asunto, titulo, parrafos: [...], boton: { texto, enlace } | null }
+        async enviarAviso(destino, aviso) {
+            if (!transporte) throw new Error('El correo no está configurado.');
+            const hayLogo = fs.existsSync(RUTA_LOGO);
+            const texto = [aviso.titulo, '', ...aviso.parrafos, ...(aviso.boton ? ['', `${aviso.boton.texto}: ${aviso.boton.enlace}`] : [])].join('\n');
+            try {
+                return await transporte.sendMail({
+                    from: `"EntreLazados" <${config.usuario}>`,
+                    to: destino,
+                    subject: `${aviso.asunto} - EntreLazados`,
+                    text: texto,
+                    html: plantillaAviso(aviso, hayLogo),
                     attachments: hayLogo ? [{ filename: 'logo.png', path: RUTA_LOGO, cid: 'logo@entrelazados', contentDisposition: 'inline' }] : []
                 });
             } catch (error) {

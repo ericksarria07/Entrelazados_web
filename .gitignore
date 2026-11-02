@@ -369,3 +369,6 @@ FodyWeavers.xsd
 
 # Sesiones generadas por las pruebas
 backend/pruebas/sesiones_prueba.json
+
+# Fotos subidas por los usuarios (viven en el servidor y en los respaldos, no en git)
+backend/entrelazados-api/uploads/

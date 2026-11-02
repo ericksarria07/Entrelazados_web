@@ -107,7 +107,9 @@ CREATE TABLE Subastas (
     FechaInicio DATETIME DEFAULT CURRENT_TIMESTAMP,
     FechaFin DATETIME NOT NULL,
     Estado VARCHAR(15) DEFAULT 'Activa' CHECK (Estado IN ('Activa', 'Finalizada')),
-    FOREIGN KEY (ProveedorID) REFERENCES Usuarios(UsuarioID)
+    FOREIGN KEY (ProveedorID) REFERENCES Usuarios(UsuarioID),
+    -- El cierre automático busca cada minuto las subastas activas ya vencidas
+    INDEX idx_subastas_estado_fin (Estado, FechaFin)
 ) ENGINE=InnoDB;
 
 CREATE TABLE Pujas (

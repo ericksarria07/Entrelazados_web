@@ -750,7 +750,7 @@
                     body: JSON.stringify({ mensajeUsuario: texto, rolUsuario: 'administrador' })
                 });
                 const data = await res.json();
-                body.innerHTML += `<div class="kan-msg bot">${data.respuesta}</div>`;
+                body.innerHTML += `<div class="kan-msg bot">${data.respuesta || data.message || ""}</div>`;
             } catch (err) {
                 body.innerHTML += `<div class="kan-msg bot">Lo siento, no pude procesar tu consulta en este momento.</div>`;
             }

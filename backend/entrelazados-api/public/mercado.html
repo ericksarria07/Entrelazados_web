@@ -1248,14 +1248,14 @@
                 <div class="upload-box" onclick="document.getElementById('inputFotos').click()">
                     <i class="ti ti-camera-plus upload-box-icon"></i>
                     <div class="upload-box-text">Tomar o seleccionar fotos del material</div>
-                    <div class="upload-box-subtext">Haz clic aquí para abrir la cámara o galería</div>
+                    <div class="upload-box-subtext">Hasta 5 fotos (JPG, PNG o WebP). Se reducen automáticamente antes de subirlas.</div>
                 </div>
-                <input type="file" id="inputFotos" accept="image/*" capture="environment" multiple style="display: none;" onchange="procesarFotosSeleccionadas(event)">
+                <input type="file" id="inputFotos" accept="image/jpeg,image/png,image/webp" multiple style="display: none;" onchange="procesarFotosSeleccionadas(event)">
                 
                 <div class="photo-preview-grid" id="previewGrid"></div>
             </div>
 
-            <button class="btn-primary" style="width:100%; margin-top: 10px; padding: 12px;" onclick="guardarOferta()">
+            <button class="btn-primary" id="btnGuardarOferta" style="width:100%; margin-top: 10px; padding: 12px;" onclick="guardarOferta()">
                 Guardar y Publicar Oferta ↗
             </button>
         </div>
@@ -1494,37 +1494,73 @@
             }
         };
 
-        function procesarFotosSeleccionadas(event) {
-            const archivos = Array.from(event.target.files);
+        // FOTOS DE LA OFERTA
+        // Cada foto se reduce en el navegador (máx. 1600 px, WebP o JPG) antes de subirla:
+        // una foto de celular de 4-8 MB queda en unos 200-400 KB y sube rápido con datos móviles.
+        const MAX_FOTOS = 5;
+        const LADO_MAXIMO = 1600;
 
-            archivos.forEach(archivo => {
-                const lector = new FileReader();
-                lector.onload = function (e) {
-                    fotosPublicacion.push(e.target.result);
-                    renderizarVistaPreviaFotos();
+        function reducirFoto(archivo) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(archivo);
+                const img = new Image();
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    const escala = Math.min(1, LADO_MAXIMO / Math.max(img.naturalWidth, img.naturalHeight));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(img.naturalWidth * escala);
+                    canvas.height = Math.round(img.naturalHeight * escala);
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob((blob) => {
+                        // Safari antiguo no genera WebP: en ese caso se usa JPG
+                        if (blob && blob.type === 'image/webp') return resolve(blob);
+                        canvas.toBlob((jpg) => jpg ? resolve(jpg) : reject(new Error('No se pudo procesar la foto')), 'image/jpeg', 0.85);
+                    }, 'image/webp', 0.82);
                 };
-                lector.readAsDataURL(archivo);
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('El archivo no es una imagen válida')); };
+                img.src = url;
             });
+        }
 
+        async function procesarFotosSeleccionadas(event) {
+            const archivos = Array.from(event.target.files);
             event.target.value = '';
+
+            const espacio = MAX_FOTOS - fotosPublicacion.length;
+            if (archivos.length > espacio) {
+                alert(espacio > 0
+                    ? `Puedes subir como máximo ${MAX_FOTOS} fotos. Se agregarán solo las primeras ${espacio}.`
+                    : `Ya tienes ${MAX_FOTOS} fotos, el máximo por oferta.`);
+            }
+
+            for (const archivo of archivos.slice(0, Math.max(0, espacio))) {
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(archivo.type)) {
+                    alert(`"${archivo.name}" no es una foto JPG, PNG o WebP.`);
+                    continue;
+                }
+                try {
+                    const blob = await reducirFoto(archivo);
+                    fotosPublicacion.push({ blob, url: URL.createObjectURL(blob) });
+                    renderizarVistaPreviaFotos();
+                } catch (e) {
+                    alert(`No se pudo usar "${archivo.name}": ${e.message}.`);
+                }
+            }
         }
 
         function renderizarVistaPreviaFotos() {
             const grid = document.getElementById('previewGrid');
-            grid.innerHTML = '';
-
-            fotosPublicacion.forEach((foto, index) => {
-                grid.innerHTML += `
+            grid.innerHTML = fotosPublicacion.map((foto, index) => `
                     <div class="photo-preview-item">
-                        <img src="${foto}" alt="Vista previa ${index + 1}">
+                        <img src="${foto.url}" alt="Vista previa ${index + 1}">
                         <div class="photo-preview-remove" onclick="eliminarFoto(${index})">&times;</div>
                     </div>
-                `;
-            });
+                `).join('');
         }
 
         function eliminarFoto(index) {
-            fotosPublicacion.splice(index, 1);
+            const [quitada] = fotosPublicacion.splice(index, 1);
+            if (quitada) URL.revokeObjectURL(quitada.url);
             renderizarVistaPreviaFotos();
         }
 
@@ -1757,28 +1793,36 @@
             if (!proveedorId) { alert("Error de sesión. Inicia sesión nuevamente."); return; }
             if (!titulo || !precio || !unidad || !categoriaId) { alert("Por favor llena todos los campos obligatorios."); return; }
 
-            try {
-                const response = await fetch(`${API_URL}/api/ofertas`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        proveedorId: parseInt(proveedorId),
-                        titulo,
-                        precio: parseFloat(precio),
-                        unidad,
-                        distancia: parseInt(distancia) || 0,
-                        categoriaId: parseInt(categoriaId),
-                        fotos: fotosPublicacion
-                    })
-                });
+            // Los datos y las fotos viajan juntos como formulario (multipart/form-data)
+            const formulario = new FormData();
+            formulario.append('titulo', titulo);
+            formulario.append('precio', parseFloat(precio));
+            formulario.append('unidad', unidad);
+            formulario.append('distancia', parseInt(distancia) || 0);
+            formulario.append('categoriaId', parseInt(categoriaId));
+            fotosPublicacion.forEach((foto, i) => {
+                formulario.append('fotos', foto.blob, `foto-${i + 1}.${foto.blob.type === 'image/webp' ? 'webp' : 'jpg'}`);
+            });
 
+            const boton = document.getElementById('btnGuardarOferta');
+            const textoBoton = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = fotosPublicacion.length ? 'Subiendo fotos…' : 'Publicando…';
+
+            try {
+                const response = await fetch(`${API_URL}/api/ofertas`, { method: 'POST', body: formulario });
                 const resData = await response.json();
                 if (response.ok) {
                     alert("¡Éxito! " + resData.message);
                     cerrarModal();
                     cargarOfertasDesdeBD();
                 } else { alert("Error: " + resData.message); }
-            } catch (error) { alert("Error de red al guardar la oferta."); }
+            } catch (error) {
+                alert("Error de red al guardar la oferta.");
+            } finally {
+                boton.disabled = false;
+                boton.innerHTML = textoBoton;
+            }
         }
 
         async function guardarSubasta() {
@@ -1825,6 +1869,7 @@
             document.getElementById('ofertaUnidad').value = '';
             document.getElementById('ofertaDistancia').value = '';
             document.getElementById('ofertaCategoria').selectedIndex = 0;
+            fotosPublicacion.forEach(f => URL.revokeObjectURL(f.url));
             fotosPublicacion = [];
             renderizarVistaPreviaFotos();
         }
@@ -2044,7 +2089,7 @@
                 const data = await res.json();
 
                 cambiarBannerKan('respondiendo');
-                agregarMsgBot(data.respuesta || data.error);
+                agregarMsgBot(data.respuesta || data.error || data.message);
 
                 setTimeout(() => {
                     cambiarBannerKan('dudando');

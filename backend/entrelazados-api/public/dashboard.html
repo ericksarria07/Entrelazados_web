@@ -536,6 +536,29 @@
         }
 
         .mini-kpi .etq { font-size: 12px; color: #e3cfc4; }
+
+        .mis-tratos { margin-top: 16px; }
+        .mis-tratos[hidden] { display: none; }
+        .mis-tratos h3 { font-size: 13px; color: #f6e3d8; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .trato {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+        }
+        .trato-info { min-width: 0; }
+        .trato-info strong { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .trato-info span { font-size: 12px; color: #e3cfc4; }
+        .trato-lado { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .trato-monto { font-weight: 800; font-size: 15px; white-space: nowrap; }
+        .trato a {
+            color: #3D170A; background: #f6e3d8; text-decoration: none; font-size: 12px; font-weight: 700;
+            padding: 6px 10px; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .trato a:hover { background: #fff; }
+        @media (max-width: 600px) {
+            .trato { flex-direction: column; align-items: flex-start; }
+            .trato-lado { width: 100%; justify-content: space-between; }
+        }
         .mini-kpi .val { font-size: 24px; font-weight: 800; margin-top: 2px; font-family: 'Source Sans 3', sans-serif; }
 
         /* --- Tarjetas y cuadrícula --- */
@@ -1241,6 +1264,10 @@
             <section class="mi-actividad" id="seccionMiActividad" hidden>
                 <h2><i class="ti ti-user-star"></i> <span id="tituloMiActividad">Mi actividad</span></h2>
                 <div class="mini-kpis" id="miActividadGrid"></div>
+                <div class="mis-tratos" id="misTratos" hidden>
+                    <h3><i class="ti ti-gavel"></i> <span id="tituloMisTratos">Mis subastas cerradas</span></h3>
+                    <div id="listaMisTratos"></div>
+                </div>
             </section>
 
             <!-- ACTIVIDAD EN EL TIEMPO + DEPARTAMENTOS -->
@@ -1664,6 +1691,8 @@
                     ['Mis subastas activas', entero(m.misSubastasActivas), m.misSubastasActivas],
                     ['Pujas recibidas', entero(m.pujasRecibidas), m.pujasRecibidas],
                     ['Valor actual de mis lotes', dineroCorto(m.valorMisSubastas), m.valorMisSubastas],
+                    ['Subastas vendidas', entero(m.subastasVendidas), m.subastasVendidas],
+                    ['Monto vendido en subastas', dineroCorto(m.montoVendido), m.montoVendido],
                     ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos]
                 ]
             };
@@ -1674,6 +1703,8 @@
                     ['Subastas en las que participo', entero(m.subastasParticipando), m.subastasParticipando],
                     ['Subastas que voy ganando', entero(m.subastasLiderando), m.subastasLiderando],
                     ['Monto de los lotes que lidero', dineroCorto(m.montoLiderando), m.montoLiderando],
+                    ['Subastas ganadas', entero(m.subastasGanadas), m.subastasGanadas],
+                    ['Monto de subastas ganadas', dineroCorto(m.montoGanado), m.montoGanado],
                     ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos]
                 ]
             };
@@ -1688,6 +1719,34 @@
             document.getElementById('miActividadGrid').innerHTML = info.filas.map(([etq, val]) =>
                 `<div class="mini-kpi"><div class="etq">${etq}</div><div class="val">${val}</div></div>`).join('');
             sec.hidden = false;
+            cargarMisTratos(m.rol);
+        }
+
+        // Subastas que ya cerraron con ganador: el emprendedor ve las que ganó y el
+        // proveedor las que vendió, con acceso directo al chat para coordinar la entrega
+        async function cargarMisTratos(rol) {
+            const caja = document.getElementById('misTratos');
+            try {
+                const res = await fetch(`${API_URL}/api/tratos`);
+                if (!res.ok) throw new Error('sin datos');
+                const tratos = (await res.json()).filter(t => t.origen === 'Subasta').slice(0, 5);
+                if (tratos.length === 0) { caja.hidden = true; return; }
+                document.getElementById('tituloMisTratos').textContent = rol === 'proveedor' ? 'Mis subastas vendidas' : 'Mis subastas ganadas';
+                document.getElementById('listaMisTratos').innerHTML = tratos.map(t => `
+                    <div class="trato">
+                        <div class="trato-info">
+                            <strong>${esc(t.descripcion.replace(/^Subasta ganada:\s*(Lote Subasta:\s*)?/i, ''))}</strong>
+                            <span>${t.soyProveedor ? 'Comprador' : 'Proveedor'}: ${esc(t.contraparte)} · ${esc(haceCuanto(t.fecha))} · ${esc(t.estado)}</span>
+                        </div>
+                        <div class="trato-lado">
+                            <span class="trato-monto">${dinero(t.monto)}</span>
+                            <a href="chat.html?contacto=${Number(t.contraparteId)}"><i class="ti ti-message-circle"></i> Coordinar</a>
+                        </div>
+                    </div>`).join('');
+                caja.hidden = false;
+            } catch (e) {
+                caja.hidden = true;
+            }
         }
 
         /* ==========================================================
@@ -2393,7 +2452,7 @@
                 });
                 const data = await res.json();
                 cambiarBannerKan('respondiendo');
-                agregarMsgBot(data.respuesta || data.error);
+                agregarMsgBot(data.respuesta || data.error || data.message);
                 setTimeout(() => cambiarBannerKan('dudando'), 3000);
             } catch (error) {
                 cambiarBannerKan('respondiendo');
