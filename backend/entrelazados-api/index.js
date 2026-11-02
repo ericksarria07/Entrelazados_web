@@ -69,13 +69,18 @@ db.on('error', (err) => {
 
 console.log('✅ Pool de conexiones MySQL inicializado correctamente.');
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'tu_correo@gmail.com',
-        pass: 'tu_contrasena_de_aplicacion'
-    }
-});
+// CORREO (recuperación de contraseña). Opcional: si EMAIL_USER / EMAIL_PASS
+// no están en el .env, el enlace se escribe en el log del servidor (pm2 logs).
+const CORREO_CONFIGURADO = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+const transporter = CORREO_CONFIGURADO
+    ? nodemailer.createTransport({
+        service: process.env.EMAIL_SERVICE || 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    })
+    : null;
+if (!CORREO_CONFIGURADO) {
+    console.warn('⚠️ EMAIL_USER / EMAIL_PASS no están en el .env: los enlaces de recuperación solo se mostrarán en el log.');
+}
 
 /* ==========================================================================
    MIDDLEWARE DE VERIFICACIÓN DE ROL ADMINISTRADOR
@@ -540,52 +545,109 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// RUTA DE RECUPERACIÓN DE CONTRASEÑA
-app.post('/api/solicitar-recuperacion', (req, res) => {
-    const { email } = req.body;
-    const emailLimpio = email ? email.trim() : '';
+// RUTAS DE RECUPERACIÓN DE CONTRASEÑA
+const MENSAJE_RECUPERACION = "Si el correo está registrado, recibirás un enlace de recuperación en unos minutos.";
+const ESPERA_REENVIO_MS = 60 * 1000;          // 1 correo por minuto por dirección
+const VIGENCIA_TOKEN_MS = 60 * 60 * 1000;     // el enlace vale 1 hora
+const ultimosEnvios = new Map();              // correo -> momento del último envío
+
+// "erick@gmail.com" -> "e***k@gmail.com" (para mostrar sin revelar el correo completo)
+function ocultarCorreo(correo) {
+    const [nombre, dominio] = String(correo).split('@');
+    if (!dominio) return '';
+    const visible = nombre.length <= 2 ? nombre[0] + '***' : nombre[0] + '***' + nombre[nombre.length - 1];
+    return `${visible}@${dominio}`;
+}
+
+function correoRecuperacion(enlace, base) {
+    return `
+    <div style="background:#f5efe9;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
+      <div style="max-width:480px;margin:0 auto;background:#ffffff;border-top:4px solid #993D24;border-radius:8px;padding:28px 24px;color:#3D170A">
+        <img src="${base}/logo.png" alt="EntreLazados" height="48" style="display:block;margin:0 auto 16px">
+        <h1 style="font-size:20px;text-align:center;margin:0 0 12px">Restablece tu contraseña</h1>
+        <p style="font-size:15px;line-height:1.5;margin:0 0 20px">Recibimos una solicitud para cambiar la contraseña de tu cuenta en EntreLazados. Presiona el botón para elegir una nueva:</p>
+        <p style="text-align:center;margin:0 0 20px">
+          <a href="${enlace}" style="display:inline-block;background:#7D381B;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:4px">Restablecer contraseña</a>
+        </p>
+        <p style="font-size:13px;line-height:1.5;color:#6b5b53;margin:0 0 8px">El enlace vence en <strong>1 hora</strong> y solo se puede usar una vez.</p>
+        <p style="font-size:13px;line-height:1.5;color:#6b5b53;margin:0 0 8px">Si el botón no funciona, copia esta dirección en tu navegador:<br><span style="word-break:break-all">${enlace}</span></p>
+        <p style="font-size:13px;line-height:1.5;color:#6b5b53;margin:0">Si no pediste este cambio, ignora este correo: tu contraseña seguirá siendo la misma.</p>
+      </div>
+    </div>`;
+}
+
+app.post('/api/solicitar-recuperacion', async (req, res) => {
+    const emailLimpio = typeof req.body.email === 'string' ? req.body.email.trim() : '';
 
     if (!emailLimpio || !REGEX_EMAIL.test(emailLimpio)) {
         return res.status(400).json({ message: "Por favor proporciona un correo electrónico válido." });
     }
 
-    const sqlBuscar = `SELECT UsuarioID FROM Usuarios WHERE CorreoElectronico = ?`;
+    // Siempre se responde lo mismo, exista o no la cuenta, para no revelar qué correos están registrados
+    const clave = emailLimpio.toLowerCase();
+    const ahora = Date.now();
+    if (ultimosEnvios.has(clave) && ahora - ultimosEnvios.get(clave) < ESPERA_REENVIO_MS) {
+        return res.json({ message: MENSAJE_RECUPERACION });
+    }
+    ultimosEnvios.set(clave, ahora);
+    if (ultimosEnvios.size > 1000) {
+        for (const [c, t] of ultimosEnvios) if (ahora - t > ESPERA_REENVIO_MS) ultimosEnvios.delete(c);
+    }
 
-    db.query(sqlBuscar, [emailLimpio], (err, results) => {
-        if (err || !results || results.length === 0) {
-            return res.json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+    try {
+        const [usuarios] = await db.promise().query(
+            "SELECT UsuarioID, CorreoElectronico FROM Usuarios WHERE CorreoElectronico = ? AND (EstadoCuenta IS NULL OR EstadoCuenta <> 'Suspendido')",
+            [emailLimpio]
+        );
+        if (usuarios.length === 0) return res.json({ message: MENSAJE_RECUPERACION });
+
+        const token = crypto.randomBytes(32).toString('hex');
+        await db.promise().query(
+            'UPDATE Usuarios SET TokenRecuperacion = ?, ExpiracionToken = ? WHERE UsuarioID = ?',
+            [token, new Date(ahora + VIGENCIA_TOKEN_MS), usuarios[0].UsuarioID]
+        );
+
+        // APP_URL (opcional) fija la dirección pública, p. ej. https://entrelazados.com
+        const base = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+        const enlace = `${base}/restablecer.html?token=${token}`;
+
+        if (!CORREO_CONFIGURADO) {
+            console.warn(`🔑 Enlace de recuperación para ${emailLimpio} (correo no configurado): ${enlace}`);
+            return res.json({ message: MENSAJE_RECUPERACION });
         }
 
-        const usuarioId = results[0].UsuarioID;
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiracion = new Date(Date.now() + 3600000);
-
-        const sqlGuardarToken = `
-            UPDATE Usuarios 
-            SET TokenRecuperacion = ?, ExpiracionToken = ? 
-            WHERE UsuarioID = ?
-        `;
-
-        db.query(sqlGuardarToken, [token, expiracion, usuarioId], (errToken) => {
-            if (errToken) {
-                return res.status(500).json({ message: "Error interno al generar enlace." });
-            }
-
-            const hostActual = req.get('host');
-            const enlace = `${req.protocol}://${hostActual}/restablecer.html?token=${token}`;
-
-            const mailOptions = {
-                from: '"EntreLazados" <tu_correo@gmail.com>',
-                to: emailLimpio,
-                subject: 'Recuperación de Contraseña - EntreLazados',
-                html: `<p>Haz clic en el enlace para restablecer tu contraseña: <a href="${enlace}">${enlace}</a></p>`
-            };
-
-            transporter.sendMail(mailOptions, () => {
-                res.json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
-            });
+        transporter.sendMail({
+            from: `"EntreLazados" <${process.env.EMAIL_USER}>`,
+            to: usuarios[0].CorreoElectronico,
+            subject: 'Restablece tu contraseña - EntreLazados',
+            text: `Para elegir una nueva contraseña abre este enlace (vence en 1 hora): ${enlace}\n\nSi no pediste este cambio, ignora este correo.`,
+            html: correoRecuperacion(enlace, base)
+        }, (errCorreo) => {
+            if (errCorreo) console.error(`❌ No se pudo enviar el correo de recuperación a ${emailLimpio}:`, errCorreo.message);
+            else console.log(`📧 Correo de recuperación enviado a ${emailLimpio}`);
         });
-    });
+        res.json({ message: MENSAJE_RECUPERACION });
+    } catch (error) {
+        console.error('Error en solicitar-recuperacion:', error.message);
+        res.status(500).json({ message: "Error interno al generar el enlace. Intenta de nuevo." });
+    }
+});
+
+// Permite a restablecer.html saber, antes de escribir la contraseña, si el enlace sigue vigente
+app.get('/api/validar-token-recuperacion', async (req, res) => {
+    const token = typeof req.query.token === 'string' ? req.query.token : '';
+    if (!/^[a-f0-9]{64}$/i.test(token)) return res.status(400).json({ valido: false });
+    try {
+        const [filas] = await db.promise().query(
+            'SELECT CorreoElectronico, ExpiracionToken FROM Usuarios WHERE TokenRecuperacion = ? AND ExpiracionToken > NOW()',
+            [token]
+        );
+        if (filas.length === 0) return res.status(400).json({ valido: false });
+        res.json({ valido: true, correo: ocultarCorreo(filas[0].CorreoElectronico), expira: filas[0].ExpiracionToken });
+    } catch (error) {
+        console.error('Error en validar-token-recuperacion:', error.message);
+        res.status(500).json({ valido: false });
+    }
 });
 
 app.post('/api/restablecer-password', (req, res) => {
@@ -595,8 +657,12 @@ app.post('/api/restablecer-password', (req, res) => {
         return res.status(400).json({ message: "Datos incompletos para restablecer la contraseña." });
     }
 
-    if (typeof nuevaContrasena !== 'string' || nuevaContrasena.length < 6) {
+    if (typeof token !== 'string' || typeof nuevaContrasena !== 'string' || nuevaContrasena.length < 6) {
         return res.status(400).json({ message: "La contraseña debe tener al menos 6 caracteres." });
+    }
+
+    if (Buffer.byteLength(nuevaContrasena, 'utf8') > 72) {
+        return res.status(400).json({ message: "La contraseña es demasiado larga (máximo 72 caracteres)." });
     }
 
     const sqlVerificarToken = `

@@ -330,7 +330,7 @@
                         <i class="ti ti-lock"></i>
                         <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
                     </div>
-                    <a href="javascript:void(0)" onclick="solicitarRecuperacion()" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                    <a href="restablecer.html" onclick="event.preventDefault(); solicitarRecuperacion()" class="forgot-link">¿Olvidaste tu contraseña?</a>
                 </div>
 
                 <button type="submit" id="btn-submit-login" class="btn-primary">
@@ -428,35 +428,10 @@
             }
         }
 
-        async function solicitarRecuperacion() {
-            let email = document.getElementById('login-email').value.trim();
-
-            if (!email || !REGEX_EMAIL.test(email)) {
-                email = prompt("Por favor, ingresa tu correo electrónico completo (ejemplo: usuario@gmail.com):");
-                if (!email) return;
-                email = email.trim();
-
-                if (!REGEX_EMAIL.test(email)) {
-                    return alert("El correo ingresado no es válido. Debe incluir dominio completo (ej. .com, .ni).");
-                }
-            } else {
-                const confirmar = confirm(`¿Enviar enlace de recuperación a: ${email}?`);
-                if (!confirmar) return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/api/solicitar-recuperacion`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-
-                const data = await response.json();
-                alert(data.message || "Solicitud procesada.");
-            } catch (error) {
-                console.error("Error al solicitar recuperación:", error);
-                alert("Error al conectar con el servidor.");
-            }
+        // Lleva a la página de recuperación, con el correo ya escrito si el usuario lo puso
+        function solicitarRecuperacion() {
+            const email = document.getElementById('login-email').value.trim();
+            window.location.href = 'restablecer.html' + (REGEX_EMAIL.test(email) ? '?email=' + encodeURIComponent(email) : '');
         }
     </script>
 </body>
