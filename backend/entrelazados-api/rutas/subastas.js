@@ -4,13 +4,18 @@
 //   POST /api/subastas    crear una subasta (proveedor)
 //   POST /api/pujas       pujar (emprendedor)
 // El cierre automático de las vencidas está en servicios/subastas.js.
+// Tiempo real: cada puja aceptada se anuncia a todas las páginas ("puja:nueva") y
+// se notifica a quien iba ganando (PujaSuperada, también por correo) y al proveedor.
 // ==========================================================================
 const express = require('express');
 const { enTransaccion } = require('../db');
 const { leerFotosAntiguas, insertarSubasta, esCategoriaInvalida, DIAS_SUBASTA, PRECIO_MAXIMO } = require('../servicios/ofertas');
+const { nombreLote } = require('../servicios/subastas');
 const { ErrorHttp, enteroPositivo, leerPaginacion, respuestaPaginada, patronLike, conRespaldo } = require('../utilidades');
 
-function crearRutasSubastas({ db, ofertas, verificarToken, soloRoles }) {
+const cordobas = (monto) => 'C$' + Number(monto).toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function crearRutasSubastas({ db, ofertas, tiempoReal, notificaciones, verificarToken, soloRoles }) {
     const router = express.Router();
 
     // Solo las que siguen abiertas: una vencida desaparece de la lista aunque el
@@ -95,6 +100,7 @@ function crearRutasSubastas({ db, ofertas, verificarToken, soloRoles }) {
                 if (titulo.length > 120) throw new ErrorHttp(400, "El título puede tener como máximo 120 caracteres.");
                 return insertarSubasta(conn, { proveedorId, ofertaId, categoriaId, titulo, precioBase, dias });
             });
+            tiempoReal.aTodos('subastas:cambio', { subastaId, motivo: 'nueva' });
             res.status(201).json({
                 message: `¡Subasta creada! Recibirá pujas durante ${dias} día${dias === 1 ? '' : 's'}.`,
                 subastaId,
@@ -126,9 +132,18 @@ function crearRutasSubastas({ db, ofertas, verificarToken, soloRoles }) {
                 WHERE SubastaID = ? AND Estado = 'Activa' AND FechaFin > NOW()
                   AND PrecioActual < ? AND ProveedorID <> ?
             `, [montoPuja, subastaId, montoPuja, emprendedorId]);
-            if (resultado.affectedRows === 0) return false;
+            if (resultado.affectedRows === 0) return null;
+            // Quién iba ganando ANTES de esta puja (el UPDATE ya bloqueó la subasta:
+            // otra puja simultánea espera a que esta termine)
+            const [[anterior]] = await conn.query(
+                'SELECT EmprendedorID FROM Pujas WHERE SubastaID = ? ORDER BY MontoPuja DESC, FechaPuja ASC, PujaID ASC LIMIT 1',
+                [subastaId]);
             await conn.query('INSERT INTO Pujas (SubastaID, EmprendedorID, MontoPuja) VALUES (?, ?, ?)', [subastaId, emprendedorId, montoPuja]);
-            return true;
+            const [[subasta]] = await conn.query(
+                `SELECT s.SubastaID, s.ProveedorID, s.TituloLote, s.PrecioActual,
+                        (SELECT COUNT(*) FROM Pujas p WHERE p.SubastaID = s.SubastaID) AS totalPujas
+                 FROM Subastas s WHERE s.SubastaID = ?`, [subastaId]);
+            return { subasta, liderAnterior: anterior ? anterior.EmprendedorID : null };
         });
 
         if (!aceptada) {
@@ -142,6 +157,45 @@ function crearRutasSubastas({ db, ofertas, verificarToken, soloRoles }) {
                 `Tu puja debe ser mayor al precio actual de C$${Number(s.PrecioActual).toLocaleString('es-NI')}.`,
                 { precioActual: Number(s.PrecioActual) });
         }
+
+        // Después de guardar: anunciar el precio nuevo y avisar a los interesados
+        const { subasta, liderAnterior } = aceptada;
+        const lote = nombreLote(subasta.TituloLote);
+        tiempoReal.aTodos('puja:nueva', {
+            subastaId: subasta.SubastaID,
+            precioActual: Number(subasta.PrecioActual),
+            totalPujas: Number(subasta.totalPujas)
+        });
+        const avisos = [{
+            usuarioId: subasta.ProveedorID,
+            tipo: 'PujaRecibida',
+            titulo: `Nueva puja en «${lote}»`,
+            mensaje: `Tu lote ya va en ${cordobas(montoPuja)} (${subasta.totalPujas} puja${Number(subasta.totalPujas) === 1 ? '' : 's'}).`,
+            enlace: 'mercado.html#tab-auctions',
+            referenciaId: subasta.SubastaID,
+            agrupar: true
+        }];
+        if (liderAnterior && liderAnterior !== emprendedorId) {
+            avisos.push({
+                usuarioId: liderAnterior,
+                tipo: 'PujaSuperada',
+                titulo: `Te superaron en «${lote}»`,
+                mensaje: `Alguien ofreció ${cordobas(montoPuja)}. Puja de nuevo antes de que cierre la subasta.`,
+                enlace: 'mercado.html#tab-auctions',
+                referenciaId: subasta.SubastaID,
+                agrupar: true,
+                correo: {
+                    asunto: `Te superaron en la subasta: ${lote}`,
+                    titulo: 'Alguien superó tu puja',
+                    parrafos: [
+                        `En la subasta «${lote}» ahora hay una puja de ${cordobas(montoPuja)}.`,
+                        'Si todavía te interesa el lote, entra al Mercado y vuelve a pujar antes de que cierre.'
+                    ],
+                    textoBoton: 'Ir a las subastas'
+                }
+            });
+        }
+        await notificaciones.enviar(avisos);
 
         res.json({ message: "¡Tu puja ha sido aceptada exitosamente!" });
     });

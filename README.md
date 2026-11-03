@@ -46,6 +46,28 @@ Cada minuto el servidor cierra las subastas vencidas. Si hubo pujas, gana la má
 - se abre el chat entre proveedor y ganador con un mensaje automático;
 - ambos reciben un correo (si el correo está configurado). Si no hubo pujas, el proveedor recibe un aviso.
 
+### Tiempo real
+Las páginas abiertas reciben los cambios al instante (Socket.IO), sin recargar:
+- en el **Mercado**, el precio y el número de pujas de cada subasta cambian solos cuando alguien puja (indicador "En vivo"), y la lista se actualiza cuando se crea, cancela o cierra una subasta;
+- en el **Chat**, los mensajes nuevos aparecen enseguida (antes la página preguntaba cada 2 segundos; ahora eso queda solo de respaldo);
+- el contador de mensajes sin leer del menú se actualiza al llegar cada mensaje.
+
+### Notificaciones
+Una **campana** en el menú de todas las páginas, con el número sin leer. Avisa cuando:
+- **te superan en una puja** (también por correo),
+- tu subasta recibe una puja nueva,
+- **ganas** una subasta, o termina o se cancela una en la que pujaste,
+- termina tu subasta (con o sin ganador),
+- la otra parte cambia el estado de un trato o te **califica**.
+
+Las nuevas aparecen al instante con un aviso flotante. Si ya tienes un aviso sin leer de la misma subasta, se actualiza en vez de repetirse (una "guerra de pujas" no llena la campana). Al hacer clic se marca como leída y lleva a la página correspondiente.
+
+### Reportes
+Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegido (3, 6 o 12 meses):
+- el **proveedor** ve sus ventas, el **emprendedor** sus compras y el **administrador** toda la plataforma;
+- ventas por mes, resultado de las subastas (con ganador, sin pujas, canceladas, en curso), **materiales más pedidos**, **precio promedio por categoría** mes a mes, lotes más disputados y el detalle de los tratos;
+- se exporta a **Excel** (6 hojas) y a **PDF** (con la opción "Guardar como PDF" del navegador; funciona también en el celular).
+
 ### Para todos
 - **Dashboard** con 8 indicadores, gráficas (Chart.js), precios de referencia por categoría, subastas en curso y **exportación a Excel** (6 hojas).
 - **Kan**, el asistente virtual con IA.
@@ -62,6 +84,7 @@ Cada minuto el servidor cierra las subastas vencidas. Si hubo pujas, gana la má
 |---|---|
 | Frontend | HTML, CSS y JavaScript sin frameworks; Chart.js, ExcelJS, Leaflet, Tabler Icons |
 | Backend | Node.js 22 + Express 5 |
+| Tiempo real | Socket.IO (en el mismo servidor y puerto) |
 | Base de datos | MySQL 8 (`mysql2`) |
 | Seguridad | `bcrypt` (contraseñas), `jsonwebtoken` (sesiones), `dotenv` (claves), `express-rate-limit` (límite de intentos) |
 | Fotos | `multer` (recibir archivos); se guardan en disco, no en la base de datos |
@@ -91,13 +114,15 @@ Entrelazados_web/
     │   │   ├── limites.js        # límites de intentos (login, registro, Kan...)
     │   │   └── errores.js        # 404 de la API y manejador central de errores
     │   ├── docs/
-    │   │   └── openapi.yaml      # especificación OpenAPI de las 37 rutas (se ve en /api/docs)
+    │   │   └── openapi.yaml      # especificación OpenAPI de las 41 rutas (se ve en /api/docs)
     │   ├── rutas/                # una por tema, cada una con sus URLs al principio
     │   │   ├── cuentas.js        # registro, login, recuperación y confirmación del correo
     │   │   ├── ofertas.js, subastas.js, chat.js, kan.js, tratos.js
     │   │   ├── usuarios.js       # perfil y reputación
     │   │   ├── publicas.js       # ping, categorías, estadísticas
     │   │   ├── dashboard.js
+    │   │   ├── reportes.js       # ventas, compras y mercado (GET /api/reportes)
+    │   │   ├── notificaciones.js # la campana: ver y marcar como leídas
     │   │   ├── admin.js          # panel de administrador
     │   │   └── documentacion.js  # Swagger UI en /api/docs
     │   ├── servicios/            # lógica que no depende de HTTP
@@ -106,6 +131,8 @@ Entrelazados_web/
     │   │   ├── ofertas.js        # validar, borrar publicaciones y crear su subasta
     │   │   ├── subastas.js       # cierre automático de subastas vencidas
     │   │   ├── tratos.js         # estados de los tratos y calificaciones
+    │   │   ├── notificaciones.js # guardar avisos, empujarlos en tiempo real y por correo
+    │   │   ├── tiempoReal.js     # Socket.IO: quién está conectado y a quién avisar
     │   │   └── kan.js            # respuestas fijas de Kan + Gemini
     │   ├── uploads/              # fotos subidas (NO se sube a git; va en los respaldos)
     │   ├── .env.example          # plantilla de variables de entorno
@@ -115,8 +142,10 @@ Entrelazados_web/
     │       ├── login.html, unirse.html, restablecer.html, verificar.html
     │       ├── index.html        # inicio con sesión
     │       ├── mercado.html, chat.html, perfil.html
-    │       ├── dashboard.html, admin.html
-    │       ├── sesion.js         # token en cada petición /api, mensajes no leídos, esc(), cerrarSesion()
+    │       ├── dashboard.html, reportes.html, admin.html
+    │       ├── panel.css         # estilos del dashboard y de los reportes
+    │       ├── sesion.js         # token en cada /api, tiempo real, mensajes no leídos, esc(), cerrarSesion()
+    │       ├── notificaciones.js # la campana del menú (se carga sola en las páginas con sesión)
     │       ├── kan.js, kan.css   # el asistente Kan (un solo componente para todas las páginas)
     │       ├── comun.css         # estilos que comparten las páginas internas (cabecera, menú)
     │       ├── categorias.js     # llena los <select> de categorías desde la API
@@ -126,7 +155,8 @@ Entrelazados_web/
     │   ├── migracion_v7.sql      # rol Administrador
     │   ├── migracion_v8.sql      # fotos en disco y cierre de subastas
     │   ├── migracion_v9.sql      # subastas ligadas a su publicación, estado Cancelada
-    │   └── migracion_v10.sql     # confirmar correo, calificaciones, mensajes no leídos
+    │   ├── migracion_v10.sql     # confirmar correo, calificaciones, mensajes no leídos
+    │   └── migracion_v12.sql     # notificaciones
     ├── scripts/
     │   ├── LEEME.md              # respaldos, correo y clave de Gemini en la VM
     │   ├── respaldo.sh           # respaldo de MySQL + fotos (rota a los 7 días)
@@ -136,9 +166,9 @@ Entrelazados_web/
     │   └── probar_gemini.js      # comprueba la clave de Gemini (Kan)
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
-        ├── unidad/               # 58 pruebas unitarias (node:test, sin base de datos)
+        ├── unidad/               # 68 pruebas unitarias (node:test, sin base de datos)
         ├── correr_pruebas.js     # npm run test:api: prepara la base de pruebas, levanta el servidor y corre todo
-        ├── pruebas_api.js        # 274 pruebas de integración
+        ├── pruebas_api.js        # 311 pruebas de integración (incluye tiempo real con Socket.IO)
         ├── cargar_esquema.js
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
@@ -195,7 +225,7 @@ Después carga las tablas y las 15 categorías de materiales (los departamentos 
 mysql -u entrelazados_app -p entrelazadosdb < sql/esquema_mysql.sql
 ```
 
-Si ya tienes una base de una versión anterior, en lugar del esquema completo aplica las migraciones que te falten, en orden: `sql/migracion_v7.sql`, `sql/migracion_v8.sql`, `sql/migracion_v9.sql` y `sql/migracion_v10.sql`.
+Si ya tienes una base de una versión anterior, en lugar del esquema completo aplica las migraciones que te falten, en orden: `sql/migracion_v7.sql`, `sql/migracion_v8.sql`, `sql/migracion_v9.sql`, `sql/migracion_v10.sql` y `sql/migracion_v12.sql` (no hay v11).
 
 ### 3. Configurar el `.env`
 
@@ -257,8 +287,8 @@ Hay dos tipos de pruebas:
 
 | | Cuántas | Qué necesitan | Comando (desde `backend/`) |
 |---|---|---|---|
-| **Unitarias** (`pruebas/unidad/`) | 58 | Nada: ni MySQL ni `.env`. Tardan ~1 s | `npm run test:unidad` |
-| **De integración** (`pruebas/pruebas_api.js`) | 274 | La base MySQL de pruebas | `CLAVE_PRUEBAS=... npm run test:api` |
+| **Unitarias** (`pruebas/unidad/`) | 68 | Nada: ni MySQL ni `.env`. Tardan ~1 s | `npm run test:unidad` |
+| **De integración** (`pruebas/pruebas_api.js`) | 311 | La base MySQL de pruebas | `CLAVE_PRUEBAS=... npm run test:api` |
 
 `npm test` corre las dos, una detrás de otra. `npm run test:cobertura` muestra qué porcentaje del código recorren las unitarias.
 
@@ -269,6 +299,7 @@ Las **unitarias** usan el corredor de pruebas que trae Node (`node:test`) y prue
 - el manejador de errores, que no revela detalles de un error inesperado
 - la aplicación Express completa sin MySQL: 404, 401, JSON mal escrito y que el `.env` no se pueda descargar
 - que **cada ruta del código esté documentada** en `openapi.yaml` (y que no sobre ninguna)
+- las notificaciones (agrupar avisos, correo una sola vez) y un servidor **Socket.IO** de verdad: quién puede conectarse y a quién le llega cada evento
 
 Las **de integración** recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
 
@@ -280,7 +311,7 @@ CLAVE_PRUEBAS=la_clave_de_la_base_de_pruebas npm test
 
 ### En GitHub (integración continua)
 
-En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 20 y 22, y las de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
+En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 20 y 22, y las 311 de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
@@ -332,6 +363,9 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | GET | `/api/usuarios/:id/reputacion` 🔒 | Promedio, total y últimas calificaciones recibidas |
 | GET | `/api/perfil/:id` 🔒 | Perfil propio (o cualquiera si eres admin) |
 | GET | `/api/dashboard` 🔒 | Datos del dashboard según el rol |
+| GET | `/api/reportes?meses=3\|6\|12` 🔒 | Reporte de ventas (proveedor), compras (emprendedor) o de la plataforma (admin) |
+| GET | `/api/notificaciones` 🔒 | Las 30 notificaciones más recientes y cuántas faltan por leer |
+| PUT | `/api/notificaciones/:id/leida`, `/api/notificaciones/leidas` 🔒 | Marcar una o todas como leídas |
 | GET/PUT/DELETE/POST | `/api/admin/...` 🔒 | Panel de administrador (solo admin). `GET /api/admin/usuarios?pagina=&buscar=&problemas=1` |
 | PUT | `/api/admin/usuarios/:id/correo` 🔒 | Corregir el correo de una cuenta `{ correo }` (solo admin) |
 | PUT | `/api/admin/usuarios/:id/verificar` 🔒 | Dar por confirmado el correo de una cuenta (solo admin) |

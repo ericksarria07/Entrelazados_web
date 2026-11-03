@@ -65,7 +65,7 @@ function mensajeOfertaBorrada(resultado, base) {
     return texto;
 }
 
-function crearServicioOfertas({ db, cierreSubastas }) {
+function crearServicioOfertas({ db, cierreSubastas, tiempoReal = { aTodos() { } } }) {
     // Direcciones de las fotos (en disco) de las ofertas indicadas: Map(OfertaID -> [url, ...])
     async function urlsDeFotos(ofertaIds) {
         if (!ofertaIds.length) return new Map();
@@ -140,8 +140,8 @@ function crearServicioOfertas({ db, cierreSubastas }) {
         // Después del COMMIT: borrar los archivos y avisar por correo (sin bloquear la respuesta)
         const { urlsFotos, avisos, ...respuesta } = resultado;
         await fotos.borrarFotos(urlsFotos);
-        cierreSubastas.avisarCancelacionPorCorreo(avisos, MOTIVO_MODERACION)
-            .catch(err => console.error('⚠️ Aviso de subasta cancelada no enviado:', err.message));
+        if (respuesta.subastasCanceladas > 0) tiempoReal.aTodos('subastas:cambio', { motivo: 'cancelada' });
+        await cierreSubastas.avisarCancelacion(avisos, MOTIVO_MODERACION);
         return respuesta;
     }
 

@@ -12,6 +12,35 @@ Los scripts leen el `.env` de `entrelazados-api`. Las contraseñas nunca aparece
 
 ---
 
+## Actualizar a la versión 12 (parte 2: tiempo real, notificaciones y reportes)
+
+Trae una tabla nueva (`Notificaciones`) y una dependencia nueva (`socket.io`): esta vez hay que
+aplicar la migración **y** correr `npm install`. No cambia el `.env` ni el puerto: el tiempo real
+usa el mismo puerto 3000 (en `/socket.io`), así que no hay que abrir nada en Azure.
+
+```bash
+cd ~/entrelazados
+bash backend/scripts/respaldo.sh                       # respaldo antes de tocar la base
+git pull origin main
+cd backend && npm install && cd ..
+sudo mysql entrelazadosdb < backend/sql/migracion_v12.sql
+pm2 restart 0 --update-env
+pm2 logs 0 --lines 20 --nostream
+```
+
+En el log debe aparecer `Servidor Backend ejecutándose en el puerto 3000 (con tiempo real en /socket.io)`
+y la migración debe responder `Migración v12 aplicada: tabla Notificaciones lista.` (se puede repetir sin daño).
+
+Para comprobarlo: abre el Mercado en dos navegadores con dos cuentas distintas, ve a **Subastas** y puja
+desde uno; en el otro el precio debe cambiar solo y, si ibas ganando, aparecer el aviso "Te superaron"
+en la campana. La página **Reportes** está en el menú del Dashboard.
+
+> Si algún día se pone nginx delante, hay que permitir WebSocket en `/socket.io`
+> (`proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`).
+> Sin eso la página sigue funcionando, solo que sin tiempo real.
+
+---
+
 ## Actualizar a la versión 12 (parte 1: pruebas y Swagger)
 
 Trae dos dependencias nuevas (`swagger-ui-express` y `yaml`), así que esta vez **sí** hay que

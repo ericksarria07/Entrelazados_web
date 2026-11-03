@@ -34,7 +34,7 @@ function leerFotosQuitar(valor) {
     return lista;
 }
 
-function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
+function crearRutasOfertas({ db, ofertas, tiempoReal, verificarToken, soloRoles }) {
     const router = express.Router();
 
     // Filtros opcionales: ?q=texto&categoria=ID&maxKm=30&proveedorId=ID
@@ -121,6 +121,7 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
                 });
                 return oferta.insertId;
             });
+            tiempoReal.aTodos('subastas:cambio', { motivo: 'nueva' });
             res.json({ message: "¡Material publicado y lote en subasta activo exitosamente!", ofertaId, fotos: urls });
         } catch (err) {
             await fotos.borrarFotos(urls);
@@ -198,6 +199,7 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
 
         await fotos.borrarFotos(resultado.borradas.map(f => f.FotoURL));
         const fotosFinales = (await ofertas.urlsDeFotos([ofertaId])).get(ofertaId) || resultado.antiguasQuedan;
+        if (resultado.subastaActualizada) tiempoReal.aTodos('subastas:cambio', { motivo: 'editada' });
         res.json({
             message: resultado.subastaActualizada
                 ? "Publicación actualizada. Su subasta abierta también muestra el título y la categoría nuevos."

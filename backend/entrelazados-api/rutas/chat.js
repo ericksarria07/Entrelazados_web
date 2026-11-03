@@ -5,13 +5,15 @@
 //   GET  /mensajes    conversación con ?destinatarioId (la marca como leída)
 //   POST /enviar      { destinatarioId, texto }
 // Kan (POST /api/chat/ia) está en rutas/kan.js.
+// Al enviar, el destinatario recibe al instante el evento "chat:mensaje" (tiempo real):
+// su página vuelve a pedir la conversación sin esperar.
 // ==========================================================================
 const express = require('express');
 const { ErrorHttp, conRespaldo } = require('../utilidades');
 
 const LARGO_MAXIMO = 2000;
 
-function crearRutasChat({ db, verificarToken }) {
+function crearRutasChat({ db, tiempoReal, verificarToken }) {
     const router = express.Router();
     router.use(verificarToken);
 
@@ -86,6 +88,9 @@ function crearRutasChat({ db, verificarToken }) {
         }
         await db.query('INSERT INTO MensajesChat (RemitenteID, DestinatarioID, ContenidoTexto) VALUES (?, ?, ?)',
             [remitenteId, destinatarioId, texto]);
+        // También al remitente: así se actualizan sus otras pestañas abiertas
+        tiempoReal.aUsuario([Number(destinatarioId), remitenteId], 'chat:mensaje',
+            { remitenteId, destinatarioId: Number(destinatarioId) });
         res.json({ success: true, message: "Mensaje enviado y guardado." });
     });
 

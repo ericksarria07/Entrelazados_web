@@ -7,7 +7,9 @@
 //   2. si tuvo pujas, gana la más alta: se registra en TratosCerrados
 //      (estado 'Pendiente', porque falta coordinar pago y entrega) y se abre
 //      el chat entre proveedor y ganador con un mensaje automático;
-//   3. se avisa por correo al proveedor y al ganador (si el correo está configurado).
+//   3. se avisa por correo al proveedor y al ganador (si el correo está configurado);
+//   4. se notifica (campana) al ganador, al proveedor y a los demás que pujaron, y
+//      se anuncia a todas las páginas abiertas que la lista de subastas cambió.
 //
 // Todo lo de una subasta va en una transacción con "SELECT ... FOR UPDATE":
 // si el proceso se ejecuta dos veces a la vez, la segunda vez la subasta ya
@@ -44,7 +46,10 @@ async function avisarPujadoresCancelacion(conn, { subastaIds, remitenteId, motiv
     return avisos;
 }
 
-function crearCierreSubastas({ db, correo, urlBase }) {
+const { tiempoRealNulo } = require('./tiempoReal');
+const { notificacionesNulas } = require('./notificaciones');
+
+function crearCierreSubastas({ db, correo, urlBase, tiempoReal = tiempoRealNulo, notificaciones = notificacionesNulas }) {
     let enCurso = false;
 
     // Cierra las subastas vencidas. Devuelve la lista de las que cerró.
@@ -52,6 +57,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
         if (enCurso) return [];   // evita que dos ejecuciones se crucen en el mismo proceso
         enCurso = true;
         const cerradas = [];
+        const participantes = new Map();   // SubastaID -> [EmprendedorID que pujaron]
         const conn = await db.getConnection();
         try {
             const [vencidas] = await conn.query(
@@ -74,6 +80,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
                     );
 
                     await conn.query("UPDATE Subastas SET Estado = 'Finalizada' WHERE SubastaID = ?", [SubastaID]);
+                    const [pujadores] = await conn.query('SELECT DISTINCT EmprendedorID FROM Pujas WHERE SubastaID = ?', [SubastaID]);
 
                     let tratoId = null;
                     if (ganadora) {
@@ -94,6 +101,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
                     }
 
                     await conn.commit();
+                    participantes.set(SubastaID, pujadores.map(p => p.EmprendedorID));
                     cerradas.push({
                         subastaId: SubastaID,
                         lote: nombreLote(subasta.TituloLote),
@@ -116,8 +124,63 @@ function crearCierreSubastas({ db, correo, urlBase }) {
             const conGanador = cerradas.filter(c => c.ganadorId).length;
             console.log(`🔨 Subastas cerradas: ${cerradas.length} (${conGanador} con ganador, ${cerradas.length - conGanador} sin pujas)`);
             avisarPorCorreo(cerradas).catch(err => console.error('⚠️ Error al avisar el cierre de subastas:', err.message));
+            tiempoReal.aTodos('subastas:cambio', { motivo: 'cerrada' });
+            await notificarCierre(cerradas, participantes);
         }
         return cerradas;
+    }
+
+    // Campana y chat en tiempo real para cada subasta cerrada
+    async function notificarCierre(cerradas, participantes) {
+        const avisos = [];
+        for (const c of cerradas) {
+            if (c.ganadorId) {
+                // El mensaje automático del chat va del proveedor al ganador
+                tiempoReal.aUsuario([c.ganadorId, c.proveedorId], 'chat:mensaje', { remitenteId: c.proveedorId, destinatarioId: c.ganadorId });
+                avisos.push({
+                    usuarioId: c.ganadorId, tipo: 'SubastaGanada', referenciaId: c.subastaId,
+                    titulo: `¡Ganaste «${c.lote}»! 🎉`,
+                    mensaje: `Tu puja de ${formatoCordobas(c.monto)} fue la más alta. El proveedor ya te escribió por el chat para coordinar el pago y la entrega.`,
+                    enlace: 'chat.html'
+                }, {
+                    usuarioId: c.proveedorId, tipo: 'SubastaTerminada', referenciaId: c.subastaId,
+                    titulo: `Tu subasta «${c.lote}» tiene ganador`,
+                    mensaje: `Terminó con una puja de ${formatoCordobas(c.monto)}. Coordina el pago y la entrega desde el chat.`,
+                    enlace: 'dashboard.html'
+                });
+                for (const otro of (participantes.get(c.subastaId) || []).filter(id => id !== c.ganadorId)) {
+                    avisos.push({
+                        usuarioId: otro, tipo: 'SubastaTerminada', referenciaId: c.subastaId,
+                        titulo: `Terminó la subasta «${c.lote}»`,
+                        mensaje: `Ganó una puja de ${formatoCordobas(c.monto)}. Puedes buscar otros lotes en el Mercado.`,
+                        enlace: 'mercado.html#tab-auctions'
+                    });
+                }
+            } else {
+                avisos.push({
+                    usuarioId: c.proveedorId, tipo: 'SubastaTerminada', referenciaId: c.subastaId,
+                    titulo: `Tu subasta «${c.lote}» terminó sin pujas`,
+                    mensaje: 'Puedes volver a publicar el material desde el Mercado para abrir una nueva subasta.',
+                    enlace: 'mercado.html'
+                });
+            }
+        }
+        await notificaciones.enviar(avisos);
+    }
+
+    // Subastas canceladas con pujas (ver avisarPujadoresCancelacion): campana, chat en
+    // tiempo real y correo. Se llama después de confirmar la cancelación; nunca lanza errores.
+    async function avisarCancelacion(avisos, motivo) {
+        if (!avisos || avisos.length === 0) return;
+        for (const a of avisos) tiempoReal.aUsuario(a.emprendedorId, 'chat:mensaje', { destinatarioId: a.emprendedorId });
+        await notificaciones.enviar(avisos.map(a => ({
+            usuarioId: a.emprendedorId, tipo: 'SubastaCancelada', referenciaId: a.subastaId,
+            titulo: `Se canceló la subasta «${a.lote}»`,
+            mensaje: `Fue cancelada ${motivo}. Tu puja ya no tiene efecto y no tienes nada que pagar.`,
+            enlace: 'mercado.html#tab-auctions'
+        })));
+        avisarCancelacionPorCorreo(avisos, motivo)
+            .catch(err => console.error('⚠️ Aviso de subasta cancelada no enviado:', err.message));
     }
 
     // Los correos se mandan después de confirmar en la base de datos y sin
@@ -207,7 +270,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
         console.log(`✅ Cierre automático de subastas activo (cada ${intervaloSegundos} s).`);
     }
 
-    return { cerrarVencidas, iniciar, avisarCancelacionPorCorreo };
+    return { cerrarVencidas, iniciar, avisarCancelacion };
 }
 
 module.exports = { crearCierreSubastas, nombreLote, avisarPujadoresCancelacion };

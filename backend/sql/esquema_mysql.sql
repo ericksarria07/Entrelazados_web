@@ -4,6 +4,7 @@
 --   * CategoriasMateriales.Descripcion (formulario de nuevas categorias del admin)
 --   * Usuarios.CorreoVerificado / TokenVerificacion (confirmar el correo al registrarse)
 --   * Calificaciones (1 a 5 estrellas al completar un trato)
+--   * Notificaciones (la campana del menú; versión 12)
 -- Uso: crear la base, seleccionarla con USE y ejecutar este archivo.
 
 CREATE TABLE Departamentos (
@@ -176,6 +177,22 @@ CREATE TABLE Calificaciones (
     CONSTRAINT fk_calificaciones_autor FOREIGN KEY (AutorID) REFERENCES Usuarios(UsuarioID),
     CONSTRAINT fk_calificaciones_calificado FOREIGN KEY (CalificadoID) REFERENCES Usuarios(UsuarioID),
     INDEX idx_calificaciones_calificado (CalificadoID)
+) ENGINE=InnoDB;
+
+CREATE TABLE Notificaciones (
+    NotificacionID INT AUTO_INCREMENT PRIMARY KEY,
+    UsuarioID INT NOT NULL,
+    -- PujaSuperada, PujaRecibida, SubastaGanada, SubastaTerminada, SubastaCancelada,
+    -- TratoActualizado, CalificacionRecibida
+    Tipo VARCHAR(30) NOT NULL,
+    Titulo VARCHAR(120) NOT NULL,
+    Mensaje VARCHAR(300) NOT NULL,
+    Enlace VARCHAR(200) NULL,          -- página a la que lleva al hacer clic (p. ej. mercado.html)
+    ReferenciaID INT NULL,             -- SubastaID o TratoID, para no repetir avisos
+    EsLeida TINYINT(1) NOT NULL DEFAULT 0,
+    FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notificaciones_usuario FOREIGN KEY (UsuarioID) REFERENCES Usuarios(UsuarioID) ON DELETE CASCADE,
+    INDEX idx_notificaciones_usuario (UsuarioID, EsLeida, FechaCreacion)
 ) ENGINE=InnoDB;
 
 ALTER TABLE Usuarios 

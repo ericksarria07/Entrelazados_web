@@ -706,6 +706,135 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     r = await verificar('tarde@prueba.com');
     check('…se pide uno nuevo y ese sí funciona', r.status === 200 && (await login('tarde@prueba.com', 'Clave123')).status === 200, JSON.stringify(r));
 
+    // ---------------------------------------------------------------- TIEMPO REAL, NOTIFICACIONES Y REPORTES (v12)
+    seccion('24. Tiempo real (Socket.IO)');
+    const { io: clienteIo } = require(backend + '/node_modules/socket.io-client');
+    const conectarSocket = (token) => new Promise((listo) => {
+        const s = clienteIo(B, { auth: token ? { token } : {}, transports: ['websocket'], forceNew: true, reconnection: false });
+        s.on('connect', () => listo({ socket: s, ok: true }));
+        s.on('connect_error', (err) => listo({ socket: s, ok: false, error: err.message }));
+    });
+    // Espera un evento que cumpla la condición (o null si no llega a tiempo)
+    const esperarEvento = (s, evento, condicion = () => true, ms = 4000) => new Promise((listo) => {
+        const alLlegar = (datos) => { if (condicion(datos)) { clearTimeout(reloj); s.off(evento, alLlegar); listo(datos); } };
+        const reloj = setTimeout(() => { s.off(evento, alLlegar); listo(null); }, ms);
+        s.on(evento, alLlegar);
+    });
+    await reg('emp3@prueba.com', 'Emprendedor', { nombre: 'Zapatería Tres' });
+    await verificar('emp3@prueba.com');
+    const e3 = (await login('emp3@prueba.com', 'Clave123')).data;
+
+    const anonimo = await conectarSocket(null);
+    check('Una página sin sesión se conecta (solo recibe eventos públicos)', anonimo.ok, anonimo.error);
+    const malo = await conectarSocket('token-inventado');
+    check('Un token inválido no se puede conectar (sesion-invalida)', !malo.ok && malo.error === 'sesion-invalida', malo.error);
+    malo.socket.close();
+    const sP2 = (await conectarSocket(p2.token)).socket;
+    const sE1 = (await conectarSocket(e1.token)).socket;
+    const sE3 = (await conectarSocket(e3.token)).socket;
+    check('Proveedor y emprendedores se conectan con su token', sP2.connected && sE1.connected && sE3.connected);
+
+    let evento = esperarEvento(anonimo.socket, 'subastas:cambio', d => d.motivo === 'nueva');
+    r = await api('POST', '/api/subastas', { token: p2.token, body: { tituloLote: 'Hilo encerado tiempo real', categoriaId: 9, precioBase: 100, dias: 1 } });
+    const subRT = r.data.subastaId;
+    check('Crear una subasta avisa a todas las páginas (subastas:cambio)', r.status === 201 && (await evento) !== null, JSON.stringify(r));
+
+    evento = esperarEvento(anonimo.socket, 'puja:nueva', d => d.subastaId === subRT);
+    const notifProv = esperarEvento(sP2, 'notificacion:nueva', x => x.tipo === 'PujaRecibida');
+    r = await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subRT, montoPuja: 150 } });
+    const datosEvento = await evento;
+    check('Una puja se anuncia al instante con el precio nuevo (puja:nueva)', r.status === 200 && datosEvento && datosEvento.precioActual === 150 && datosEvento.totalPujas === 1, JSON.stringify(datosEvento));
+    check('…sin revelar quién pujó', datosEvento && Object.keys(datosEvento).sort().join() === 'precioActual,subastaId,totalPujas', JSON.stringify(datosEvento));
+    let n = await notifProv;
+    check('…y el proveedor recibe la notificación "Nueva puja en tu subasta"', n && /Hilo encerado tiempo real/.test(n.titulo) && n.leida === false, JSON.stringify(n));
+
+    const notifE1 = esperarEvento(sE1, 'notificacion:nueva', x => x.tipo === 'PujaSuperada');
+    r = await api('POST', '/api/pujas', { token: e3.token, body: { subastaId: subRT, montoPuja: 200 } });
+    n = await notifE1;
+    check('A quien iba ganando le llega al instante "Te superaron"', r.status === 200 && n && /C\$200/.test(n.mensaje) && n.enlace === 'mercado.html#tab-auctions', JSON.stringify(n));
+
+    await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subRT, montoPuja: 250 } });
+    await api('POST', '/api/pujas', { token: e1.token, body: { subastaId: subRT, montoPuja: 300 } });
+    const superadasE3 = await q("SELECT COUNT(*) n FROM Notificaciones WHERE UsuarioID = ? AND Tipo = 'PujaSuperada'", [e3.id]);
+    check('Subir tu propia puja no le avisa a nadie más (solo se avisó una vez a emp3)', superadasE3[0].n === 1, JSON.stringify(superadasE3));
+    await api('POST', '/api/pujas', { token: e3.token, body: { subastaId: subRT, montoPuja: 350 } });
+    const superadasE1 = await q("SELECT COUNT(*) n, MAX(Mensaje) m FROM Notificaciones WHERE UsuarioID = ? AND Tipo = 'PujaSuperada' AND ReferenciaID = ?", [e1.id, subRT]);
+    check('Si ya tenía un "Te superaron" sin leer de esa subasta, se actualiza en vez de repetirse', superadasE1[0].n === 1 && /C\$350/.test(superadasE1[0].m), JSON.stringify(superadasE1));
+    const recibidas = await q("SELECT COUNT(*) n FROM Notificaciones WHERE UsuarioID = ? AND Tipo = 'PujaRecibida' AND ReferenciaID = ?", [p2.id, subRT]);
+    check('…igual con las pujas que recibe el proveedor (una sola notificación)', recibidas[0].n === 1, JSON.stringify(recibidas));
+
+    const chatEvento = esperarEvento(sP2, 'chat:mensaje', d => d.remitenteId === e1.id);
+    await api('POST', '/api/chat/enviar', { token: e1.token, body: { destinatarioId: p2.id, texto: '¿El hilo es de 1 mm?' } });
+    check('Un mensaje de chat llega al instante al destinatario (chat:mensaje)', (await chatEvento) !== null);
+
+    seccion('25. Notificaciones (campana)');
+    r = await api('GET', '/api/notificaciones');
+    check('Sin sesión → 401', r.status === 401);
+    r = await api('GET', '/api/notificaciones', { token: e1.token });
+    check('Ver mis notificaciones: las más nuevas primero, con el total sin leer', r.status === 200 && r.data.noLeidas >= 1 && r.data.notificaciones[0].tipo === 'PujaSuperada' && r.data.notificaciones.length === r.data.noLeidas, JSON.stringify(r.data).slice(0, 300));
+    const idNotifE1 = r.data.notificaciones[0].id;
+    const noLeidasE1 = r.data.noLeidas;
+    r = await api('PUT', `/api/notificaciones/${idNotifE1}/leida`, { token: e3.token });
+    check('Marcar como leída la notificación de otra persona → 404', r.status === 404);
+    r = await api('PUT', '/api/notificaciones/abc/leida', { token: e1.token });
+    check('ID no válido → 404', r.status === 404);
+    r = await api('PUT', `/api/notificaciones/${idNotifE1}/leida`, { token: e1.token });
+    const notifsDespues = (await api("GET", "/api/notificaciones", { token: e1.token })).data;
+    check('Marcar una como leída', r.status === 200 && notifsDespues.noLeidas === noLeidasE1 - 1 && notifsDespues.notificaciones.find(x => x.id === idNotifE1).leida === true, JSON.stringify(notifsDespues).slice(0, 200));
+    r = await api('PUT', '/api/notificaciones/leidas', { token: p2.token });
+    check('Marcar todas como leídas', r.status === 200 && r.data.marcadas >= 1 && (await api('GET', '/api/notificaciones', { token: p2.token })).data.noLeidas === 0, JSON.stringify(r.data));
+
+    await q('UPDATE Subastas SET FechaFin = NOW() - INTERVAL 1 MINUTE WHERE SubastaID = ?', [subRT]);
+    const ganada = esperarEvento(sE3, 'notificacion:nueva', x => x.tipo === 'SubastaGanada');
+    const chatGanador = esperarEvento(sE3, 'chat:mensaje', d => d.remitenteId === p2.id);
+    const cambioLista = esperarEvento(anonimo.socket, 'subastas:cambio', d => d.motivo === 'cerrada');
+    r = await api('POST', '/api/admin/subastas/cerrar-vencidas', { token: admin.token });
+    n = await ganada;
+    check('Al cerrar la subasta, el ganador recibe "¡Ganaste!"', r.status === 200 && n && /C\$350/.test(n.mensaje) && n.enlace === 'chat.html', JSON.stringify(n));
+    check('…y el mensaje automático del chat le llega al instante', (await chatGanador) !== null);
+    check('…y todas las páginas saben que la lista de subastas cambió', (await cambioLista) !== null);
+    const cierreNotifs = await q("SELECT UsuarioID, Tipo FROM Notificaciones WHERE ReferenciaID = ? AND Tipo IN ('SubastaTerminada', 'SubastaGanada') ORDER BY UsuarioID", [subRT]);
+    check('…el proveedor y quien perdió reciben "Terminó la subasta"', cierreNotifs.length === 3 && cierreNotifs.some(x => x.UsuarioID === p2.id && x.Tipo === 'SubastaTerminada') && cierreNotifs.some(x => x.UsuarioID === e1.id && x.Tipo === 'SubastaTerminada'), JSON.stringify(cierreNotifs));
+
+    const tratoRT = (await q("SELECT TratoID FROM TratosCerrados WHERE OrigenID = ? AND TipoOrigen = 'Subasta'", [subRT]))[0].TratoID;
+    const notifTrato = esperarEvento(sE3, 'notificacion:nueva', x => x.tipo === 'TratoActualizado');
+    r = await api('PUT', `/api/tratos/${tratoRT}/estado`, { token: p2.token, body: { estado: 'Completado' } });
+    n = await notifTrato;
+    check('Cambiar el estado de un trato notifica a la otra parte', r.status === 200 && n && /completado/.test(n.titulo), JSON.stringify(n));
+    const notifCalif = esperarEvento(sP2, 'notificacion:nueva', x => x.tipo === 'CalificacionRecibida');
+    r = await api('POST', `/api/tratos/${tratoRT}/calificacion`, { token: e3.token, body: { puntuacion: 4, comentario: 'Buen hilo' } });
+    n = await notifCalif;
+    check('Calificar notifica a quien recibe la calificación', r.status === 201 && n && /★★★★☆/.test(n.titulo) && /Buen hilo/.test(n.mensaje), JSON.stringify([r.data, n]));
+    check('…la respuesta de calificar no cambió de forma', r.data && r.data.calificadoId === p2.id && r.data.lote === undefined, JSON.stringify(r.data));
+
+    const desconexion = new Promise((listo) => { sE3.once('disconnect', () => listo(true)); setTimeout(() => listo(false), 4000); });
+    r = await api('PUT', `/api/admin/usuarios/${e3.id}/estado`, { token: admin.token, body: { nuevoEstado: 'Suspendido' } });
+    check('Suspender una cuenta corta al instante su conexión en tiempo real', r.status === 200 && await desconexion);
+    const suspendido = await conectarSocket(e3.token);
+    check('…y ya no se puede volver a conectar', !suspendido.ok, suspendido.error);
+    suspendido.socket.close();
+    await api('PUT', `/api/admin/usuarios/${e3.id}/estado`, { token: admin.token, body: { nuevoEstado: 'Activo' } });
+    for (const s of [anonimo.socket, sP2, sE1, sE3]) s.close();
+
+    seccion('26. Reportes');
+    r = await api('GET', '/api/reportes');
+    check('Sin sesión → 401', r.status === 401);
+    r = await api('GET', '/api/reportes', { token: p2.token });
+    const repP2 = r.data;
+    check('El proveedor ve sus ventas (6 meses por defecto)', r.status === 200 && repP2.alcance === 'ventas' && repP2.periodoMeses === 6 && repP2.ventasPorMes.length === 6, JSON.stringify(r.data).slice(0, 300));
+    check('…con el trato completado de C$350 en el mes actual', repP2.ventasPorMes[5].montoCompletado >= 350 && repP2.resumen.completados >= 1, JSON.stringify(repP2.ventasPorMes[5]));
+    const loteRT = repP2.lotesMasDisputados.find(l => l.id === subRT);
+    check('…y el lote más disputado con sus 5 pujas y el incremento (250%)', loteRT && loteRT.pujas === 5 && loteRT.precioFinal === 350 && loteRT.incremento === 2.5 && loteRT.estado === 'Con ganador', JSON.stringify(loteRT));
+    check('…y los materiales más pedidos', repP2.materialesMasPedidos.some(m => /Hilos/.test(m.categoria) && m.pujas >= 5), JSON.stringify(repP2.materialesMasPedidos));
+    check('…y el resultado de sus subastas', repP2.estadoSubastas.length === 4 && repP2.estadoSubastas.find(e => e.estado === 'Con ganador').total >= 1 && repP2.resumen.tasaExito > 0, JSON.stringify(repP2.estadoSubastas));
+    check('…y los precios por categoría por mes', repP2.preciosPorCategoria.meses.length === 6 && repP2.preciosPorCategoria.series.length >= 1 && repP2.preciosPorCategoria.series.every(s => s.valores.length === 6), JSON.stringify(repP2.preciosPorCategoria).slice(0, 200));
+    r = await api('GET', '/api/reportes', { token: e3.token });
+    check('El emprendedor ve sus compras: solo sus tratos', r.status === 200 && r.data.alcance === 'compras' && r.data.tratos.length === 1 && r.data.tratos[0].monto === 350 && r.data.tratos[0].proveedor === 'Curtiembre Dos', JSON.stringify(r.data.tratos));
+    r = await api('GET', '/api/reportes?meses=12', { token: admin.token });
+    check('El administrador ve toda la plataforma, y se puede pedir 12 meses', r.status === 200 && r.data.alcance === 'plataforma' && r.data.ventasPorMes.length === 12 && r.data.resumen.tratos >= repP2.resumen.tratos, JSON.stringify(r.data.resumen));
+    r = await api('GET', '/api/reportes?meses=7', { token: admin.token });
+    check('Un periodo no permitido usa 6 meses', r.data.periodoMeses === 6);
+
     seccion('12. Eliminar usuarios (admin)');
     r = await api('DELETE', `/api/admin/usuarios/${admin.id}`, { token: admin.token });
     check('Admin no puede eliminarse a sí mismo → 400', r.status === 400);

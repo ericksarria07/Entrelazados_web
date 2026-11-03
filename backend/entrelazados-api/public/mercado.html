@@ -518,6 +518,14 @@
             font-weight: 600;
         }
 
+        /* Tiempo real: el precio parpadea cuando alguien puja */
+        .bid-amount.recien-pujado { animation: precio-nuevo 1.6s ease; }
+        @keyframes precio-nuevo { 0% { background: #ffe8a3; transform: scale(1.08); } 100% { background: transparent; transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .bid-amount.recien-pujado { animation: none; } }
+        .en-vivo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #2b8a3e; }
+        .en-vivo::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #2b8a3e; box-shadow: 0 0 0 3px rgba(43,138,62,.2); }
+        .en-vivo[hidden] { display: none; }
+
         .bid-amount {
             font-size: 20px;
             font-weight: 900;
@@ -903,6 +911,7 @@
             <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; border-top-color: var(--color-terciario);">
                 <div style="font-size: 14px; font-weight: 700; color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
                     <i class="ti ti-gavel" style="font-size: 18px; color: var(--color-terciario);"></i> Lotes en Subasta Pública
+                    <span class="en-vivo" id="indicador-en-vivo" title="Los precios se actualizan solos cuando alguien puja" hidden>En vivo</span>
                 </div>
                 <button id="btn-subasta-modal" class="btn-primary" style="display: none; background-color: var(--color-terciario);" onclick="abrirModalSubasta()">
                     <i class="ti ti-plus"></i> Crear Subasta
@@ -1466,7 +1475,7 @@
                                         <div class="auction-title">${esc(nombreLote)} ${esMiSubasta ? ' <span style="color:var(--color-principal); font-size:12px;">(Tu Lote)</span>' : ''}</div>
                                         <div class="auction-sub">
                                             ${subasta.NombreCategoria ? `<span class="badge badge-mat">${esc(subasta.NombreCategoria)}</span>` : ''}
-                                            <span class="badge badge-mat"><i class="ti ti-hammer" style="font-size:10px"></i> ${pujas} puja${pujas === 1 ? '' : 's'}</span>
+                                            <span class="badge badge-mat" id="subasta-pujas-${subasta.SubastaID}"><i class="ti ti-hammer" style="font-size:10px"></i> ${pujas} puja${pujas === 1 ? '' : 's'}</span>
                                         </div>
                                     </div>
                                     <div class="auction-timer ${tiempo.pronto ? 'pronto' : ''}" title="Cierra el ${esc(new Date(subasta.FechaFin).toLocaleString('es-NI'))}"><i class="ti ti-clock"></i> ${esc(tiempo.texto)}</div>
@@ -1476,7 +1485,7 @@
                                 <div class="bid-track">
                                     <div class="bid-row">
                                         <span class="bid-label">Precio base: C$ ${parseFloat(subasta.PrecioBase).toLocaleString()}</span>
-                                        <div class="bid-amount" id="subasta-val-${subasta.SubastaID}">C$ ${parseFloat(subasta.PrecioActual).toLocaleString()}</div>
+                                        <div class="bid-amount" id="subasta-val-${subasta.SubastaID}" data-precio="${Number(subasta.PrecioActual)}" aria-live="polite">C$ ${parseFloat(subasta.PrecioActual).toLocaleString()}</div>
                                     </div>
                                 </div>
                                 <div class="bid-input-row">
@@ -1511,6 +1520,9 @@
 
         async function ejecutarPujaReal(subastaId, precioActual) {
             const input = document.getElementById(`subasta-input-${subastaId}`);
+            // El precio pudo subir mientras tanto (tiempo real): se usa el que muestra la tarjeta
+            const precioEnPantalla = Number((document.getElementById(`subasta-val-${subastaId}`) || {}).dataset?.precio);
+            if (precioEnPantalla > 0) precioActual = precioEnPantalla;
             const montoPuja = parseFloat(input.value);
             const emprendedorId = localStorage.getItem('userId');
             const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
@@ -1765,6 +1777,48 @@
             event.preventDefault();
             renderizarOfertasFiltradas();
         }
+
+        // ------------------------------------------------------------ TIEMPO REAL
+        // sesion.js reenvía los avisos del servidor. Cuando alguien puja, el precio de la
+        // tarjeta cambia solo; si se crea, cancela o cierra una subasta, la lista se recarga.
+        document.addEventListener('entrelazados:puja:nueva', (evento) => {
+            const { subastaId, precioActual, totalPujas } = evento.detail || {};
+            const valor = document.getElementById(`subasta-val-${subastaId}`);
+            if (!valor) return;
+            valor.dataset.precio = precioActual;
+            valor.textContent = `C$ ${Number(precioActual).toLocaleString()}`;
+            valor.classList.remove('recien-pujado');
+            void valor.offsetWidth;
+            valor.classList.add('recien-pujado');
+            const badge = document.getElementById(`subasta-pujas-${subastaId}`);
+            if (badge) badge.innerHTML = `<i class="ti ti-hammer" style="font-size:10px"></i> ${totalPujas} puja${totalPujas === 1 ? '' : 's'}`;
+        });
+
+        let recargaSubastasPendiente = null;
+        document.addEventListener('entrelazados:subastas:cambio', () => {
+            clearTimeout(recargaSubastasPendiente);
+            recargaSubastasPendiente = setTimeout(function recargar() {
+                // No se recarga mientras alguien escribe su puja (perdería lo escrito)
+                const escribiendo = document.activeElement && document.activeElement.classList.contains('bid-input') && document.activeElement.value;
+                if (escribiendo) { recargaSubastasPendiente = setTimeout(recargar, 3000); return; }
+                cargarSubastasDesdeBD();
+            }, 800);
+        });
+
+        // Las notificaciones de subastas llevan a mercado.html#tab-auctions: se abre esa pestaña
+        function abrirPestanaDelEnlace() {
+            if (window.location.hash !== '#tab-auctions') return;
+            const boton = document.querySelector(".tab[onclick*=\"'auctions'\"]");
+            if (boton) switchMarketTab(boton, 'auctions');
+        }
+        document.addEventListener('DOMContentLoaded', abrirPestanaDelEnlace);
+        window.addEventListener('hashchange', abrirPestanaDelEnlace);
+
+        // Indicador "En vivo" junto al título de las subastas
+        document.addEventListener('entrelazados:conexion', (evento) => {
+            const indicador = document.getElementById('indicador-en-vivo');
+            if (indicador) indicador.hidden = !(evento.detail && evento.detail.conectado);
+        });
 
     </script>
 </body>

@@ -22,6 +22,20 @@ info:
     Todas las respuestas son JSON. Los errores esperados responden `{ "message": "..." }` con su
     código HTTP. Cualquier ruta puede responder **429** si se supera un límite de intentos y
     **500** si ocurre un error inesperado (el detalle solo queda en el log del servidor).
+
+    **Tiempo real (Socket.IO, en `/socket.io`)**
+
+    Además de esta API, el servidor avisa al instante a las páginas abiertas. Al conectarse se envía
+    el mismo token: `io({ auth: { token } })` (sin token solo llegan los eventos públicos).
+
+    | Evento | A quién | Datos |
+    |---|---|---|
+    | `puja:nueva` | a todos | `{ subastaId, precioActual, totalPujas }` |
+    | `subastas:cambio` | a todos | `{ motivo }`: nueva, editada, cancelada o cerrada |
+    | `chat:mensaje` | remitente y destinatario | `{ remitenteId, destinatarioId }` |
+    | `notificacion:nueva` | al usuario | la notificación, igual que en `GET /api/notificaciones` |
+
+    Un token inválido o de una cuenta suspendida no se puede conectar (`connect_error: sesion-invalida`).
 servers:
   - url: /
     description: Este mismo servidor
@@ -41,6 +55,10 @@ tags:
     description: Seguimiento y calificación de los tratos cerrados (rutas/tratos.js)
   - name: Perfil y dashboard
     description: Perfil, reputación y dashboard (rutas/usuarios.js, rutas/dashboard.js)
+  - name: Notificaciones
+    description: La campana del menú (rutas/notificaciones.js). Las nuevas también llegan por tiempo real (notificacion:nueva).
+  - name: Reportes
+    description: Ventas, compras y mercado con gráficas, para exportar a Excel o PDF (rutas/reportes.js)
   - name: Administración
     description: Panel del administrador (rutas/admin.js). Todas exigen rol de administrador.
 
@@ -750,6 +768,70 @@ paths:
                   miActividad: { type: object }
         "401": { $ref: "#/components/responses/SinSesion" }
 
+  # ------------------------------------------------------------------ NOTIFICACIONES
+  /api/notificaciones:
+    get:
+      tags: [Notificaciones]
+      summary: Mis notificaciones
+      description: Las 30 más recientes y cuántas faltan por leer.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Notificaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  noLeidas: { type: integer, example: 2 }
+                  notificaciones: { type: array, items: { $ref: "#/components/schemas/Notificacion" } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/notificaciones/leidas:
+    put:
+      tags: [Notificaciones]
+      summary: Marcar todas como leídas
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Marcadas
+          content:
+            application/json:
+              schema: { type: object, properties: { message: { type: string }, marcadas: { type: integer } } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/notificaciones/{id}/leida:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Notificaciones]
+      summary: Marcar una como leída
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Mensaje" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { description: No existe o es de otra persona }
+
+  # ------------------------------------------------------------------ REPORTES
+  /api/reportes:
+    get:
+      tags: [Reportes]
+      summary: Reporte de ventas, compras o de la plataforma
+      description: |
+        El administrador ve toda la plataforma (`alcance: plataforma`), el proveedor sus ventas (`ventas`)
+        y el emprendedor sus compras (`compras`). Los precios por categoría son de todo el mercado.
+        Lo usa reportes.html, que lo exporta a Excel y a PDF.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: meses, in: query, schema: { type: integer, enum: [3, 6, 12], default: 6 } }
+      responses:
+        "200":
+          description: Reporte
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reporte" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
   # ------------------------------------------------------------------ ADMINISTRACIÓN
   /api/admin/metricas:
     get:
@@ -1126,6 +1208,105 @@ components:
         contraparte: { type: string }
         miCalificacion: { type: [integer, "null"] }
         suCalificacion: { type: [integer, "null"] }
+
+    Notificacion:
+      type: object
+      properties:
+        id: { type: integer }
+        tipo:
+          type: string
+          enum: [PujaSuperada, PujaRecibida, SubastaGanada, SubastaTerminada, SubastaCancelada, TratoActualizado, CalificacionRecibida]
+        titulo: { type: string, example: "Te superaron en «Cuero café»" }
+        mensaje: { type: string, example: "Alguien ofreció C$540.00. Puja de nuevo antes de que cierre la subasta." }
+        enlace: { type: [string, "null"], example: "mercado.html#tab-auctions" }
+        referenciaId: { type: [integer, "null"], description: SubastaID o TratoID }
+        leida: { type: boolean }
+        fecha: { type: string, format: date-time }
+
+    Reporte:
+      type: object
+      properties:
+        generado: { type: string, format: date-time }
+        periodoMeses: { type: integer }
+        desde: { type: string, format: date-time }
+        alcance: { type: string, enum: [plataforma, ventas, compras] }
+        resumen:
+          type: object
+          properties:
+            tratos: { type: integer }
+            completados: { type: integer }
+            enCurso: { type: integer }
+            cancelados: { type: integer }
+            monto: { type: number, description: Sin los cancelados }
+            montoCompletado: { type: number }
+            ticketPromedio: { type: number }
+            subastas: { type: integer }
+            tasaExito: { type: [number, "null"], description: Fracción de las subastas terminadas que tuvieron ganador }
+        ventasPorMes:
+          type: array
+          items:
+            type: object
+            properties:
+              mes: { type: string, example: "2026-11" }
+              tratos: { type: integer }
+              completados: { type: integer }
+              cancelados: { type: integer }
+              monto: { type: number }
+              montoCompletado: { type: number }
+        estadoSubastas:
+          type: array
+          items:
+            type: object
+            properties:
+              estado: { type: string, enum: [Con ganador, Sin pujas, Canceladas, En curso] }
+              total: { type: integer }
+        materialesMasPedidos:
+          type: array
+          items:
+            type: object
+            properties:
+              categoria: { type: string }
+              pujas: { type: integer }
+              subastas: { type: integer }
+              pujaMaxima: { type: number }
+        lotesMasDisputados:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              lote: { type: string }
+              categoria: { type: string }
+              pujas: { type: integer }
+              precioBase: { type: number }
+              precioFinal: { type: number }
+              incremento: { type: number, description: "Fracción: 0.25 = subió 25 %" }
+              estado: { type: string }
+        preciosPorCategoria:
+          type: object
+          properties:
+            meses: { type: array, items: { type: string } }
+            series:
+              type: array
+              items:
+                type: object
+                properties:
+                  categoria: { type: string }
+                  lotes: { type: integer }
+                  valores: { type: array, items: { type: [number, "null"] } }
+        tratos:
+          type: array
+          description: Máximo 200, los más recientes
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              fecha: { type: string, format: date-time }
+              lote: { type: string }
+              monto: { type: number }
+              estado: { type: string }
+              proveedor: { type: string }
+              comprador: { type: string }
 
     UsuarioAdmin:
       type: object

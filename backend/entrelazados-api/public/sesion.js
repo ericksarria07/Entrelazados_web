@@ -4,7 +4,12 @@
    las peticiones /api del sitio. Si el servidor responde 401 (sesión vencida
    o inválida) se cierra la sesión y se vuelve a login.html.
    También muestra el número de mensajes sin leer junto a los enlaces al chat
-   (se revisa cada 30 segundos mientras la pestaña está visible).
+   (se revisa cada 30 segundos mientras la pestaña está visible, y al instante
+   cuando llega un mensaje por tiempo real).
+   TIEMPO REAL: en las páginas con sesión se conecta a Socket.IO y reenvía cada
+   aviso del servidor como evento del documento: "entrelazados:puja:nueva",
+   "entrelazados:subastas:cambio", "entrelazados:chat:mensaje" y
+   "entrelazados:notificacion:nueva". También carga la campana (notificaciones.js).
    Al final están las ayudas que usan todas las páginas: esc(), cerrarSesion()
    y el menú desplegable del usuario.
    Debe cargarse en el <head>, antes de los demás scripts de la página.
@@ -85,12 +90,49 @@
     }
     window.actualizarNoLeidosEntrelazados = actualizarNoLeidos;
 
+    // ---------------------------------------------------------------- TIEMPO REAL (Socket.IO)
+    // window.tiempoRealEntrelazados.conectado dice si los avisos llegan solos; si no,
+    // las páginas siguen preguntando cada cierto tiempo como antes.
+    const EVENTOS_TIEMPO_REAL = ['puja:nueva', 'subastas:cambio', 'chat:mensaje', 'notificacion:nueva'];
+    const tiempoReal = window.tiempoRealEntrelazados = { conectado: false, socket: null };
+    const avisar = (nombre, detalle) => document.dispatchEvent(new CustomEvent('entrelazados:' + nombre, { detail: detalle }));
+
+    function cargarScript(src) {
+        return new Promise((listo, falla) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = listo;
+            s.onerror = falla;
+            document.head.appendChild(s);
+        });
+    }
+
+    async function conectarTiempoReal(token) {
+        try {
+            if (!window.io) await cargarScript('/socket.io/socket.io.min.js');
+        } catch (e) { return; }   // sin Socket.IO la página funciona igual, preguntando cada cierto tiempo
+        const socket = window.io({ auth: { token } });
+        tiempoReal.socket = socket;
+        socket.on('connect', () => { tiempoReal.conectado = true; avisar('conexion', { conectado: true }); });
+        socket.on('disconnect', () => { tiempoReal.conectado = false; avisar('conexion', { conectado: false }); });
+        // Token vencido o cuenta suspendida: no se insiste (la API ya cierra la sesión con su 401)
+        socket.on('connect_error', (err) => { if (err && err.message === 'sesion-invalida') socket.disconnect(); });
+        EVENTOS_TIEMPO_REAL.forEach(evento => socket.on(evento, (datos) => avisar(evento, datos)));
+        socket.on('chat:mensaje', () => actualizarNoLeidos());
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const pagina = window.location.pathname.split('/').pop() || 'preview.html';
         if (PAGINAS_PUBLICAS.includes(pagina)) return;
         actualizarNoLeidos();
         setInterval(actualizarNoLeidos, INTERVALO_NO_LEIDOS_MS);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizarNoLeidos(); });
+
+        let token = null;
+        try { token = localStorage.getItem('token'); } catch (e) { }
+        if (!token) return;
+        conectarTiempoReal(token);
+        cargarScript('notificaciones.js').catch(() => { });
     });
 
     // ------------------------------------------------------------------
