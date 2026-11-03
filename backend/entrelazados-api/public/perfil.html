@@ -27,6 +27,7 @@
         })();
     </script>
 
+    <link rel="stylesheet" href="comun.css">
     <style>
         :root {
             --color-principal: #7D381B;  /* Marrón Cálido */
@@ -35,12 +36,6 @@
 
             --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
             --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
         }
 
         body {
@@ -76,34 +71,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        .logo {
-            font-size: 26px;
-            font-weight: 900;
-            color: #fff;
-            text-decoration: none;
-            white-space: nowrap;
-            letter-spacing: -0.5px;
-        }
-
-        .logo span {
-            color: var(--color-terciario);
-        }
-
-        .header-location {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 12px;
-            color: #d1c2b8;
-            cursor: pointer;
-        }
-
-        .header-location strong {
-            color: #fff;
-            display: block;
-            font-size: 13px;
-        }
-
         .search-bar {
             flex: 1;
             display: flex;
@@ -112,17 +79,6 @@
             overflow: hidden;
             border: 1px solid var(--color-principal);
             background-color: #ffffff;
-        }
-
-        .search-category {
-            background-color: #f8f6f2;
-            border: none;
-            padding: 0 10px;
-            font-size: 12px;
-            color: #444;
-            border-right: 1px solid #ddd;
-            cursor: pointer;
-            font-family: var(--font-secundaria);
         }
 
         .search-input {
@@ -149,10 +105,6 @@
             flex-shrink: 0;
         }
 
-        .search-btn:hover {
-            background-color: var(--color-terciario);
-        }
-
         .user-dropdown-wrapper { position: relative; margin-left: auto; }
         .user-btn-nav {
             background: rgba(255, 255, 255, 0.1);
@@ -167,8 +119,6 @@
             transition: background 0.2s;
             font-family: var(--font-secundaria);
         }
-        .user-btn-nav:hover { background: rgba(255, 255, 255, 0.2); }
-        .user-nav-text { text-align: left; display: flex; flex-direction: column; }
         .user-nav-name { font-size: 13px; font-weight: 700; line-height: 1.1; color: #fff; }
         .user-nav-role { font-size: 10px; color: #d1c2b8; text-transform: uppercase; }
         .dropdown-menu-nav {
@@ -185,14 +135,11 @@
             overflow: hidden;
             border: 1px solid #e0d8ce;
         }
-        .dropdown-menu-nav.show { display: block; }
         .dropdown-item-nav {
             display: flex; align-items: center; gap: 10px; padding: 11px 16px;
             color: var(--color-secundario); text-decoration: none; font-size: 13px; font-weight: 600;
         }
         .dropdown-item-nav:hover { background-color: #f4f1ea; }
-        .dropdown-item-nav.logout-item { color: #c92a2a; }
-        .dropdown-item-nav.logout-item:hover { background-color: #fff0f0; }
         .dropdown-divider-nav { height: 1px; background-color: #eee; }
 
         .sub-bar {
@@ -204,14 +151,6 @@
             padding: 8px 20px;
             font-size: 13px;
             font-weight: 600;
-        }
-
-        .sub-bar a {
-            color: #f1e8e3;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
 
         .sub-bar a:hover, .sub-bar a.active {
@@ -791,26 +730,6 @@
                 document.getElementById('nav-user-rol').textContent = (localStorage.getItem('userRol') || 'Miembro').toUpperCase();
             }
         });
-
-        function toggleUserDropdown(event) {
-            if (event) event.stopPropagation();
-            document.getElementById('userDropdownMenu').classList.toggle('show');
-        }
-
-        window.onclick = function (event) {
-            if (!event.target.closest('.user-dropdown-wrapper')) {
-                const dropdown = document.getElementById('userDropdownMenu');
-                if (dropdown && dropdown.classList.contains('show')) {
-                    dropdown.classList.remove('show');
-                }
-            }
-        };
-
-        function cerrarSesion() {
-            localStorage.clear();
-            alert("Sesión cerrada.");
-            window.location.href = 'preview.html';
-        }
 
         async function ejecutarBusqueda(event) {
             event.preventDefault();

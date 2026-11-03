@@ -52,7 +52,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
         if (enCurso) return [];   // evita que dos ejecuciones se crucen en el mismo proceso
         enCurso = true;
         const cerradas = [];
-        const conn = await db.promise().getConnection();
+        const conn = await db.getConnection();
         try {
             const [vencidas] = await conn.query(
                 "SELECT SubastaID FROM Subastas WHERE Estado = 'Activa' AND FechaFin <= NOW() ORDER BY FechaFin LIMIT 200"
@@ -125,7 +125,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
     async function avisarPorCorreo(cerradas) {
         if (!correo.configurado) return;
         const ids = [...new Set(cerradas.flatMap(c => [c.proveedorId, c.ganadorId]).filter(Boolean))];
-        const [usuarios] = await db.promise().query(
+        const [usuarios] = await db.query(
             `SELECT u.UsuarioID, u.CorreoElectronico, COALESCE(p.NombreRazonSocial, '') AS Nombre
              FROM Usuarios u LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = u.UsuarioID
              WHERE u.UsuarioID IN (?)`, [ids]
@@ -180,7 +180,7 @@ function crearCierreSubastas({ db, correo, urlBase }) {
     // Se llama después de confirmar la cancelación y sin esperar: si falla, solo queda en el log.
     async function avisarCancelacionPorCorreo(avisos, motivo) {
         if (!correo.configurado || !avisos || avisos.length === 0) return;
-        const [usuarios] = await db.promise().query(
+        const [usuarios] = await db.query(
             'SELECT UsuarioID, CorreoElectronico FROM Usuarios WHERE UsuarioID IN (?)',
             [[...new Set(avisos.map(a => a.emprendedorId))]]
         );

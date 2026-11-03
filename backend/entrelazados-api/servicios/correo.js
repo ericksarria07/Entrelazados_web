@@ -17,7 +17,7 @@ const fs = require('fs');
 
 // El logo va adjunto dentro del correo (cid:) para que se vea aunque el
 // cliente de correo bloquee imágenes externas o el sitio no tenga HTTPS
-const RUTA_LOGO = path.join(__dirname, 'public', 'logo.png');
+const RUTA_LOGO = path.join(__dirname, '..', 'public', 'logo.png');
 
 function leerConfiguracion() {
     const usuario = (process.env.EMAIL_USER || '').trim();
@@ -169,14 +169,14 @@ function crearServicioCorreo() {
 
 module.exports = { crearServicioCorreo, explicarError };
 
-// Prueba manual desde la terminal: node correo.js destino@gmail.com
+// Prueba manual desde la terminal (en entrelazados-api): node servicios/correo.js destino@gmail.com
 if (require.main === module) {
-    require('dotenv').config({ path: require('path').join(__dirname, '.env'), quiet: true });
+    require('dotenv').config({ path: require('path').join(__dirname, '..', '.env'), quiet: true });
     const destino = process.argv[2];
     const servicio = crearServicioCorreo();
     (async () => {
         if (!destino) {
-            console.log('Uso: node correo.js destino@gmail.com');
+            console.log('Uso: node servicios/correo.js destino@gmail.com');
             process.exit(1);
         }
         console.log(`Remitente: ${servicio.remitente || '(sin configurar)'}`);

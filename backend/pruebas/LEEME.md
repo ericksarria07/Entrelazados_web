@@ -14,6 +14,23 @@ CREATE USER 'entrelazados_pruebas'@'localhost' IDENTIFIED BY 'UNA_CLAVE_DE_PRUEB
 GRANT ALL PRIVILEGES ON entrelazados_pruebas.* TO 'entrelazados_pruebas'@'localhost';
 ```
 
+## Forma rápida: `npm test`
+
+Con la base del paso 1 creada, desde `backend/`:
+
+```bash
+CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm test
+```
+
+`pruebas/correr_pruebas.js` hace solo los pasos 2 a 4: vacía `entrelazados_pruebas`, carga el
+esquema, levanta el servidor en el puerto 3055 con las variables de prueba, corre las 274
+pruebas y apaga el servidor. Termina con `RESULTADO: 274 correctas, 0 fallidas` (y código de
+salida 0). Se puede repetir las veces que quieras.
+
+En PowerShell: `$env:CLAVE_PRUEBAS="UNA_CLAVE_DE_PRUEBA"; npm test`
+
+Los pasos 2 a 4 explican lo mismo a mano.
+
 ## 2. Cargar el esquema y los datos iniciales
 
 Desde la carpeta `backend`:

@@ -77,14 +77,31 @@ Cada minuto el servidor cierra las subastas vencidas. Si hubo pujas, gana la má
 Entrelazados_web/
 ├── README.md
 └── backend/
-    ├── package.json              # dependencias (npm install se ejecuta aquí)
+    ├── package.json              # dependencias y comandos: npm install, npm start, npm test
     ├── entrelazados-api/
-    │   ├── index.js              # servidor Express: API + archivos de public/
-    │   ├── correo.js             # envío de correos (recuperación y avisos de subastas)
-    │   ├── limites.js            # límites de intentos (login, registro, Kan...)
-    │   ├── fotos.js              # recibir, validar, guardar y borrar fotos
-    │   ├── subastas.js           # cierre automático de subastas vencidas
-    │   ├── tratos.js             # estados de los tratos (pendiente → completado)
+    │   ├── index.js              # arranque: crea la base de datos, los servicios y la app, y escucha
+    │   ├── app.js                # Express: middlewares, rutas, archivos estáticos y errores
+    │   ├── config.js             # variables del .env, revisadas una sola vez
+    │   ├── db.js                 # conexión a MySQL (async/await) y enTransaccion()
+    │   ├── utilidades.js         # ErrorHttp, paginación, validaciones
+    │   ├── middlewares/
+    │   │   ├── autenticacion.js  # verificarToken, soloRoles, verificarAdmin (JWT)
+    │   │   ├── limites.js        # límites de intentos (login, registro, Kan...)
+    │   │   └── errores.js        # 404 de la API y manejador central de errores
+    │   ├── rutas/                # una por tema, cada una con sus URLs al principio
+    │   │   ├── cuentas.js        # registro, login, recuperación y confirmación del correo
+    │   │   ├── ofertas.js, subastas.js, chat.js, kan.js, tratos.js
+    │   │   ├── usuarios.js       # perfil y reputación
+    │   │   ├── publicas.js       # ping, categorías, estadísticas
+    │   │   ├── dashboard.js
+    │   │   └── admin.js          # panel de administrador
+    │   ├── servicios/            # lógica que no depende de HTTP
+    │   │   ├── correo.js         # envío de correos (recuperación, confirmación y avisos)
+    │   │   ├── fotos.js          # recibir, validar, guardar y borrar fotos
+    │   │   ├── ofertas.js        # validar, borrar publicaciones y crear su subasta
+    │   │   ├── subastas.js       # cierre automático de subastas vencidas
+    │   │   ├── tratos.js         # estados de los tratos y calificaciones
+    │   │   └── kan.js            # respuestas fijas de Kan + Gemini
     │   ├── uploads/              # fotos subidas (NO se sube a git; va en los respaldos)
     │   ├── .env.example          # plantilla de variables de entorno
     │   ├── .env                  # claves reales (NO se sube a git)
@@ -94,9 +111,10 @@ Entrelazados_web/
     │       ├── index.html        # inicio con sesión
     │       ├── mercado.html, chat.html, perfil.html
     │       ├── dashboard.html, admin.html
-    │       ├── sesion.js         # agrega el token a cada petición /api y cuenta los mensajes no leídos
+    │       ├── sesion.js         # token en cada petición /api, mensajes no leídos, esc(), cerrarSesion()
+    │       ├── kan.js, kan.css   # el asistente Kan (un solo componente para todas las páginas)
+    │       ├── comun.css         # estilos que comparten las páginas internas (cabecera, menú)
     │       ├── categorias.js     # llena los <select> de categorías desde la API
-    │       ├── styles.css
     │       └── *.webp, logo.png  # imágenes
     ├── sql/
     │   ├── esquema_mysql.sql     # crea la base completa desde cero
@@ -113,10 +131,31 @@ Entrelazados_web/
     │   └── probar_gemini.js      # comprueba la clave de Gemini (Kan)
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
+        ├── correr_pruebas.js     # npm test: prepara la base de pruebas, levanta el servidor y corre todo
         ├── pruebas_api.js        # 274 pruebas de integración
         ├── cargar_esquema.js
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
+
+### Cómo viaja una petición
+
+Ejemplo: un emprendedor puja en una subasta (`POST /api/pujas`).
+
+```
+navegador ──► app.js ──► middlewares ──────────────► rutas/subastas.js ──► db.js ──► MySQL
+              (JSON,     limites.api                  valida los datos,
+               límites)  verificarToken (¿quién es?)   UPDATE + INSERT en
+                         soloRoles('emprendedor')      una transacción
+                                                            │
+              middlewares/errores.js ◄── si algo falla ─────┘  (ErrorHttp → 4xx con su mensaje;
+                                                                cualquier otro → 500 genérico)
+```
+
+- **Rutas** (`rutas/`): leen la petición, validan y responden. No saben de SMTP ni de archivos.
+- **Servicios** (`servicios/`): la lógica que usan varias rutas o el cierre automático (correo, fotos, tratos, Kan...).
+- **Dependencias inyectadas**: `index.js` crea la base de datos y los servicios y se los pasa a cada ruta al crearla; ninguna ruta usa variables globales. Así cada pieza se puede probar o cambiar por separado.
+- **Errores centralizados**: las rutas lanzan `new ErrorHttp(404, 'mensaje')` y un único manejador responde. Express 5 atrapa solo los errores de las funciones `async`.
+- **Transacciones** con `enTransaccion(db, async (conn) => { ... })`: o se guarda todo, o nada.
 
 ---
 
@@ -181,9 +220,10 @@ Si falta una variable obligatoria, el servidor no arranca y dice cuál falta. Si
 
 ### 4. Arrancar
 
+Desde `backend/`:
+
 ```bash
-cd entrelazados-api
-node index.js
+npm start
 ```
 
 Abre http://localhost:3000.
@@ -197,7 +237,8 @@ UPDATE Usuarios SET TipoRol = 'Administrador' WHERE CorreoElectronico = 'tu_corr
 Para comprobar el envío de correos sin usar la página:
 
 ```bash
-node correo.js tu_correo@gmail.com
+npm run probar:correo -- tu_correo@gmail.com
+npm run probar:gemini          # comprueba la clave de Gemini (Kan)
 ```
 
 ---
@@ -205,6 +246,12 @@ node correo.js tu_correo@gmail.com
 ## Pruebas
 
 Hay 274 pruebas de integración que recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+
+Una vez creada la base de pruebas (paso 1 de [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md)), se corren todas con un solo comando desde `backend/`:
+
+```bash
+CLAVE_PRUEBAS=la_clave_de_la_base_de_pruebas npm test
+```
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 

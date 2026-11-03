@@ -1,13 +1,21 @@
 {
-  "name": "backend",
+  "name": "entrelazados-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "API y páginas de EntreLazados: mercado de materia prima para calzado y marroquinería",
+  "main": "entrelazados-api/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node entrelazados-api/index.js",
+    "test": "node pruebas/correr_pruebas.js",
+    "probar:correo": "node entrelazados-api/servicios/correo.js",
+    "probar:gemini": "node scripts/probar_gemini.js",
+    "datos:demo": "node pruebas/datos_demo.js ."
+  },
+  "engines": {
+    "node": ">=20"
   },
   "keywords": [],
-  "author": "",
+  "author": "Erick Sarria",
   "license": "ISC",
   "dependencies": {
     "@google/genai": "^2.27.0",

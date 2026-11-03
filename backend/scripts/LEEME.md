@@ -12,6 +12,27 @@ Los scripts leen el `.env` de `entrelazados-api`. Las contraseñas nunca aparece
 
 ---
 
+## Actualizar a la versión 11
+
+La versión 11 reorganiza el código (no cambia la base de datos ni el `.env`). Si la VM todavía no
+tiene la versión 10, haz primero la lista de abajo.
+
+```bash
+cd ~/entrelazados
+git pull origin main
+pm2 restart 0 --update-env
+pm2 logs 0 --lines 20
+```
+
+Deben aparecer los mismos mensajes de siempre (`Pool de conexiones MySQL`, `Cierre automático de
+subastas activo`, `Servidor Backend ejecutándose en el puerto 3000`). PM2 sigue arrancando
+`entrelazados-api/index.js`, así que no hay que cambiar su configuración.
+
+Para probar el correo ahora se usa `node servicios/correo.js destino@gmail.com` (desde
+`backend/entrelazados-api`) o `npm run probar:correo -- destino@gmail.com` (desde `backend/`).
+
+---
+
 ## Actualizar a la versión 10
 
 Todo se ejecuta en la VM (`ssh ericksv07@57.156.69.249`), desde `~/entrelazados`.

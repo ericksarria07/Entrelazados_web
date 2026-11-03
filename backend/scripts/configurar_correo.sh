@@ -71,7 +71,7 @@ fi
 read -rp "¿A qué correo enviamos una prueba? [$usuario]: " destino
 destino="${destino:-$usuario}"
 cd "$DIR_API"
-if node correo.js "$destino"; then
+if node servicios/correo.js "$destino"; then
     echo
     echo "✅ Si el correo llegó (revisa también Spam), reinicia el servidor:"
     echo "   pm2 restart 0 --update-env"

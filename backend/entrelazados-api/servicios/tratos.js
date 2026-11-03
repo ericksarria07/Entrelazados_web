@@ -18,6 +18,8 @@
 // se muestra en el Mercado junto a cada proveedor y en el dashboard.
 // ==========================================================================
 const { nombreLote } = require('./subastas');
+const { ErrorHttp, redondearCalificacion } = require('../utilidades');
+const { enTransaccion } = require('../db');
 
 // A cada estado nuevo solo se puede llegar desde estos estados
 const ESTADOS_ORIGEN = {
@@ -40,7 +42,7 @@ const LARGO_MAXIMO_COMENTARIO = 300;
 const loteDelTrato = (descripcion) => nombreLote(String(descripcion || '').replace(/^Subasta ganada:\s*/i, ''));
 
 // Error con código HTTP, para que la ruta responda el mensaje tal cual
-const fallo = (status, message) => Object.assign(new Error(message), { status });
+const fallo = (status, message) => new ErrorHttp(status, message);
 
 function textoDelChat(estado, lote, motivo) {
     if (estado === 'EnProceso') {
@@ -55,7 +57,7 @@ function textoDelChat(estado, lote, motivo) {
 function crearServicioTratos({ db, correo, urlBase }) {
 
     // Cambia el estado de un trato en el que participa usuarioId.
-    // Lanza un error con .status (400, 404 o 409) si no se puede.
+    // Lanza un ErrorHttp (400, 404 o 409) si no se puede.
     async function cambiarEstado({ tratoId, usuarioId, estado, motivo }) {
         if (!ESTADOS_ORIGEN[estado]) {
             throw fallo(400, 'Estado no válido. Usa EnProceso, Completado o Cancelado.');
@@ -67,12 +69,9 @@ function crearServicioTratos({ db, correo, urlBase }) {
             ? motivo.trim().slice(0, LARGO_MAXIMO_MOTIVO)
             : '';
 
-        const conn = await db.promise().getConnection();
-        let trato, contraparteId;
-        try {
-            await conn.beginTransaction();
+        const { trato, contraparteId } = await enTransaccion(db, async (conn) => {
             // FOR UPDATE: si las dos partes pulsan a la vez, la segunda ve el estado ya cambiado
-            [[trato]] = await conn.query(
+            const [[trato]] = await conn.query(
                 `SELECT TratoID, ProveedorID, EmprendedorID, DescripcionResumen, MontoTotal, EstadoTrato
                  FROM TratosCerrados
                  WHERE TratoID = ? AND (ProveedorID = ? OR EmprendedorID = ?)
@@ -88,18 +87,13 @@ function crearServicioTratos({ db, correo, urlBase }) {
 
             await conn.query('UPDATE TratosCerrados SET EstadoTrato = ? WHERE TratoID = ?', [estado, tratoId]);
 
-            contraparteId = trato.ProveedorID === usuarioId ? trato.EmprendedorID : trato.ProveedorID;
+            const contraparteId = trato.ProveedorID === usuarioId ? trato.EmprendedorID : trato.ProveedorID;
             await conn.query(
                 'INSERT INTO MensajesChat (RemitenteID, DestinatarioID, ContenidoTexto) VALUES (?, ?, ?)',
                 [usuarioId, contraparteId, textoDelChat(estado, loteDelTrato(trato.DescripcionResumen), motivoLimpio)]
             );
-            await conn.commit();
-        } catch (err) {
-            await conn.rollback().catch(() => { });
-            throw err;
-        } finally {
-            conn.release();
-        }
+            return { trato, contraparteId };
+        });
 
         // El correo va después de guardar y sin bloquear: si falla, el cambio igual queda hecho
         avisarPorCorreo({ trato, usuarioId, contraparteId, estado, motivo: motivoLimpio })
@@ -115,7 +109,7 @@ function crearServicioTratos({ db, correo, urlBase }) {
 
     async function avisarPorCorreo({ trato, usuarioId, contraparteId, estado, motivo }) {
         if (!correo || !correo.configurado) return;
-        const [usuarios] = await db.promise().query(
+        const [usuarios] = await db.query(
             `SELECT u.UsuarioID, u.CorreoElectronico, COALESCE(p.NombreRazonSocial, '') AS Nombre
              FROM Usuarios u LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = u.UsuarioID
              WHERE u.UsuarioID IN (?, ?)`, [usuarioId, contraparteId]
@@ -140,7 +134,7 @@ function crearServicioTratos({ db, correo, urlBase }) {
         });
     }
 
-    // Califica a la otra parte de un trato completado. Lanza un error con .status (400, 404 o 409).
+    // Califica a la otra parte de un trato completado. Lanza un ErrorHttp (400, 404 o 409).
     async function calificar({ tratoId, usuarioId, puntuacion, comentario }) {
         const estrellas = Number(puntuacion);
         if (!Number.isInteger(estrellas) || estrellas < 1 || estrellas > 5) {
@@ -151,9 +145,7 @@ function crearServicioTratos({ db, correo, urlBase }) {
         }
         const comentarioLimpio = typeof comentario === 'string' ? comentario.trim().slice(0, LARGO_MAXIMO_COMENTARIO) : '';
 
-        const conn = await db.promise().getConnection();
-        try {
-            await conn.beginTransaction();
+        return enTransaccion(db, async (conn) => {
             const [[trato]] = await conn.query(
                 `SELECT TratoID, ProveedorID, EmprendedorID, DescripcionResumen, EstadoTrato
                  FROM TratosCerrados
@@ -182,23 +174,17 @@ function crearServicioTratos({ db, correo, urlBase }) {
                     `⭐ [Aviso automático de EntreLazados] Califiqué el trato «${lote}» con ${estrellas} de 5 estrellas.` +
                     (comentarioLimpio ? ` Comentario: ${comentarioLimpio}` : '')]
             );
-            await conn.commit();
             return { tratoId, puntuacion: estrellas, calificadoId };
-        } catch (err) {
-            await conn.rollback().catch(() => { });
-            throw err;
-        } finally {
-            conn.release();
-        }
+        });
     }
 
     // Promedio, total y las últimas calificaciones (con comentario) que recibió un usuario
     async function reputacion(usuarioId) {
-        const [[resumen]] = await db.promise().query(
+        const [[resumen]] = await db.query(
             'SELECT COUNT(*) AS total, AVG(Puntuacion) AS promedio FROM Calificaciones WHERE CalificadoID = ?',
             [usuarioId]
         );
-        const [ultimas] = await db.promise().query(
+        const [ultimas] = await db.query(
             `SELECT c.Puntuacion AS puntuacion, c.Comentario AS comentario, c.FechaCalificacion AS fecha,
                     COALESCE(p.NombreRazonSocial, 'Usuario') AS autor
              FROM Calificaciones c LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = c.AutorID
@@ -210,7 +196,7 @@ function crearServicioTratos({ db, correo, urlBase }) {
         return {
             usuarioId,
             total,
-            promedio: total ? Math.round(Number(resumen.promedio) * 10) / 10 : null,
+            promedio: total ? redondearCalificacion(resumen.promedio) : null,
             ultimas
         };
     }
