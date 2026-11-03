@@ -12,6 +12,23 @@ Los scripts leen el `.env` de `entrelazados-api`. Las contraseñas nunca aparece
 
 ---
 
+## Actualizar a la versión 12 (parte 1: pruebas y Swagger)
+
+Trae dos dependencias nuevas (`swagger-ui-express` y `yaml`), así que esta vez **sí** hay que
+correr `npm install`. No cambia la base de datos ni el `.env`.
+
+```bash
+cd ~/entrelazados
+git pull origin main
+cd backend && npm install && cd ..
+pm2 restart 0 --update-env
+pm2 logs 0 --lines 20 --nostream
+```
+
+Después abre `http://57.156.69.249:3000/api/docs`: debe aparecer la documentación interactiva de la API.
+
+---
+
 ## Actualizar a la versión 11
 
 La versión 11 reorganiza el código (no cambia la base de datos ni el `.env`). Si la VM todavía no

@@ -1,4 +1,42 @@
-# Pruebas locales de la API
+# Pruebas de EntreLazados
+
+| | Carpeta | Qué necesitan | Comando (desde `backend/`) |
+|---|---|---|---|
+| **Unitarias** (58) | `pruebas/unidad/` | Nada (ni MySQL ni `.env`) | `npm run test:unidad` |
+| **De integración** (274) | `pruebas/pruebas_api.js` | La base MySQL de pruebas (paso 1) | `npm run test:api` |
+| **Todas** | | La base de pruebas | `npm test` |
+
+En GitHub se corren solas en cada push y pull request (ver `.github/workflows/pruebas.yml`
+en la raíz del repositorio y la pestaña **Actions**).
+
+## Pruebas unitarias
+
+Usan `node:test`, el corredor de pruebas que trae Node (no hay que instalar nada). Node encuentra
+solo los archivos que terminan en `.test.js`:
+
+| Archivo | Qué prueba |
+|---|---|
+| `utilidades.test.js` | Validaciones de correo y token, paginación, búsquedas con `%` y `_`, ocultar correos |
+| `reglas_negocio.test.js` | Validar una publicación, la máquina de estados de los tratos, las respuestas fijas de Kan |
+| `middlewares.test.js` | Sesión (tokens falsos, vencidos, cuenta suspendida), roles y el manejador de errores |
+| `app.test.js` | La aplicación Express completa con una base de datos falsa: 404, 401, JSON mal escrito, Swagger, archivos que no se pueden descargar |
+| `rutas_documentadas.test.js` | Que cada ruta del código esté en `entrelazados-api/docs/openapi.yaml` y viceversa |
+
+`ayudas.js` no es una prueba: tiene una respuesta de Express falsa y una función para silenciar
+los mensajes del log mientras corre una prueba.
+
+```bash
+npm run test:unidad          # ~1 segundo
+npm run test:cobertura       # además muestra qué líneas del código se recorrieron (Node 22)
+node --test --test-reporter=spec   # salida con ✔ / ✖ por prueba
+```
+
+**Si falla `rutas_documentadas`** después de agregar una ruta: falta describirla en
+`entrelazados-api/docs/openapi.yaml` (se ve en `/api/docs`).
+
+---
+
+# Pruebas de integración de la API
 
 Pruebas de integración que levantan el flujo completo (registro, login, ofertas,
 confirmación del correo, editar y paginar ofertas, fotos, subastas, pujas, cierre de
@@ -14,12 +52,13 @@ CREATE USER 'entrelazados_pruebas'@'localhost' IDENTIFIED BY 'UNA_CLAVE_DE_PRUEB
 GRANT ALL PRIVILEGES ON entrelazados_pruebas.* TO 'entrelazados_pruebas'@'localhost';
 ```
 
-## Forma rápida: `npm test`
+## Forma rápida: `npm run test:api`
 
 Con la base del paso 1 creada, desde `backend/`:
 
 ```bash
-CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm test
+CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm run test:api     # solo estas
+CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm test             # unitarias + estas
 ```
 
 `pruebas/correr_pruebas.js` hace solo los pasos 2 a 4: vacía `entrelazados_pruebas`, carga el
@@ -28,6 +67,8 @@ pruebas y apaga el servidor. Termina con `RESULTADO: 274 correctas, 0 fallidas` 
 salida 0). Se puede repetir las veces que quieras.
 
 En PowerShell: `$env:CLAVE_PRUEBAS="UNA_CLAVE_DE_PRUEBA"; npm test`
+
+Si MySQL no está en `localhost`, indica dónde con `PRUEBAS_DB_HOST` (GitHub Actions usa `127.0.0.1`).
 
 Los pasos 2 a 4 explican lo mismo a mano.
 

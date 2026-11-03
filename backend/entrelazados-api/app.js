@@ -25,6 +25,8 @@ function crearApp({ config, db, correo, servicios, verificarCorreo }) {
     // Las fotos viajan aparte como archivos (ver servicios/fotos.js)
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ limit: '1mb', extended: true }));
+    // Documentación interactiva: /api/docs y /api/openapi.json (antes del límite de peticiones)
+    app.use('/api', require('./rutas/documentacion')());
     app.use('/api', limites.api);
 
     const { firmarToken, verificarToken, soloRoles, verificarAdmin } = crearAutenticacion({

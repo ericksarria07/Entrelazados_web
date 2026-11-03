@@ -1,14 +1,16 @@
 // ==========================================================================
-// CORRER TODAS LAS PRUEBAS CON UN SOLO COMANDO
+// CORRER LAS PRUEBAS DE INTEGRACIÓN DE LA API CON UN SOLO COMANDO
 //
-//   Desde backend/:   CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm test
+//   Desde backend/:   CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm run test:api
 //   (o bien)          node pruebas/correr_pruebas.js UNA_CLAVE_DE_PRUEBA
+//   (npm test corre primero las pruebas unitarias y después estas)
 //
 // 1. Vacía la base LOCAL entrelazados_pruebas y carga el esquema (sql/esquema_mysql.sql).
 // 2. Levanta el servidor en el puerto 3055 apuntando a esa base.
 // 3. Corre pruebas_api.js y apaga el servidor.
 // Solo toca la base entrelazados_pruebas de esta computadora: nunca la de producción.
 // La base y el usuario se crean una sola vez (ver pruebas/LEEME.md, paso 1).
+// PRUEBAS_DB_HOST cambia el servidor MySQL (por defecto localhost; GitHub Actions usa 127.0.0.1).
 // ==========================================================================
 const path = require('path');
 const fs = require('fs');
@@ -30,7 +32,7 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const responde = () => fetch(URL_PING).then((r) => r.ok, () => false);
 
 async function vaciarBase() {
-    const c = await mysql.createConnection({ host: 'localhost', user: BASE, password: clave, database: BASE });
+    const c = await mysql.createConnection({ host: process.env.PRUEBAS_DB_HOST || 'localhost', user: BASE, password: clave, database: BASE });
     const [tablas] = await c.query('SELECT TABLE_NAME AS n FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?', [BASE]);
     await c.query('SET FOREIGN_KEY_CHECKS = 0');
     for (const { n } of tablas) await c.query('DROP TABLE `' + n + '`');
@@ -63,7 +65,7 @@ async function vaciarBase() {
         stdio: ['ignore', log, log],
         env: {
             ...process.env,
-            DB_HOST: 'localhost', DB_USER: BASE, DB_PASSWORD: clave, DB_NAME: BASE,
+            DB_HOST: process.env.PRUEBAS_DB_HOST || 'localhost', DB_USER: BASE, DB_PASSWORD: clave, DB_NAME: BASE,
             JWT_SECRET: 'secreto-de-pruebas-local', GEMINI_API_KEY: 'sin-clave', PORT: String(PUERTO),
             EMAIL_USER: '', EMAIL_PASS: '', APP_URL: '', VERIFICAR_CORREO: '1',
             UPLOADS_DIR: CARPETA_FOTOS,

@@ -32,7 +32,8 @@ const RESPUESTAS_GENERALES = [
         respuesta: "En el Mercado, cada publicación tuya tiene los botones Editar y Eliminar. Con Editar cambias el título, el precio, la categoría o las fotos (si tiene una subasta abierta, también se actualiza su título). Con Eliminar retiras el material de la vista pública; si su subasta ya recibió pujas, tendrás que esperar a que cierre."
     },
     {
-        frases: ['talleres están interesados', 'materia prima'],
+        // (no usar solo "materia prima": taparía la respuesta de "cómo busco materia prima")
+        frases: ['talleres están interesados', 'interesados en mi materia prima'],
         respuesta: "Puedes revisar el apartado de Chat en la barra de navegación superior. Ahí recibirás de forma directa los mensajes y consultas de los emprendedores que han visto tus ofertas de cuero, suelas o herrajes."
     },
     {

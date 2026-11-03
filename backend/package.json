@@ -6,7 +6,10 @@
   "main": "entrelazados-api/index.js",
   "scripts": {
     "start": "node entrelazados-api/index.js",
-    "test": "node pruebas/correr_pruebas.js",
+    "test": "npm run test:unidad && npm run test:api",
+    "test:unidad": "node --test",
+    "test:api": "node pruebas/correr_pruebas.js",
+    "test:cobertura": "node --test --experimental-test-coverage --test-coverage-exclude=\"pruebas/**\" \"pruebas/unidad/*.test.js\"",
     "probar:correo": "node entrelazados-api/servicios/correo.js",
     "probar:gemini": "node scripts/probar_gemini.js",
     "datos:demo": "node pruebas/datos_demo.js ."
@@ -27,6 +30,8 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "mysql2": "^3.23.4",
-    "nodemailer": "^10.3.1"
+    "nodemailer": "^10.3.1",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.9.1"
   }
 }
