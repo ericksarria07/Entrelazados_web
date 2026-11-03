@@ -1,0 +1,1142 @@
+# ==========================================================================
+# ESPECIFICACIÓN OPENAPI DE LA API DE ENTRELAZADOS
+#
+# Se ve como página interactiva en /api/docs (Swagger UI) y en crudo en
+# /api/openapi.json. La prueba pruebas/unidad/rutas_documentadas.test.js
+# falla si una ruta del código no está aquí (o si aquí sobra alguna):
+# al agregar o quitar una ruta, actualiza también este archivo.
+# ==========================================================================
+openapi: 3.1.0
+info:
+  title: API de EntreLazados
+  version: "12.0"
+  description: |
+    Mercado de materia prima para calzado y marroquinería: proveedores publican materiales
+    (cada publicación abre una subasta), emprendedores pujan, conversan por chat y cierran tratos.
+
+    **Cómo probar las rutas con sesión**
+    1. Abre `POST /api/login`, pulsa *Try it out*, escribe tu correo y contraseña y ejecuta.
+    2. Copia el `token` de la respuesta.
+    3. Pulsa el botón **Authorize** (el candado verde), pega el token y acepta.
+
+    Todas las respuestas son JSON. Los errores esperados responden `{ "message": "..." }` con su
+    código HTTP. Cualquier ruta puede responder **429** si se supera un límite de intentos y
+    **500** si ocurre un error inesperado (el detalle solo queda en el log del servidor).
+servers:
+  - url: /
+    description: Este mismo servidor
+
+tags:
+  - name: Cuentas
+    description: Registro, inicio de sesión, confirmación del correo y recuperación de contraseña (rutas/cuentas.js)
+  - name: Públicas
+    description: Consultas sin sesión para la portada (rutas/publicas.js)
+  - name: Ofertas
+    description: Publicaciones de materiales (rutas/ofertas.js). Publicar abre una subasta de 7 días.
+  - name: Subastas
+    description: Subastas y pujas (rutas/subastas.js). Las vencidas se cierran solas cada minuto.
+  - name: Chat y Kan
+    description: Mensajes entre usuarios y el asistente Kan (rutas/chat.js, rutas/kan.js)
+  - name: Tratos
+    description: Seguimiento y calificación de los tratos cerrados (rutas/tratos.js)
+  - name: Perfil y dashboard
+    description: Perfil, reputación y dashboard (rutas/usuarios.js, rutas/dashboard.js)
+  - name: Administración
+    description: Panel del administrador (rutas/admin.js). Todas exigen rol de administrador.
+
+paths:
+  # ------------------------------------------------------------------ CUENTAS
+  /registro:
+    post:
+      tags: [Cuentas]
+      summary: Crear una cuenta
+      description: Crea una cuenta de Proveedor o Emprendedor (nunca de administrador). Límite de cuentas nuevas por IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, email, password, rol, deptoId, telefono]
+              properties:
+                nombre: { type: string, example: Curtiembre La Esperanza }
+                email: { type: string, format: email, example: ventas@esperanza.com }
+                password: { type: string, minLength: 6, maxLength: 72, example: Clave123 }
+                rol: { type: string, enum: [Proveedor, Emprendedor] }
+                deptoId: { type: string, description: Nombre del departamento, example: León }
+                telefono: { type: string, example: "88887777" }
+                numeroRuc: { type: string, description: Solo proveedor }
+                nombreComercial: { type: string, description: Solo proveedor }
+                tipoMateriaPrimaPrincipal: { type: string, description: Solo proveedor }
+                descripcionEmpresa: { type: string, description: Solo proveedor }
+                nombreMarca: { type: string, description: Solo emprendedor }
+                especialidadCalzado: { type: string, description: Solo emprendedor }
+                capacidadProduccionMensual: { type: integer, description: Solo emprendedor }
+      responses:
+        "200":
+          description: Cuenta creada. Si hay que confirmar el correo, se envía un enlace que vence en 24 h.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  verificacionPendiente: { type: boolean }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+        "500": { description: El correo ya está registrado, o error interno }
+
+  /api/login:
+    post:
+      tags: [Cuentas]
+      summary: Iniciar sesión
+      description: Entrega el token de la sesión (8 horas). Solo cuentan los intentos fallidos (10 cada 15 min por IP).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, example: admin@prueba.com }
+                password: { type: string, example: Admin123! }
+      responses:
+        "200":
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, example: 12 }
+                  nombre: { type: string, example: Curtiembre La Esperanza }
+                  rol: { type: string, example: Proveedor }
+                  departamento: { type: string, example: León }
+                  estado: { type: string, example: Activo }
+                  token: { type: string, example: eyJhbGciOi... }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { description: Correo o contraseña incorrectos (mismo mensaje exista o no la cuenta) }
+        "403":
+          description: Cuenta suspendida, o falta confirmar el correo (`verificacionPendiente`)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  verificacionPendiente: { type: boolean }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+
+  /api/verificar-correo:
+    get:
+      tags: [Cuentas]
+      summary: Confirmar el correo
+      description: Lo llama verificar.html con el token del enlace del correo. Cada enlace sirve una sola vez.
+      parameters:
+        - $ref: "#/components/parameters/TokenEnlace"
+      responses:
+        "200":
+          description: Correo confirmado
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean, const: true }, message: { type: string } } }
+        "400":
+          description: Enlace inválido, usado o vencido
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean, const: false }, message: { type: string } } }
+
+  /api/reenviar-verificacion:
+    post:
+      tags: [Cuentas]
+      summary: Reenviar el enlace de confirmación
+      description: Responde lo mismo exista o no la cuenta (no revela correos). Uno por minuto por correo.
+      requestBody: { $ref: "#/components/requestBodies/SoloCorreo" }
+      responses:
+        "200": { $ref: "#/components/responses/Mensaje" }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+
+  /api/solicitar-recuperacion:
+    post:
+      tags: [Cuentas]
+      summary: Pedir el enlace para restablecer la contraseña
+      description: El enlace vale 1 hora y un solo uso. Misma respuesta exista o no la cuenta.
+      requestBody: { $ref: "#/components/requestBodies/SoloCorreo" }
+      responses:
+        "200": { $ref: "#/components/responses/Mensaje" }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+
+  /api/validar-token-recuperacion:
+    get:
+      tags: [Cuentas]
+      summary: Revisar si el enlace de recuperación sigue vigente
+      parameters:
+        - $ref: "#/components/parameters/TokenEnlace"
+      responses:
+        "200":
+          description: Enlace vigente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valido: { type: boolean, const: true }
+                  correo: { type: string, example: e***k@gmail.com }
+                  expira: { type: string, format: date-time }
+        "400":
+          description: Enlace inválido o vencido
+          content:
+            application/json:
+              schema: { type: object, properties: { valido: { type: boolean, const: false } } }
+
+  /api/restablecer-password:
+    post:
+      tags: [Cuentas]
+      summary: Cambiar la contraseña con el enlace del correo
+      description: También da el correo por confirmado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, nuevaContrasena]
+              properties:
+                token: { type: string, pattern: "^[a-f0-9]{64}$" }
+                nuevaContrasena: { type: string, minLength: 6, maxLength: 72 }
+      responses:
+        "200": { $ref: "#/components/responses/Mensaje" }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+
+  # ------------------------------------------------------------------ PÚBLICAS
+  /api/ping:
+    get:
+      tags: [Públicas]
+      summary: Comprobar que el servidor responde
+      responses:
+        "200":
+          description: Servidor en línea
+          content:
+            application/json:
+              schema: { type: object, properties: { status: { type: string, example: ok }, message: { type: string } } }
+
+  /api/categorias:
+    get:
+      tags: [Públicas]
+      summary: Categorías de materiales
+      description: En orden alfabético. Si la base falla responde una lista vacía.
+      responses:
+        "200":
+          description: Lista de categorías
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    CategoriaID: { type: integer, example: 1 }
+                    NombreCategoria: { type: string, example: Cueros }
+
+  /api/estadisticas:
+    get:
+      tags: [Públicas]
+      summary: Contadores de la portada
+      responses:
+        "200":
+          description: Contadores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proveedores: { type: integer }
+                  emprendedores: { type: integer }
+                  subastas: { type: integer }
+
+  # ------------------------------------------------------------------ OFERTAS
+  /api/ofertas:
+    get:
+      tags: [Ofertas]
+      summary: Listar publicaciones
+      description: De la más reciente a la más antigua. Sin `pagina` devuelve la lista completa; con `pagina` devuelve una página.
+      parameters:
+        - { name: q, in: query, description: Texto en el título, schema: { type: string } }
+        - { name: categoria, in: query, description: ID de la categoría, schema: { type: integer } }
+        - { name: maxKm, in: query, description: Distancia máxima en km, schema: { type: number } }
+        - { name: proveedorId, in: query, schema: { type: integer } }
+        - $ref: "#/components/parameters/Pagina"
+        - { name: porPagina, in: query, description: "Máximo 50 (por defecto 12)", schema: { type: integer, maximum: 50 } }
+      responses:
+        "200":
+          description: Lista, o página si se pidió `pagina`
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: { $ref: "#/components/schemas/Oferta" }
+                  - allOf:
+                      - $ref: "#/components/schemas/Pagina"
+                      - properties: { datos: { type: array, items: { $ref: "#/components/schemas/Oferta" } } }
+    post:
+      tags: [Ofertas]
+      summary: Publicar un material
+      description: Solo proveedores (20 publicaciones con fotos por hora). Abre su subasta de 7 días con precio base = precio.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/OfertaNueva" }
+          application/json:
+            schema: { $ref: "#/components/schemas/OfertaNueva" }
+      responses:
+        "200":
+          description: Publicada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  ofertaId: { type: integer }
+                  fotos: { type: array, items: { type: string } }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SinPermiso" }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+
+  /api/ofertas/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Ofertas]
+      summary: Editar una publicación
+      description: Proveedor dueño o administrador. Si tiene una subasta abierta, esta toma el título y la categoría nuevos (no el precio). Máximo 5 fotos en total.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/OfertaNueva"
+                - properties:
+                    fotosQuitar: { type: string, description: Lista JSON con las direcciones de las fotos a quitar }
+      responses:
+        "200":
+          description: Editada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  ofertaId: { type: integer }
+                  fotos: { type: array, items: { type: string } }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+    delete:
+      tags: [Ofertas]
+      summary: Eliminar una publicación
+      description: Borra la publicación y sus fotos y cancela su subasta abierta. El proveedor no puede si la subasta ya tiene pujas (409).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/OfertaEliminada" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { description: No existe o no es tuya }
+        "409":
+          description: Su subasta ya tiene pujas
+          content:
+            application/json:
+              schema: { type: object, properties: { message: { type: string }, pujas: { type: integer } } }
+
+  # ------------------------------------------------------------------ SUBASTAS
+  /api/subastas:
+    get:
+      tags: [Subastas]
+      summary: Subastas abiertas
+      description: Activas y sin vencer, primero las que cierran antes.
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: categoria, in: query, schema: { type: integer } }
+        - $ref: "#/components/parameters/Pagina"
+        - { name: porPagina, in: query, description: "Máximo 50 (por defecto 10)", schema: { type: integer, maximum: 50 } }
+      responses:
+        "200":
+          description: Lista, o página si se pidió `pagina`
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: { $ref: "#/components/schemas/Subasta" }
+                  - allOf:
+                      - $ref: "#/components/schemas/Pagina"
+                      - properties: { datos: { type: array, items: { $ref: "#/components/schemas/Subasta" } } }
+    post:
+      tags: [Subastas]
+      summary: Crear una subasta
+      description: Solo proveedores. A partir de una publicación propia (`ofertaId`) o como lote nuevo (`tituloLote` + `categoriaId`).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [precioBase]
+              properties:
+                precioBase: { type: number, exclusiveMinimum: 0, example: 500 }
+                dias: { type: integer, minimum: 1, maximum: 14, default: 7 }
+                ofertaId: { type: integer }
+                tituloLote: { type: string }
+                categoriaId: { type: integer }
+      responses:
+        "201":
+          description: Subasta creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  subastaId: { type: integer }
+                  fechaFin: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SinPermiso" }
+        "404": { description: La publicación no existe o no es tuya }
+        "409": { description: Esa publicación ya tiene una subasta abierta }
+
+  /api/pujas:
+    post:
+      tags: [Subastas]
+      summary: Pujar
+      description: Solo emprendedores. La validación y el nuevo precio se hacen en un solo UPDATE atómico y el historial en la misma transacción.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subastaId, montoPuja]
+              properties:
+                subastaId: { type: integer, example: 8 }
+                montoPuja: { type: number, example: 520 }
+      responses:
+        "200": { $ref: "#/components/responses/Mensaje" }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { description: No eres emprendedor, o es tu propia subasta }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409":
+          description: La subasta ya terminó, o el monto no supera el precio actual
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Tu puja debe ser mayor al precio actual de C$540. }
+                  precioActual: { type: number, example: 540 }
+
+  # ------------------------------------------------------------------ CHAT Y KAN
+  /api/chat/contactos:
+    get:
+      tags: [Chat y Kan]
+      summary: Personas con quien conversar
+      description: Primero las que tienen mensajes sin leer, luego las conversaciones más recientes.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Contactos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    UsuarioID: { type: integer }
+                    NombreRazonSocial: { type: string }
+                    TipoRol: { type: string }
+                    NombreDepartamento: { type: string }
+                    NoLeidos: { type: integer }
+                    UltimoMensaje: { type: [string, "null"], format: date-time }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/chat/no-leidos:
+    get:
+      tags: [Chat y Kan]
+      summary: Mensajes sin leer
+      description: El menú de todas las páginas lo consulta cada 30 segundos.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Totales
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer, example: 3 }
+                  porContacto: { type: object, additionalProperties: { type: integer }, example: { "12": 2, "15": 1 } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/chat/mensajes:
+    get:
+      tags: [Chat y Kan]
+      summary: Conversación con una persona
+      description: Marca como leídos los mensajes que esa persona te envió.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: destinatarioId, in: query, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Mensajes, del más antiguo al más nuevo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    MensajeID: { type: integer }
+                    RemitenteID: { type: integer }
+                    DestinatarioID: { type: integer }
+                    ContenidoTexto: { type: string }
+                    FechaEnvio: { type: string, format: date-time }
+                    EsLeido: { type: integer, enum: [0, 1] }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/chat/enviar:
+    post:
+      tags: [Chat y Kan]
+      summary: Enviar un mensaje
+      description: El remitente es siempre el usuario de la sesión.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destinatarioId, texto]
+              properties:
+                destinatarioId: { type: integer }
+                texto: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: Enviado
+          content:
+            application/json:
+              schema: { type: object, properties: { success: { type: boolean }, message: { type: string } } }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/chat/ia:
+    post:
+      tags: [Chat y Kan]
+      summary: Preguntar a Kan
+      description: |
+        Primero busca una respuesta fija (gratis); si no hay, pregunta a Gemini con las ofertas y subastas
+        reales como contexto. Si Gemini falla, responde un mensaje amable. Límite: 10 por minuto y 150 al día por usuario.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mensajeUsuario]
+              properties:
+                mensajeUsuario: { type: string, maxLength: 1000, example: hola }
+      responses:
+        "200":
+          description: Respuesta de Kan
+          content:
+            application/json:
+              schema: { type: object, properties: { respuesta: { type: string } } }
+        "400":
+          description: Mensaje vacío o demasiado largo
+          content:
+            application/json:
+              schema: { type: object, properties: { error: { type: string } } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+
+  # ------------------------------------------------------------------ TRATOS
+  /api/tratos:
+    get:
+      tags: [Tratos]
+      summary: Mis tratos
+      description: Subastas ganadas o vendidas, primero las abiertas. Máximo 50.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Tratos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Trato" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/tratos/{id}/estado:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Tratos]
+      summary: Cambiar el estado de un trato
+      description: "Pendiente → EnProceso → Completado; se puede cancelar mientras no esté terminado. La otra parte recibe un aviso."
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado: { type: string, enum: [EnProceso, Completado, Cancelado] }
+                motivo: { type: string, description: Solo al cancelar }
+      responses:
+        "200":
+          description: Estado cambiado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  tratoId: { type: integer }
+                  estadoAnterior: { type: string }
+                  estado: { type: string }
+                  contraparteId: { type: integer }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { description: No existe o no participas }
+        "409": { description: Ya está en ese estado o ya terminó }
+
+  /api/tratos/{id}/calificacion:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Tratos]
+      summary: Calificar a la otra parte
+      description: Solo tratos completados, una vez por persona y trato.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [puntuacion]
+              properties:
+                puntuacion: { type: integer, minimum: 1, maximum: 5 }
+                comentario: { type: string, maxLength: 300 }
+      responses:
+        "201":
+          description: Calificación guardada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  tratoId: { type: integer }
+                  puntuacion: { type: integer }
+                  calificadoId: { type: integer }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { description: No participas en ese trato }
+        "409": { description: El trato no está completado o ya calificaste }
+
+  # ------------------------------------------------------------------ PERFIL Y DASHBOARD
+  /api/perfil/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Perfil y dashboard]
+      summary: Perfil completo
+      description: Solo el propio perfil, o cualquiera si eres administrador. Incluye los datos del rol.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Perfil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  UsuarioID: { type: integer }
+                  CorreoElectronico: { type: string }
+                  TipoRol: { type: string }
+                  EstadoCuenta: { type: string }
+                  NombreRazonSocial: { type: string }
+                  TelefonoWhatsApp: { type: string }
+                  NombreDepartamento: { type: string }
+                additionalProperties: true
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { description: No es tu perfil }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/usuarios/{id}/reputacion:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Perfil y dashboard]
+      summary: Calificaciones que recibió un usuario
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Reputación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  usuarioId: { type: integer }
+                  total: { type: integer }
+                  promedio: { type: [number, "null"], example: 4.5 }
+                  ultimas:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        puntuacion: { type: integer }
+                        comentario: { type: [string, "null"] }
+                        fecha: { type: string, format: date-time }
+                        autor: { type: string }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/dashboard:
+    get:
+      tags: [Perfil y dashboard]
+      summary: Datos del dashboard
+      description: |
+        Todo lo que muestra el dashboard en una sola llamada (las consultas van en paralelo).
+        Los nombres de quienes pujan solo los ve el administrador; `miActividad` depende del rol.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: meses, in: query, schema: { type: integer, enum: [3, 6, 12], default: 6 } }
+      responses:
+        "200":
+          description: Datos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  generado: { type: string, format: date-time }
+                  periodoMeses: { type: integer }
+                  esAdmin: { type: boolean }
+                  resumen: { type: object }
+                  categorias: { type: array, items: { type: object } }
+                  departamentos: { type: array, items: { type: object } }
+                  actividad: { type: array, items: { type: object }, description: Serie mensual }
+                  subastas: { type: object }
+                  pujasRecientes: { type: array, items: { type: object } }
+                  miActividad: { type: object }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  # ------------------------------------------------------------------ ADMINISTRACIÓN
+  /api/admin/metricas:
+    get:
+      tags: [Administración]
+      summary: Contadores de la plataforma
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Contadores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsuarios: { type: integer }
+                  totalProveedores: { type: integer }
+                  totalEmprendedores: { type: integer }
+                  totalAdmins: { type: integer }
+                  totalOfertas: { type: integer }
+                  subastasActivas: { type: integer }
+                  totalMensajes: { type: integer }
+                  correosInvalidos: { type: integer }
+                  cuentasSinVerificar: { type: integer }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+
+  /api/admin/usuarios:
+    get:
+      tags: [Administración]
+      summary: Lista de usuarios
+      description: De los más nuevos a los más antiguos.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: buscar, in: query, description: Nombre o correo, schema: { type: string } }
+        - { name: problemas, in: query, description: "1 = solo cuentas con el correo inválido o sin confirmar", schema: { type: string, enum: ["1"] } }
+        - $ref: "#/components/parameters/Pagina"
+        - { name: porPagina, in: query, description: "Máximo 100 (por defecto 20)", schema: { type: integer, maximum: 100 } }
+      responses:
+        "200":
+          description: Lista, o página si se pidió `pagina`
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: { $ref: "#/components/schemas/UsuarioAdmin" }
+                  - allOf:
+                      - $ref: "#/components/schemas/Pagina"
+                      - properties: { datos: { type: array, items: { $ref: "#/components/schemas/UsuarioAdmin" } } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+
+  /api/admin/usuarios/{id}/correo:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Administración]
+      summary: Corregir el correo de una cuenta
+      description: Por ejemplo `erick@gmail` sin `.com`. La cuenta queda confirmada.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [correo], properties: { correo: { type: string, format: email } } }
+      responses:
+        "200": { $ref: "#/components/responses/Exito" }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { description: Otra cuenta ya usa ese correo }
+
+  /api/admin/usuarios/{id}/verificar:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Administración]
+      summary: Dar por confirmado el correo de una cuenta
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Exito" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/admin/usuarios/{id}/estado:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Administración]
+      summary: Activar o suspender una cuenta
+      description: Una cuenta suspendida pierde el acceso al instante.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nuevoEstado]
+              properties:
+                nuevoEstado: { type: string, enum: [Activo, Inactivo, Suspendido] }
+      responses:
+        "200": { $ref: "#/components/responses/Exito" }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/admin/usuarios/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      tags: [Administración]
+      summary: Eliminar una cuenta
+      description: Borra la cuenta con todos sus registros y fotos en una transacción, y avisa a quienes pujaron en sus subastas abiertas.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Eliminada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  pujadoresAvisados: { type: integer }
+        "400": { description: No puedes eliminarte a ti mismo }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/admin/ofertas/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      tags: [Administración]
+      summary: Retirar una publicación (moderación)
+      description: Aunque su subasta tenga pujas; se avisa a quienes pujaron.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/OfertaEliminada" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/admin/subastas/cerrar-vencidas:
+    post:
+      tags: [Administración]
+      summary: Cerrar ahora las subastas vencidas
+      description: Normalmente lo hace el servidor solo cada minuto. Cada subasta con pujas crea un trato con el ganador.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Subastas cerradas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  cerradas:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subastaId: { type: integer }
+                        lote: { type: string }
+                        proveedorId: { type: integer }
+                        ganadorId: { type: [integer, "null"] }
+                        monto: { type: [number, "null"] }
+                        tratoId: { type: [integer, "null"] }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+
+  /api/admin/categorias:
+    post:
+      tags: [Administración]
+      summary: Crear una categoría de materiales
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombreCategoria]
+              properties:
+                nombreCategoria: { type: string, example: Hebillas }
+                descripcion: { type: string }
+      responses:
+        "200":
+          description: Creada
+          content:
+            application/json:
+              schema: { type: object, properties: { success: { type: boolean }, id: { type: integer }, message: { type: string } } }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SoloAdmin" }
+        "500": { description: La categoría ya existe, o error interno }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: El token que devuelve POST /api/login (dura 8 horas).
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    Pagina:
+      name: pagina
+      in: query
+      description: Número de página (desde 1). Si no se envía, se devuelve la lista completa.
+      schema: { type: integer, minimum: 1 }
+    TokenEnlace:
+      name: token
+      in: query
+      required: true
+      description: Token del enlace del correo (64 caracteres hexadecimales)
+      schema: { type: string, pattern: "^[a-f0-9]{64}$" }
+
+  requestBodies:
+    SoloCorreo:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email: { type: string, format: email }
+
+  responses:
+    Mensaje:
+      description: Correcto
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Mensaje" }
+    Exito:
+      description: Correcto
+      content:
+        application/json:
+          schema: { type: object, properties: { success: { type: boolean }, message: { type: string } } }
+    OfertaEliminada:
+      description: Eliminada
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              message: { type: string }
+              subastasCanceladas: { type: integer }
+              pujadoresAvisados: { type: integer }
+    DatosInvalidos:
+      description: Faltan datos o no son válidos
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Mensaje" }
+    SinSesion:
+      description: Falta el token, es inválido o venció
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Mensaje" }
+    SinPermiso:
+      description: Tu rol no puede usar esta ruta
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Mensaje" }
+    SoloAdmin:
+      description: Solo el administrador
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Mensaje" }
+    NoEncontrado:
+      description: No existe
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Mensaje" }
+    DemasiadosIntentos:
+      description: Se superó un límite de intentos
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string, example: Demasiados intentos. Intenta de nuevo en 5 minutos. }
+              reintentarEnSegundos: { type: integer, example: 287 }
+
+  schemas:
+    Mensaje:
+      type: object
+      properties:
+        message: { type: string }
+
+    Pagina:
+      type: object
+      description: Respuesta paginada (cuando se envía `pagina`)
+      properties:
+        datos: { type: array, items: {} }
+        total: { type: integer }
+        pagina: { type: integer }
+        porPagina: { type: integer }
+        paginas: { type: integer }
+
+    OfertaNueva:
+      type: object
+      required: [titulo, precio, unidad, categoriaId]
+      properties:
+        titulo: { type: string, maxLength: 120, example: Cuero vacuno curtido }
+        precio: { type: number, exclusiveMinimum: 0, example: 450 }
+        unidad: { type: string, maxLength: 30, example: pie² }
+        categoriaId: { type: integer, example: 1 }
+        distancia: { type: number, description: Distancia en km, example: 12 }
+        fotos:
+          type: array
+          maxItems: 5
+          description: Hasta 5 fotos JPG, PNG o WebP de 5 MB como máximo (solo con multipart/form-data)
+          items: { type: string, format: binary }
+
+    Oferta:
+      type: object
+      properties:
+        OfertaID: { type: integer }
+        ProveedorID: { type: integer }
+        TituloMaterial: { type: string }
+        Precio: { type: number }
+        UnidadMedida: { type: string }
+        DistanciaSimuladaKm: { type: number }
+        CategoriaID: { type: integer }
+        NombreCategoria: { type: string }
+        FechaPublicacion: { type: string, format: date-time }
+        Fotos: { type: array, items: { type: string } }
+        NombreProveedor: { type: string }
+        CalificacionProveedor: { type: [number, "null"] }
+        TotalCalificaciones: { type: integer }
+
+    Subasta:
+      type: object
+      properties:
+        SubastaID: { type: integer }
+        ProveedorID: { type: integer }
+        OfertaID: { type: [integer, "null"] }
+        CategoriaID: { type: integer }
+        NombreCategoria: { type: string }
+        TituloLote: { type: string }
+        PrecioBase: { type: number }
+        PrecioActual: { type: number }
+        FechaFin: { type: string, format: date-time }
+        Estado: { type: string }
+        TotalPujas: { type: integer }
+        Foto: { type: [string, "null"] }
+
+    Trato:
+      type: object
+      properties:
+        id: { type: integer }
+        origen: { type: string, example: Subasta }
+        origenId: { type: integer }
+        descripcion: { type: string }
+        monto: { type: number }
+        estado: { type: string, enum: [Pendiente, EnProceso, Completado, Cancelado] }
+        fecha: { type: string, format: date-time }
+        soyProveedor: { type: boolean }
+        contraparteId: { type: integer }
+        contraparte: { type: string }
+        miCalificacion: { type: [integer, "null"] }
+        suCalificacion: { type: [integer, "null"] }
+
+    UsuarioAdmin:
+      type: object
+      properties:
+        UsuarioID: { type: integer }
+        CorreoElectronico: { type: string }
+        TipoRol: { type: string }
+        EstadoCuenta: { type: string }
+        FechaCreacion: { type: string, format: date-time }
+        CorreoVerificado: { type: integer, enum: [0, 1] }
+        CorreoValido: { type: integer, enum: [0, 1] }
+        NombreRazonSocial: { type: string }
+        TelefonoWhatsApp: { type: string }
+        NombreDepartamento: { type: string }

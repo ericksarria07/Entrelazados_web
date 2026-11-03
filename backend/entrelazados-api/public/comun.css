@@ -1,0 +1,85 @@
+/* ==========================================================================
+   ESTILOS COMUNES DE EntreLazados
+   Colores, letra base, cabecera, menú del usuario y pie de página: lo que
+   se repetía igual en varias páginas. Se carga antes del <style> de cada
+   página, así que cada página puede ajustar lo que necesite.
+   ========================================================================== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+.logo {
+    font-size: 26px;
+    font-weight: 900;
+    color: #fff;
+    text-decoration: none;
+    white-space: nowrap;
+    letter-spacing: -0.5px;
+}
+
+.logo span {
+    color: var(--color-terciario);
+}
+
+.header-location {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #d1c2b8;
+    cursor: pointer;
+}
+
+.header-location strong {
+    color: #fff;
+    display: block;
+    font-size: 13px;
+}
+
+.search-category {
+    background-color: #f8f6f2;
+    border: none;
+    padding: 0 10px;
+    font-size: 12px;
+    color: #444;
+    border-right: 1px solid #ddd;
+    cursor: pointer;
+    font-family: var(--font-secundaria);
+}
+
+.search-btn:hover {
+    background-color: var(--color-terciario);
+}
+
+.user-btn-nav:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.user-nav-text {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+}
+
+.dropdown-menu-nav.show {
+    display: block;
+}
+
+.dropdown-item-nav.logout-item {
+    color: #c92a2a;
+}
+
+.dropdown-item-nav.logout-item:hover {
+    background-color: #fff0f0;
+}
+
+.sub-bar a {
+    color: #f1e8e3;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}

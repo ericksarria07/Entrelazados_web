@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="kan.js" data-contexto="inicio" defer></script>
     <script src="categorias.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Tu Mercado de Materia Prima para Cuero</title>
@@ -25,6 +26,7 @@
         })();
     </script>
 
+    <link rel="stylesheet" href="comun.css">
     <style>
         :root {
             --color-principal: #7D381B;  /* Marrón Cálido */
@@ -33,12 +35,6 @@
 
             --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
             --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
         }
 
         body {
@@ -70,34 +66,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
-        .logo {
-            font-size: 26px;
-            font-weight: 900;
-            color: #fff;
-            text-decoration: none;
-            white-space: nowrap;
-            letter-spacing: -0.5px;
-        }
-
-        .logo span {
-            color: var(--color-terciario);
-        }
-
-        .header-location {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 12px;
-            color: #d1c2b8;
-            cursor: pointer;
-        }
-
-        .header-location strong {
-            color: #fff;
-            display: block;
-            font-size: 13px;
-        }
-
         .search-bar {
             flex: 1;
             display: flex;
@@ -105,17 +73,6 @@
             border-radius: 4px;
             overflow: hidden;
             border: 1px solid var(--color-principal);
-        }
-
-        .search-category {
-            background-color: #f8f6f2;
-            border: none;
-            padding: 0 10px;
-            font-size: 12px;
-            color: #444;
-            border-right: 1px solid #ddd;
-            cursor: pointer;
-            font-family: var(--font-secundaria);
         }
 
         .search-input {
@@ -138,10 +95,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .search-btn:hover {
-            background-color: var(--color-terciario);
         }
 
         /* ESTILOS DE LA BARRA DE DISTANCIA / CERCANÍA */
@@ -216,16 +169,6 @@
             transition: background 0.2s ease;
         }
 
-        .user-btn-nav:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .user-nav-text {
-            text-align: left;
-            display: flex;
-            flex-direction: column;
-        }
-
         .user-nav-name {
             font-size: 13px;
             font-weight: 700;
@@ -255,10 +198,6 @@
             border: 1px solid var(--color-principal);
         }
 
-        .dropdown-menu-nav.show {
-            display: block;
-        }
-
         .dropdown-item-nav {
             display: flex;
             align-items: center;
@@ -273,14 +212,6 @@
 
         .dropdown-item-nav:hover {
             background-color: #f4f1ea;
-        }
-
-        .dropdown-item-nav.logout-item {
-            color: #c92a2a;
-        }
-
-        .dropdown-item-nav.logout-item:hover {
-            background-color: #fff0f0;
         }
 
         .dropdown-divider-nav {
@@ -313,14 +244,6 @@
             padding: 8px 20px;
             font-size: 13px;
             font-weight: 600;
-        }
-
-        .sub-bar a {
-            color: #f1e8e3;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
 
         .sub-bar a:hover {
@@ -583,261 +506,8 @@
             }
         }
 
-        /* --- ESTILOS MEJORADOS DE KAN (SÚPER NÍTIDOS & DINÁMICOS) --- */
-        .kan-widget-btn {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
-            width: 75px;
-            height: 75px;
-            background-color: #ffffff;
-            border: 3px solid var(--color-principal);
-            border-radius: 50%;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-            cursor: pointer;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease;
-            overflow: hidden;
-            background-size: contain;
-            background-position: center;
-            background-repeat: no-repeat;
-        }
-
-        .kan-widget-btn:hover {
-            transform: scale(1.12);
-            box-shadow: 0 10px 28px rgba(0,0,0,0.45);
-        }
-
-        .kan-widget-btn img {
-            width: 88%;
-            height: 88%;
-            object-fit: contain;
-        }
-
-        .kan-badge {
-            position: absolute;
-            top: 0px;
-            right: 0px;
-            background-color: #e03131;
-            color: white;
-            font-size: 11px;
-            font-weight: bold;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        /* Ventana del Chat de Kan */
-        .kan-chat-window {
-            position: fixed;
-            bottom: 110px;
-            right: 25px;
-            width: 360px;
-            max-width: calc(100vw - 30px);
-            height: 520px;
-            background-color: #ffffff;
-            border-radius: 14px;
-            box-shadow: 0 12px 35px rgba(0,0,0,0.3);
-            border: 1px solid #e0d8ce;
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-            animation: popupKan 0.25s ease-out forwards;
-        }
-
-        @keyframes popupKan {
-            from { opacity: 0; transform: translateY(20px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .kan-chat-window.active {
-            display: flex;
-        }
-
-        /* Header del Chat */
-        .kan-header {
-            background: linear-gradient(135deg, var(--color-secundario), var(--color-principal));
-            color: white;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .kan-header-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .kan-avatar-header {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background-color: #ffffff;
-            border: 2px solid var(--color-terciario);
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .kan-avatar-header img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .kan-title {
-            font-family: var(--font-principal);
-            font-weight: 700;
-            font-size: 15px;
-        }
-
-        .kan-sub {
-            font-size: 11px;
-            color: #d1c2b8;
-        }
-
-        .kan-close-btn {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 20px;
-            cursor: pointer;
-            opacity: 0.8;
-        }
-
-        .kan-close-btn:hover { opacity: 1; }
-
-        /* Área de Visualización Dinámica de Kan (Banner HD) */
-        .kan-display-banner {
-            background-color: #f4efe9;
-            border-bottom: 1px solid #e0d8ce;
-            padding: 10px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 130px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .kan-display-banner img {
-            height: 100%;
-            max-width: 100%;
-            object-fit: contain;
-            transition: opacity 0.25s ease, transform 0.25s ease;
-        }
-
-        /* Cuerpo y Mensajes */
-        .kan-body {
-            flex: 1;
-            padding: 12px 15px;
-            background-color: #fcfbf9;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .kan-msg {
-            max-width: 85%;
-            padding: 10px 14px;
-            border-radius: 12px;
-            font-size: 13px;
-            line-height: 1.4;
-        }
-
-        .kan-msg.bot {
-            background-color: #ffffff;
-            color: #1a1a1a;
-            border: 1px solid #e0d8ce;
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .kan-msg.user {
-            background-color: var(--color-principal);
-            color: #ffffff;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
-
-        /* Opciones Rápidas */
-        .kan-quick-options {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 4px;
-        }
-
-        .kan-opt-btn {
-            background-color: #f0e8e0;
-            color: var(--color-secundario);
-            border: 1px solid #dcd2c6;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .kan-opt-btn:hover {
-            background-color: var(--color-principal);
-            color: white;
-            border-color: var(--color-principal);
-        }
-
-        /* Input Footer */
-        .kan-footer {
-            padding: 10px;
-            background-color: #ffffff;
-            border-top: 1px solid #e0d8ce;
-            display: flex;
-            gap: 8px;
-        }
-
-        .kan-input {
-            flex: 1;
-            padding: 9px 14px;
-            border: 1px solid #ccc;
-            border-radius: 20px;
-            font-size: 13px;
-            outline: none;
-            font-family: var(--font-secundaria);
-        }
-
-        .kan-send-btn {
-            background-color: var(--color-principal);
-            color: white;
-            border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-        }
-
-        .kan-send-btn:hover {
-            background-color: var(--color-terciario);
-        }
     </style>
+    <link rel="stylesheet" href="kan.css">
 </head>
 <body>
 
@@ -997,49 +667,6 @@
         </div>
     </footer>
 
-    <!-- ASISTENTE FLOTANTE "KAN" - ENTRELANDOS -->
-    <div class="kan-widget-btn" id="kanBtn" onclick="toggleKanChat()">
-        <img src="randal-saludando.webp" alt="Kan Asistente" id="imgKanFlotante">
-        <div class="kan-badge" id="kanBadge">1</div>
-    </div>
-
-    <div class="kan-chat-window" id="kanChatWindow">
-        <!-- HEADER -->
-        <div class="kan-header">
-            <div class="kan-header-info">
-                <!-- Foto de perfil fija saludando -->
-                <div class="kan-avatar-header">
-                    <img src="randal-saludando.webp" alt="Kan Avatar" id="imgKanAvatarHeader">
-                </div>
-                <div>
-                    <div class="kan-title">Kan <span style="font-size:11px; font-weight:normal;">(Asistente)</span></div>
-                    <div class="kan-sub" id="kanEstadoText">🟢 En línea</div>
-                </div>
-            </div>
-            <button class="kan-close-btn" onclick="toggleKanChat()">✕</button>
-        </div>
-
-        <!-- BANNER DE ILUSTRACIÓN DINÁMICA DE KAN -->
-        <div class="kan-display-banner">
-            <img src="randal-saludando.webp" alt="Kan Pose" id="imgKanDisplayBanner">
-        </div>
-
-        <!-- CUERPO DE MENSAJES -->
-        <div class="kan-body" id="kanBody">
-            <div class="kan-msg bot">
-                ¡Hola! 👋 Soy <strong>Kan</strong>, tu guía en EntreLazados. ¿En qué te puedo ayudar hoy?
-            </div>
-            
-            <div class="kan-quick-options" id="kanQuickOptions">
-            </div>
-        </div>
-
-        <div class="kan-footer">
-            <input type="text" class="kan-input" id="kanInput" placeholder="Pregúntale algo a Kan..." onkeydown="if(event.key==='Enter') enviarMensajeKan()">
-            <button class="kan-send-btn" onclick="enviarMensajeKan()"><i class="ti ti-send"></i></button>
-        </div>
-    </div>
-
     <script>
         const API_URL = window.location.origin;
 
@@ -1127,7 +754,6 @@
             Categorias.cargar().then(lista => Categorias.llenarSelect(
                 document.getElementById('searchCategory'), lista, { primera: { valor: 'todos', texto: 'Todos los insumos' } }));
 
-            reiniciarTemporizadorInactividad();
         });
 
         function actualizarBadgeRadio(valor) {
@@ -1170,229 +796,6 @@
             }
         }
 
-        function toggleUserDropdown(event) {
-            event.stopPropagation();
-            const dropdown = document.getElementById('userDropdownMenu');
-            if (dropdown) {
-                dropdown.classList.toggle('show');
-            }
-        }
-
-        window.onclick = function (event) {
-            if (!event.target.closest('.user-dropdown-wrapper')) {
-                const dropdown = document.getElementById('userDropdownMenu');
-                if (dropdown && dropdown.classList.contains('show')) {
-                    dropdown.classList.remove('show');
-                }
-            }
-        };
-
-        function cerrarSesion() {
-            localStorage.clear();
-            alert("Sesión cerrada.");
-            window.location.href = 'login.html';
-        }
-
-        /* --- LÓGICA DE KAN CORREGIDA --- */
-        const POSES_KAN = {
-            saludando: 'randal-saludando.webp',
-            telefono: 'randal-telefono.webp',
-            dudando: 'randal-dudando.webp',
-            respondiendo: 'randal-principal.webp',
-            durmiendo: 'randal-durmiendo.webp'
-        };
-
-        let temporizadorInactividad = null;
-
-        function obtenerConfigRol() {
-            const rol = (localStorage.getItem('userRol') || '').toLowerCase();
-
-            if (rol === 'proveedor') {
-                return {
-                    saludo: "¡Hola! 👋 Soy <strong>Kan</strong>. ¿Necesitas ayuda para publicar tus materiales o conectar con talleres de calzado?",
-                    opciones: [
-                        { id: 'publicar', texto: '📦 ¿Cómo publicar insumos?' },
-                        { id: 'compradores', texto: '💬 Chatear con compradores' },
-                        { id: 'cobertura', texto: '📍 Radio de envíos' }
-                    ]
-                };
-            } else {
-                return {
-                    saludo: "¡Hola! 👋 Soy <strong>Kan</strong>, tu guía en EntreLazados. ¿En qué te puedo ayudar hoy con la materia prima?",
-                    opciones: [
-                        { id: 'buscar', texto: '🔍 Buscar materia prima' },
-                        { id: 'proveedores', texto: '🏭 Contactar proveedores' },
-                        { id: 'cercania', texto: '📍 Insumos cerca de mí' }
-                    ]
-                };
-            }
-        }
-
-        function cargarMenuKanPorRol() {
-            const config = obtenerConfigRol();
-            const body = document.getElementById('kanBody');
-            const optionsContainer = document.getElementById('kanQuickOptions');
-
-            const primerMsg = body ? body.querySelector('.kan-msg.bot') : null;
-            if (primerMsg) primerMsg.innerHTML = config.saludo;
-
-            if (optionsContainer) {
-                optionsContainer.innerHTML = config.opciones.map(opt =>
-                    `<button class="kan-opt-btn" onclick="responderKan('${opt.id}')">${opt.texto}</button>`
-                ).join('');
-            }
-        }
-
-        function cambiarBannerKan(poseKey) {
-            const displayBanner = document.getElementById('imgKanDisplayBanner');
-            const imgFlotante = document.getElementById('imgKanFlotante');
-            const src = POSES_KAN[poseKey] || POSES_KAN.saludando;
-
-            if (displayBanner) {
-                displayBanner.style.opacity = '0';
-                setTimeout(() => {
-                    displayBanner.src = src;
-                    displayBanner.style.opacity = '1';
-                }, 150);
-            }
-
-            if (imgFlotante && !document.getElementById('kanChatWindow').classList.contains('active')) {
-                imgFlotante.src = src;
-            }
-        }
-
-        function toggleKanChat() {
-            const win = document.getElementById('kanChatWindow');
-            const badge = document.getElementById('kanBadge');
-            const isActive = win.classList.toggle('active');
-
-            if (badge) badge.style.display = 'none';
-
-            if (isActive) {
-                cargarMenuKanPorRol();
-                cambiarBannerKan('saludando');
-                reiniciarTemporizadorInactividad();
-            } else {
-                cambiarBannerKan('saludando');
-            }
-        }
-
-        // RESPUESTAS PREDETERMINADAS LOCALES CON MENSAJE A LOS 3 SEGUNDOS
-        function responderKan(opcion) {
-            reiniciarTemporizadorInactividad();
-
-            const respuestasLocales = {
-                buscar: {
-                    pregunta: "¿Cómo busco materia prima?",
-                    respuesta: "Para buscar materia prima, ve a la pestaña **'Mercado Completo'** en la barra superior. Puedes filtrar por categorías como cuero vacuno, suelas, herrajes o usar la barra de búsqueda principal por nombre."
-                },
-                proveedores: {
-                    pregunta: "¿Cómo me contacto con proveedores?",
-                    respuesta: "En el perfil de cada oferta verás la opción de iniciar un **Chat directo** dentro de EntreLazados o comunicarte al número de WhatsApp registrado por la curtiembre o proveedor."
-                },
-                cercania: {
-                    pregunta: "¿Cómo encuentro insumos cerca de mi taller?",
-                    respuesta: "Usa el control deslizante de **'Radio de Cercanía'** que está en la barra superior debajo del encabezado. Puedes ajustar el rango desde 5 km hasta 200 km respecto a tu departamento."
-                },
-                publicar: {
-                    pregunta: "¿Cómo puedo publicar mis insumos?",
-                    respuesta: "Puedes ingresa al **Dashboard** desde el menú principal. Ahí encontrarás el formulario para publicar tus lotes de materia prima, establecer el precio por unidad y generar automáticamente subastas, o tambien puedes hacerlo en el apartado de **Mercado**."
-                },
-                compradores: {
-                    pregunta: "¿Cómo me contactan los compradores?",
-                    respuesta: "Los artesanos y calzaderistas te escribirán a través del apartado de **Chat** de la plataforma. Recibirás una notificación cuando te envíen un mensaje interesándose por tus insumos."
-                },
-                cobertura: {
-                    pregunta: "¿Cómo funciona el radio de envíos?",
-                    respuesta: "El sistema calcula automáticamente la ubicación de tu negocio y le muestra a los compradores la distancia aproximada en kilómetros para que sepan la proximidad de la entrega."
-                }
-            };
-
-            const dataLocal = respuestasLocales[opcion];
-
-            if (dataLocal) {
-                // 1. Despliega la pregunta seleccionada por el usuario
-                agregarMsgUsuario(dataLocal.pregunta);
-                cambiarBannerKan('respondiendo');
-
-                // 2. Muestra la respuesta predeterminada DE INMEDIATO (sin peticiones HTTP)
-                agregarMsgBot(dataLocal.respuesta);
-
-                // 3. Tras 3 segundos muestra el mensaje de seguimiento
-                setTimeout(() => {
-                    cambiarBannerKan('dudando');
-                    agregarMsgBot("¿Tienes alguna otra pregunta o duda?");
-                }, 3000);
-            }
-        }
-
-        // CONEXIÓN ASÍNCRONA CON GEMINI IA (ÚNICAMENTE PARA TEXTO LIBRE INGRESADO A MANO)
-        async function enviarMensajeKanDirecto(textoMensaje) {
-            reiniciarTemporizadorInactividad();
-            if (!textoMensaje) return;
-
-            agregarMsgUsuario(textoMensaje);
-            cambiarBannerKan('telefono');
-
-            try {
-                const miRol = localStorage.getItem('userRol') || 'emprendedor';
-
-                const res = await fetch(`${API_URL}/api/chat/ia`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        mensajeUsuario: textoMensaje,
-                        rolUsuario: miRol
-                    })
-                });
-
-                const data = await res.json();
-
-                cambiarBannerKan('respondiendo');
-                agregarMsgBot(data.respuesta || data.error || data.message);
-
-                setTimeout(() => {
-                    cambiarBannerKan('dudando');
-                }, 3000);
-
-            } catch (error) {
-                console.error("Error al conectar con Kan IA:", error);
-                cambiarBannerKan('respondiendo');
-                agregarMsgBot("Lo siento, no pude procesar tu solicitud en este momento. Por favor inténtalo de nuevo.");
-            }
-        }
-
-        function enviarMensajeKan() {
-            const input = document.getElementById('kanInput');
-            const texto = input.value.trim();
-            if (!texto) return;
-
-            input.value = '';
-            enviarMensajeKanDirecto(texto);
-        }
-
-        function agregarMsgUsuario(txt) {
-            const body = document.getElementById('kanBody');
-            body.innerHTML += `<div class="kan-msg user">${txt}</div>`;
-            body.scrollTop = body.scrollHeight;
-        }
-
-        function agregarMsgBot(txt) {
-            const body = document.getElementById('kanBody');
-            body.innerHTML += `<div class="kan-msg bot">${txt}</div>`;
-            body.scrollTop = body.scrollHeight;
-        }
-
-        function reiniciarTemporizadorInactividad() {
-            if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
-            temporizadorInactividad = setTimeout(() => {
-                const win = document.getElementById('kanChatWindow');
-                if (!win.classList.contains('active')) {
-                    const imgFlotante = document.getElementById('imgKanFlotante');
-                    if (imgFlotante) imgFlotante.src = POSES_KAN.durmiendo;
-                }
-            }, 60000);
-        }
     </script>
 </body>
 </html>

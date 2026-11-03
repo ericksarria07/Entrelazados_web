@@ -1,13 +1,24 @@
 {
-  "name": "backend",
+  "name": "entrelazados-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "API y páginas de EntreLazados: mercado de materia prima para calzado y marroquinería",
+  "main": "entrelazados-api/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node entrelazados-api/index.js",
+    "test": "npm run test:unidad && npm run test:api",
+    "test:unidad": "node --test",
+    "test:api": "node pruebas/correr_pruebas.js",
+    "test:cobertura": "node --test --experimental-test-coverage --test-coverage-exclude=\"pruebas/**\" \"pruebas/unidad/*.test.js\"",
+    "probar:correo": "node entrelazados-api/servicios/correo.js",
+    "probar:gemini": "node scripts/probar_gemini.js",
+    "datos:demo": "node pruebas/datos_demo.js ."
+  },
+  "engines": {
+    "node": ">=20"
   },
   "keywords": [],
-  "author": "",
+  "author": "Erick Sarria",
   "license": "ISC",
   "dependencies": {
     "@google/genai": "^2.27.0",
@@ -19,6 +30,8 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "mysql2": "^3.23.4",
-    "nodemailer": "^10.3.1"
+    "nodemailer": "^10.3.1",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.9.1"
   }
 }

@@ -20,7 +20,7 @@ const crypto = require('crypto');
 const MAX_FOTOS = 5;
 const MAX_BYTES = 5 * 1024 * 1024;
 
-const CARPETA_UPLOADS = path.resolve(process.env.UPLOADS_DIR || path.join(__dirname, 'uploads'));
+const CARPETA_UPLOADS = path.resolve(process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads'));
 const CARPETA_OFERTAS = path.join(CARPETA_UPLOADS, 'ofertas');
 const PREFIJO_URL = '/uploads/ofertas/';
 

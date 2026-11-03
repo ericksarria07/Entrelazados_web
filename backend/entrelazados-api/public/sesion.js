@@ -5,6 +5,8 @@
    o inválida) se cierra la sesión y se vuelve a login.html.
    También muestra el número de mensajes sin leer junto a los enlaces al chat
    (se revisa cada 30 segundos mientras la pestaña está visible).
+   Al final están las ayudas que usan todas las páginas: esc(), cerrarSesion()
+   y el menú desplegable del usuario.
    Debe cargarse en el <head>, antes de los demás scripts de la página.
    ========================================================================== */
 (function () {
@@ -89,5 +91,36 @@
         actualizarNoLeidos();
         setInterval(actualizarNoLeidos, INTERVALO_NO_LEIDOS_MS);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizarNoLeidos(); });
+    });
+
+    // ------------------------------------------------------------------
+    // AYUDAS COMPARTIDAS POR TODAS LAS PÁGINAS
+    // ------------------------------------------------------------------
+
+    // Escapa un texto antes de meterlo en innerHTML (evita XSS):
+    //   div.innerHTML = '<p>' + esc(mensaje.ContenidoTexto) + '</p>';
+    window.esc = (valor) => String(valor ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
+    // Botón "Cerrar sesión" de los menús. En la portada solo se recarga; en las demás, al login.
+    window.cerrarSesion = function () {
+        try { localStorage.clear(); } catch (e) { }
+        const pagina = window.location.pathname.split('/').pop() || 'preview.html';
+        if (pagina === 'preview.html') window.location.reload();
+        else window.location.href = 'login.html';
+    };
+
+    // Menú desplegable del usuario en la cabecera (#userDropdownMenu)
+    window.toggleUserDropdown = function (event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('userDropdownMenu');
+        if (menu) menu.classList.toggle('show');
+    };
+    // Se cierra al hacer clic en cualquier otra parte de la página
+    document.addEventListener('click', (event) => {
+        if (event.target.closest('.user-dropdown-wrapper')) return;
+        const menu = document.getElementById('userDropdownMenu');
+        if (menu) menu.classList.remove('show');
     });
 })();

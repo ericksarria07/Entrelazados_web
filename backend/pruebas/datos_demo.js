@@ -33,7 +33,7 @@ const MATERIALES = [
 ];
 
 (async () => {
-    const db = await mysql.createConnection({ host: 'localhost', user: 'entrelazados_pruebas', password: dbPass, database: 'entrelazados_pruebas' });
+    const db = await mysql.createConnection({ host: process.env.PRUEBAS_DB_HOST || 'localhost', user: 'entrelazados_pruebas', password: dbPass, database: 'entrelazados_pruebas' });
     const q = async (sql, p = []) => (await db.query(sql, p))[0];
     const hash = bcrypt.hashSync('Demo1234', 10);
 

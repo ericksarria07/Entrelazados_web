@@ -1,0 +1,79 @@
+# ==========================================================================
+# PRUEBAS AUTOMÁTICAS EN GITHUB (GitHub Actions)
+#
+# En cada push y en cada Pull Request a main o master, GitHub prepara una
+# máquina Ubuntu nueva y corre:
+#   1. Las pruebas unitarias (sin base de datos) con Node 20 y Node 22.
+#   2. Las 274 pruebas de integración de la API contra un MySQL 8.0 nuevo y
+#      vacío (un contenedor que se borra al terminar: nunca toca producción).
+# El resultado aparece como ✅ o ❌ junto a cada commit y en el Pull Request.
+# Al ser Linux, también detecta nombres de tablas mal escritos (Usuarios ≠ usuarios),
+# igual que pasaría en la VM.
+# ==========================================================================
+name: Pruebas
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:   # botón "Run workflow" para correrlas a mano
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  unidad:
+    name: Unitarias (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run test:unidad
+
+  api:
+    name: Integración de la API (MySQL 8.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          # Contenedor desechable solo para las pruebas: esta clave no protege nada real
+          MYSQL_ROOT_PASSWORD: root_ci
+          MYSQL_DATABASE: entrelazados_pruebas
+          MYSQL_USER: entrelazados_pruebas
+          MYSQL_PASSWORD: clave_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot_ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      CLAVE_PRUEBAS: clave_ci
+      PRUEBAS_DB_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Pruebas de integración
+        run: npm run test:api
+      - name: Log del servidor (si algo falló)
+        if: failure()
+        run: cat /tmp/entrelazados_servidor_pruebas.log || true

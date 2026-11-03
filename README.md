@@ -76,15 +76,37 @@ Cada minuto el servidor cierra las subastas vencidas. Si hubo pujas, gana la má
 ```text
 Entrelazados_web/
 ├── README.md
+├── .github/workflows/
+│   └── pruebas.yml               # GitHub Actions: corre todas las pruebas en cada push y PR
 └── backend/
-    ├── package.json              # dependencias (npm install se ejecuta aquí)
+    ├── package.json              # dependencias y comandos: npm install, npm start, npm test
     ├── entrelazados-api/
-    │   ├── index.js              # servidor Express: API + archivos de public/
-    │   ├── correo.js             # envío de correos (recuperación y avisos de subastas)
-    │   ├── limites.js            # límites de intentos (login, registro, Kan...)
-    │   ├── fotos.js              # recibir, validar, guardar y borrar fotos
-    │   ├── subastas.js           # cierre automático de subastas vencidas
-    │   ├── tratos.js             # estados de los tratos (pendiente → completado)
+    │   ├── index.js              # arranque: crea la base de datos, los servicios y la app, y escucha
+    │   ├── app.js                # Express: middlewares, rutas, archivos estáticos y errores
+    │   ├── config.js             # variables del .env, revisadas una sola vez
+    │   ├── db.js                 # conexión a MySQL (async/await) y enTransaccion()
+    │   ├── utilidades.js         # ErrorHttp, paginación, validaciones
+    │   ├── middlewares/
+    │   │   ├── autenticacion.js  # verificarToken, soloRoles, verificarAdmin (JWT)
+    │   │   ├── limites.js        # límites de intentos (login, registro, Kan...)
+    │   │   └── errores.js        # 404 de la API y manejador central de errores
+    │   ├── docs/
+    │   │   └── openapi.yaml      # especificación OpenAPI de las 37 rutas (se ve en /api/docs)
+    │   ├── rutas/                # una por tema, cada una con sus URLs al principio
+    │   │   ├── cuentas.js        # registro, login, recuperación y confirmación del correo
+    │   │   ├── ofertas.js, subastas.js, chat.js, kan.js, tratos.js
+    │   │   ├── usuarios.js       # perfil y reputación
+    │   │   ├── publicas.js       # ping, categorías, estadísticas
+    │   │   ├── dashboard.js
+    │   │   ├── admin.js          # panel de administrador
+    │   │   └── documentacion.js  # Swagger UI en /api/docs
+    │   ├── servicios/            # lógica que no depende de HTTP
+    │   │   ├── correo.js         # envío de correos (recuperación, confirmación y avisos)
+    │   │   ├── fotos.js          # recibir, validar, guardar y borrar fotos
+    │   │   ├── ofertas.js        # validar, borrar publicaciones y crear su subasta
+    │   │   ├── subastas.js       # cierre automático de subastas vencidas
+    │   │   ├── tratos.js         # estados de los tratos y calificaciones
+    │   │   └── kan.js            # respuestas fijas de Kan + Gemini
     │   ├── uploads/              # fotos subidas (NO se sube a git; va en los respaldos)
     │   ├── .env.example          # plantilla de variables de entorno
     │   ├── .env                  # claves reales (NO se sube a git)
@@ -94,9 +116,10 @@ Entrelazados_web/
     │       ├── index.html        # inicio con sesión
     │       ├── mercado.html, chat.html, perfil.html
     │       ├── dashboard.html, admin.html
-    │       ├── sesion.js         # agrega el token a cada petición /api y cuenta los mensajes no leídos
+    │       ├── sesion.js         # token en cada petición /api, mensajes no leídos, esc(), cerrarSesion()
+    │       ├── kan.js, kan.css   # el asistente Kan (un solo componente para todas las páginas)
+    │       ├── comun.css         # estilos que comparten las páginas internas (cabecera, menú)
     │       ├── categorias.js     # llena los <select> de categorías desde la API
-    │       ├── styles.css
     │       └── *.webp, logo.png  # imágenes
     ├── sql/
     │   ├── esquema_mysql.sql     # crea la base completa desde cero
@@ -113,10 +136,32 @@ Entrelazados_web/
     │   └── probar_gemini.js      # comprueba la clave de Gemini (Kan)
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
+        ├── unidad/               # 58 pruebas unitarias (node:test, sin base de datos)
+        ├── correr_pruebas.js     # npm run test:api: prepara la base de pruebas, levanta el servidor y corre todo
         ├── pruebas_api.js        # 274 pruebas de integración
         ├── cargar_esquema.js
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
+
+### Cómo viaja una petición
+
+Ejemplo: un emprendedor puja en una subasta (`POST /api/pujas`).
+
+```
+navegador ──► app.js ──► middlewares ──────────────► rutas/subastas.js ──► db.js ──► MySQL
+              (JSON,     limites.api                  valida los datos,
+               límites)  verificarToken (¿quién es?)   UPDATE + INSERT en
+                         soloRoles('emprendedor')      una transacción
+                                                            │
+              middlewares/errores.js ◄── si algo falla ─────┘  (ErrorHttp → 4xx con su mensaje;
+                                                                cualquier otro → 500 genérico)
+```
+
+- **Rutas** (`rutas/`): leen la petición, validan y responden. No saben de SMTP ni de archivos.
+- **Servicios** (`servicios/`): la lógica que usan varias rutas o el cierre automático (correo, fotos, tratos, Kan...).
+- **Dependencias inyectadas**: `index.js` crea la base de datos y los servicios y se los pasa a cada ruta al crearla; ninguna ruta usa variables globales. Así cada pieza se puede probar o cambiar por separado.
+- **Errores centralizados**: las rutas lanzan `new ErrorHttp(404, 'mensaje')` y un único manejador responde. Express 5 atrapa solo los errores de las funciones `async`.
+- **Transacciones** con `enTransaccion(db, async (conn) => { ... })`: o se guarda todo, o nada.
 
 ---
 
@@ -181,9 +226,10 @@ Si falta una variable obligatoria, el servidor no arranca y dice cuál falta. Si
 
 ### 4. Arrancar
 
+Desde `backend/`:
+
 ```bash
-cd entrelazados-api
-node index.js
+npm start
 ```
 
 Abre http://localhost:3000.
@@ -197,14 +243,44 @@ UPDATE Usuarios SET TipoRol = 'Administrador' WHERE CorreoElectronico = 'tu_corr
 Para comprobar el envío de correos sin usar la página:
 
 ```bash
-node correo.js tu_correo@gmail.com
+npm run probar:correo -- tu_correo@gmail.com
+npm run probar:gemini          # comprueba la clave de Gemini (Kan)
 ```
 
 ---
 
 ## Pruebas
 
-Hay 274 pruebas de integración que recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+[![Pruebas](https://github.com/ericksarria07/Entrelazados_web/actions/workflows/pruebas.yml/badge.svg)](https://github.com/ericksarria07/Entrelazados_web/actions/workflows/pruebas.yml)
+
+Hay dos tipos de pruebas:
+
+| | Cuántas | Qué necesitan | Comando (desde `backend/`) |
+|---|---|---|---|
+| **Unitarias** (`pruebas/unidad/`) | 58 | Nada: ni MySQL ni `.env`. Tardan ~1 s | `npm run test:unidad` |
+| **De integración** (`pruebas/pruebas_api.js`) | 274 | La base MySQL de pruebas | `CLAVE_PRUEBAS=... npm run test:api` |
+
+`npm test` corre las dos, una detrás de otra. `npm run test:cobertura` muestra qué porcentaje del código recorren las unitarias.
+
+Las **unitarias** usan el corredor de pruebas que trae Node (`node:test`) y prueban piezas sueltas, cambiando la base de datos por un objeto falso:
+- validaciones y utilidades (correos, paginación, publicaciones, comodines de búsqueda)
+- la máquina de estados de los tratos y las respuestas fijas de Kan
+- sesión y permisos: tokens falsos, vencidos o de cuentas suspendidas
+- el manejador de errores, que no revela detalles de un error inesperado
+- la aplicación Express completa sin MySQL: 404, 401, JSON mal escrito y que el `.env` no se pueda descargar
+- que **cada ruta del código esté documentada** en `openapi.yaml` (y que no sobre ninguna)
+
+Las **de integración** recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+
+Una vez creada la base de pruebas (paso 1 de [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md)), se corren todas con un solo comando desde `backend/`:
+
+```bash
+CLAVE_PRUEBAS=la_clave_de_la_base_de_pruebas npm test
+```
+
+### En GitHub (integración continua)
+
+En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 20 y 22, y las de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
@@ -227,7 +303,9 @@ Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/prueb
 
 ## API
 
-Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer <token>` (lo agrega `sesion.js` automáticamente).
+📖 **Documentación interactiva:** abre **`/api/docs`** en el servidor (por ejemplo http://localhost:3000/api/docs). Es Swagger UI: muestra cada ruta con sus datos de entrada, sus respuestas y sus errores, y permite **probarla desde el navegador** (inicia sesión con `POST /api/login`, copia el `token` y pégalo en el botón *Authorize*). La especificación está en [`backend/entrelazados-api/docs/openapi.yaml`](backend/entrelazados-api/docs/openapi.yaml) y en crudo en `/api/openapi.json` (se puede importar en Postman o Insomnia).
+
+Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer <token>` (lo agrega `sesion.js` automáticamente).
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -288,7 +366,7 @@ Si un cambio trae un archivo nuevo en `sql/`, aplícalo antes de reiniciar (el u
 sudo mysql entrelazadosdb < backend/sql/<archivo>.sql
 ```
 
-Los pasos exactos para pasar a la versión 10 están en [`backend/scripts/LEEME.md`](backend/scripts/LEEME.md#actualizar-a-la-versión-10).
+Los pasos exactos para pasar a cada versión están en [`backend/scripts/LEEME.md`](backend/scripts/LEEME.md).
 
 ### Respaldos
 
@@ -301,7 +379,8 @@ Los pasos exactos para pasar a la versión 10 están en [`backend/scripts/LEEME.
 ## Flujo de trabajo con git
 
 - Se trabaja en la rama **`main`** y se pasa a **`master`** (rama principal) con un *pull request*.
-- Antes de subir cambios, corre las pruebas (`backend/pruebas/LEEME.md`).
+- Antes de subir cambios, corre las pruebas (`backend/pruebas/LEEME.md`). Al subirlos, GitHub Actions las vuelve a correr; revisa que el *pull request* tenga ✅ antes de mezclarlo.
+- Si agregas o cambias una ruta, actualiza `docs/openapi.yaml`: la prueba `rutas_documentadas` falla si una ruta no está documentada.
 
 ---
 
