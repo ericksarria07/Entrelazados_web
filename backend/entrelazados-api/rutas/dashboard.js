@@ -183,3 +183,7 @@ function crearRutasDashboard({ db, verificarToken }) {
 }
 
 module.exports = crearRutasDashboard;
+
+// Usadas también por rutas/reportes.js
+module.exports.inicioDelPeriodo = inicioDelPeriodo;
+module.exports.PERIODOS = PERIODOS;

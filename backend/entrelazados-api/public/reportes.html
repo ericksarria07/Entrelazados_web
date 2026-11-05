@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="sesion.js"></script>
+    <script src="tema.js"></script>
+    <script src="kan.js" data-contexto="dashboard" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Reportes</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
+
+    <!-- Gráficas (Chart.js). ExcelJS se carga solo al presionar "Excel". -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+    <script>
+        (function () {
+            if (!localStorage.getItem('userEmail') || !localStorage.getItem('userId')) window.location.href = 'preview.html';
+        })();
+    </script>
+
+    <link rel="stylesheet" href="comun.css">
+    <link rel="stylesheet" href="panel.css">
+    <link rel="stylesheet" href="kan.css">
+    <style>
+        .btn-pdf { background: #a12a1a; color: #fff; border-color: transparent; }
+        .btn-pdf:hover { background: #7f1f12; }
+        .kpi-grid.cuatro { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+        .estado-chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .estado-chip.Completado, .estado-chip.Con-ganador { background: #d3f9d8; color: #1b5e20; }
+        .estado-chip.EnProceso, .estado-chip.En-curso { background: #dbeafe; color: #1e3a8a; }
+        .estado-chip.Pendiente { background: #fff3cd; color: #6b4b00; }
+        .estado-chip.Cancelado, .estado-chip.Canceladas, .estado-chip.Sin-pujas { background: #f1ece7; color: #6b5a50; }
+        .nota-alcance { font-size: 13px; color: #f1e8e3; margin-top: 6px; max-width: 640px; }
+        .encabezado-impresion { display: none; }
+
+        /* ---------------------------------------------------------- IMPRIMIR / GUARDAR COMO PDF */
+        @page { size: A4 portrait; margin: 14mm 12mm; }
+        @media print {
+            body { background: #fff !important; display: block; min-height: 0; }
+            .amazon-header, .sub-bar, footer, .toolbar, .btn-vista, .toast, #kan-contenedor, .kan-contenedor,
+            [class*="kan-"], .campana-ent, .panel-notif, .aviso-notif, .alerta { display: none !important; }
+            .dash-hero { padding: 0 0 10px; color: #2a1a12; }
+            .dash-hero h1 { color: #3D170A; font-size: 24px; text-shadow: none; }
+            /* Al imprimir, cada gráfica se reemplaza por una imagen que se ajusta al ancho de la hoja */
+            .grafica canvas.oculto-impresion { display: none !important; }
+            .grafica img.imagen-impresion { display: block; width: 100%; height: auto; max-height: 100%; object-fit: contain; }
+            .eyebrow, .hero-sub, .nota-alcance { color: #6b5a50 !important; text-shadow: none !important; }
+            .encabezado-impresion { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #7D381B;
+                padding-bottom: 6px; margin-bottom: 12px; font-size: 12px; color: #6b5a50; }
+            .encabezado-impresion strong { font-size: 16px; color: #3D170A; }
+            .main-content { padding: 0 !important; max-width: none !important; }
+            .fila, .fila-2-1, .fila-1-1 { display: block !important; }
+            .card, .kpi { box-shadow: none !important; border: 1px solid #ddd2c8 !important; break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px; }
+            .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+            .grafica-alta { height: 260px !important; }
+            .tabla-wrap { overflow: visible !important; }
+            .tabla { font-size: 11px; }
+            .tabla tr { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="amazon-header">
+        <a href="index.html" class="logo">Entre<span>Lazados</span></a>
+        <div class="header-location">
+            <i class="ti ti-map-pin" style="font-size: 18px;"></i>
+            <div><span>Enviar a</span><strong id="user-location">Nicaragua</strong></div>
+        </div>
+        <div class="search-bar">
+            <select class="search-category" aria-label="Categoría"><option>Todos</option></select>
+            <input type="text" class="search-input" placeholder="Buscar en EntreLazados..." aria-label="Buscar">
+            <button class="search-btn" onclick="location.href='mercado.html'" aria-label="Buscar en el Mercado"><i class="ti ti-search"></i></button>
+        </div>
+        <div class="nav-user"><div id="authArea"></div></div>
+    </header>
+
+    <div class="sub-bar">
+        <a href="index.html">Inicio</a>
+        <a href="mercado.html">Mercado Completo</a>
+        <a href="chat.html">Chat</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="reportes.html" class="active">Reportes</a>
+    </div>
+
+    <div class="dash">
+        <section class="dash-hero">
+            <div class="dash-hero-inner">
+                <div>
+                    <p class="eyebrow">Reportes</p>
+                    <h1 id="tituloReporte">Reporte</h1>
+                    <p class="hero-sub"><span id="periodoTexto">cargando datos…</span></p>
+                    <p class="nota-alcance" id="notaAlcance"></p>
+                </div>
+                <div class="toolbar" role="toolbar" aria-label="Opciones del reporte">
+                    <label for="filtroPeriodo"><i class="ti ti-calendar"></i> Periodo
+                        <select id="filtroPeriodo">
+                            <option value="3">Últimos 3 meses</option>
+                            <option value="6" selected>Últimos 6 meses</option>
+                            <option value="12">Últimos 12 meses</option>
+                        </select>
+                    </label>
+                    <button class="btn btn-excel" id="btnExcel" type="button" disabled><i class="ti ti-file-spreadsheet"></i> Excel</button>
+                    <button class="btn btn-pdf" id="btnPdf" type="button" disabled><i class="ti ti-file-type-pdf"></i> PDF</button>
+                </div>
+            </div>
+        </section>
+
+        <main class="main-content">
+            <div class="encabezado-impresion">
+                <strong>EntreLazados · <span id="tituloImpresion">Reporte</span></strong>
+                <span id="fechaImpresion"></span>
+            </div>
+
+            <div class="alerta" id="alertaError" role="alert" hidden>
+                <i class="ti ti-alert-triangle" style="font-size: 20px;"></i>
+                <span id="alertaTexto">No se pudo cargar el reporte.</span>
+                <button class="btn btn-ghost" type="button" onclick="cargarReporte()"><i class="ti ti-refresh"></i> Reintentar</button>
+            </div>
+
+            <div class="cargando-capa" id="contenido">
+                <section class="kpi-grid cuatro" id="kpiGrid" aria-label="Indicadores principales"></section>
+
+                <div class="fila fila-2-1">
+                    <article class="card">
+                        <div class="card-cabecera">
+                            <div>
+                                <h2><i class="ti ti-chart-bar"></i> <span id="tituloVentas">Ventas por mes</span></h2>
+                                <p class="card-sub">Monto de los tratos (barras) y número de tratos (línea). No cuenta los cancelados.</p>
+                            </div>
+                            <button class="btn-vista" type="button" data-vista="ventas" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                        </div>
+                        <div class="leyenda" id="leyendaVentas"></div>
+                        <div class="grafica grafica-alta" id="graficaVentasWrap"><canvas id="graficaVentas" role="img" aria-label="Gráfica de ventas por mes"></canvas></div>
+                        <div class="tabla-wrap" id="tablaVentas" hidden></div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card-cabecera">
+                            <div>
+                                <h2><i class="ti ti-chart-donut"></i> Resultado de las subastas</h2>
+                                <p class="card-sub" id="subEstado">Subastas abiertas en el periodo</p>
+                            </div>
+                        </div>
+                        <div class="grafica grafica-alta" id="graficaEstadoWrap"><canvas id="graficaEstado" role="img" aria-label="Gráfica del resultado de las subastas"></canvas></div>
+                    </article>
+                </div>
+
+                <div class="fila fila-1-1">
+                    <article class="card">
+                        <div class="card-cabecera">
+                            <div>
+                                <h2><i class="ti ti-flame"></i> Materiales más pedidos</h2>
+                                <p class="card-sub">Pujas por categoría en el periodo</p>
+                            </div>
+                            <button class="btn-vista" type="button" data-vista="materiales" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                        </div>
+                        <div class="grafica" id="graficaMaterialesWrap"><canvas id="graficaMateriales" role="img" aria-label="Gráfica de materiales más pedidos"></canvas></div>
+                        <div class="tabla-wrap" id="tablaMateriales" hidden></div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card-cabecera">
+                            <div>
+                                <h2><i class="ti ti-chart-line"></i> Precio promedio por categoría</h2>
+                                <p class="card-sub">Precio base promedio de los lotes que salieron a subasta cada mes (todo el mercado)</p>
+                            </div>
+                            <button class="btn-vista" type="button" data-vista="precios" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                        </div>
+                        <div class="leyenda" id="leyendaPrecios"></div>
+                        <div class="grafica grafica-alta" id="graficaPreciosWrap"><canvas id="graficaPrecios" role="img" aria-label="Gráfica de precios por categoría"></canvas></div>
+                        <div class="tabla-wrap" id="tablaPrecios" hidden></div>
+                    </article>
+                </div>
+
+                <article class="card" style="margin-bottom: 20px;">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-trophy"></i> Lotes más disputados</h2>
+                            <p class="card-sub">Las subastas con más pujas y cuánto subió su precio</p>
+                        </div>
+                    </div>
+                    <div class="tabla-wrap" id="tablaLotes"></div>
+                </article>
+
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-file-invoice"></i> <span id="tituloDetalle">Detalle de tratos</span></h2>
+                            <p class="card-sub" id="subDetalle">Todos los tratos del periodo</p>
+                        </div>
+                    </div>
+                    <div class="tabla-wrap" id="tablaTratos"></div>
+                </article>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">NICA<span>RAGUA</span></div>
+            <div class="footer-center">
+                <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+                <p style="margin-top: 8px;">
+                    <a href="index.html">Inicio</a> |
+                    <a href="mercado.html">Mercado</a> |
+                    <a href="chat.html">Chat</a> |
+                    <a href="dashboard.html">Dashboard</a> |
+                    <a href="reportes.html">Reportes</a>
+                </p>
+            </div>
+            <div class="footer-volcano"><img src="volcan.webp" alt="Volcán Nicaragua"></div>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = window.location.origin;
+
+        /* ==========================================================
+           FORMATOS
+           ========================================================== */
+        const fmtEntero = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 0 });
+        const fmtDecimal = new Intl.NumberFormat('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const entero = (n) => fmtEntero.format(Number(n) || 0);
+        const dinero = (n) => 'C$ ' + fmtDecimal.format(Number(n) || 0);
+        const dineroCorto = (n) => 'C$ ' + fmtEntero.format(Math.round(Number(n) || 0));
+        const porcentaje = (fraccion) => ((Number(fraccion) || 0) * 100).toLocaleString('es-NI', { maximumFractionDigits: 1 }) + '%';
+
+        function nombreMes(clave, largo = false) {
+            const [a, m] = clave.split('-').map(Number);
+            const txt = new Date(a, m - 1, 1).toLocaleDateString('es-NI', largo ? { month: 'long', year: 'numeric' } : { month: 'short', year: '2-digit' });
+            return txt.charAt(0).toUpperCase() + txt.slice(1).replace('.', '');
+        }
+        const fecha = (f) => new Date(f).toLocaleDateString('es-NI', { day: '2-digit', month: 'short', year: 'numeric' });
+        const colorVar = (nombre) => getComputedStyle(document.querySelector('.dash')).getPropertyValue(nombre).trim();
+        const vacioHTML = (icono, texto) => `<div class="vacio"><i class="ti ti-${icono}"></i><span>${texto}</span></div>`;
+        const chip = (texto) => `<span class="estado-chip ${String(texto).replace(/\s+/g, '-')}">${esc(texto === 'EnProceso' ? 'En proceso' : texto)}</span>`;
+
+        function tablaHTML(columnas, filas) {
+            if (!filas.length) return vacioHTML('table-off', 'Sin datos para este periodo.');
+            return `<table class="tabla"><thead><tr>${columnas.map(c => `<th class="${c.num ? 'num' : ''}">${c.titulo}</th>`).join('')}</tr></thead>
+                <tbody>${filas.map(f => `<tr>${columnas.map((c, i) => `<td class="${c.num ? 'num' : ''}">${f[i]}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+        }
+        const leyendaHTML = (series) => series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.nombre)}</span>`).join('');
+
+        function mostrarToast(texto, esError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = texto;
+            t.classList.toggle('error', esError);
+            t.classList.add('visible');
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.remove('visible'), 4500);
+        }
+
+        /* ==========================================================
+           ESTADO E INICIO
+           ========================================================== */
+        const estado = { datos: null, graficas: {} };
+        const TEXTOS = {
+            plataforma: { titulo: 'Reporte de la plataforma', ventas: 'Tratos por mes', detalle: 'Detalle de tratos',
+                nota: 'Incluye los tratos y subastas de todos los usuarios.' },
+            ventas: { titulo: 'Mis ventas', ventas: 'Mis ventas por mes', detalle: 'Mis ventas',
+                nota: 'Tus subastas y los tratos que cerraste como proveedor. Los precios por categoría son de todo el mercado.' },
+            compras: { titulo: 'Mis compras', ventas: 'Mis compras por mes', detalle: 'Mis compras',
+                nota: 'Las subastas en las que pujaste y las que ganaste. Los precios por categoría son de todo el mercado.' }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userNombre = localStorage.getItem('userNombre') || 'Usuario';
+            const userRol = localStorage.getItem('userRol') || 'Miembro';
+            document.getElementById('user-location').textContent = localStorage.getItem('userDepartamento') || 'Managua';
+            document.getElementById('authArea').innerHTML = `
+                <div class="user-dropdown-wrapper">
+                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                        <div class="user-nav-text">
+                            <span class="user-nav-name">${esc(userNombre)}</span>
+                            <span class="user-nav-role">${esc(userRol.toUpperCase())}</span>
+                        </div>
+                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                    </button>
+                    <div class="dropdown-menu-nav" id="userDropdownMenu">
+                        <a href="perfil.html" class="dropdown-item-nav"><i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i> Ver mi perfil</a>
+                        <div class="dropdown-divider-nav"></div>
+                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item"><i class="ti ti-logout" style="font-size: 18px;"></i> Cerrar sesión</a>
+                    </div>
+                </div>`;
+
+            if (window.Chart) {
+                Chart.defaults.font.family = "'Source Sans 3', 'Leelawadee', sans-serif";
+                Chart.defaults.font.size = 12;
+                Chart.defaults.color = colorVar('--texto-2');
+            }
+            document.getElementById('filtroPeriodo').addEventListener('change', cargarReporte);
+            document.getElementById('btnExcel').addEventListener('click', exportarExcel);
+            document.getElementById('btnPdf').addEventListener('click', exportarPdf);
+            document.querySelectorAll('.btn-vista').forEach(b => b.addEventListener('click', () => alternarVista(b)));
+            // Al imprimir, Chart.js no alcanza a redibujar las gráficas al ancho de la hoja:
+            // se cambian por una imagen de sí mismas mientras dura la impresión
+            window.addEventListener('beforeprint', prepararImpresion);
+            window.addEventListener('afterprint', terminarImpresion);
+            cargarReporte();
+        });
+
+        async function cargarReporte() {
+            const meses = document.getElementById('filtroPeriodo').value;
+            const capa = document.getElementById('contenido');
+            if (estado.datos) capa.classList.add('recargando');
+            try {
+                const res = await fetch(`${API_URL}/api/reportes?meses=${encodeURIComponent(meses)}`);
+                if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Error del servidor');
+                estado.datos = await res.json();
+                document.getElementById('alertaError').hidden = true;
+                renderTodo();
+                document.getElementById('btnExcel').disabled = false;
+                document.getElementById('btnPdf').disabled = false;
+            } catch (err) {
+                console.error('Error al cargar el reporte:', err);
+                document.getElementById('alertaTexto').textContent = 'No se pudo cargar el reporte. ' + (err.message || '');
+                document.getElementById('alertaError').hidden = false;
+            } finally {
+                capa.classList.remove('recargando');
+            }
+        }
+
+        /* ==========================================================
+           DIBUJAR
+           ========================================================== */
+        function renderTodo() {
+            const d = estado.datos;
+            const t = TEXTOS[d.alcance] || TEXTOS.plataforma;
+            const desde = nombreMes(d.ventasPorMes[0].mes, true), hasta = nombreMes(d.ventasPorMes[d.ventasPorMes.length - 1].mes, true);
+            document.getElementById('tituloReporte').textContent = t.titulo;
+            document.getElementById('tituloImpresion').textContent = t.titulo;
+            document.getElementById('tituloVentas').textContent = t.ventas;
+            document.getElementById('tituloDetalle').textContent = t.detalle;
+            document.getElementById('notaAlcance').textContent = t.nota;
+            document.getElementById('periodoTexto').textContent = `De ${desde} a ${hasta} · últimos ${d.periodoMeses} meses`;
+            document.getElementById('fechaImpresion').textContent =
+                `${localStorage.getItem('userNombre') || ''} · De ${desde} a ${hasta} · Generado el ${new Date(d.generado).toLocaleString('es-NI')}`;
+            document.title = `EntreLazados - ${t.titulo}`;
+
+            renderKpis(d);
+            renderVentas(d.ventasPorMes);
+            renderEstado(d.estadoSubastas);
+            renderMateriales(d.materialesMasPedidos);
+            renderPrecios(d.preciosPorCategoria);
+            renderLotes(d.lotesMasDisputados);
+            renderTratos(d.tratos, d.alcance);
+        }
+
+        function renderKpis(d) {
+            const r = d.resumen;
+            const palabra = d.alcance === 'compras' ? 'comprado' : d.alcance === 'ventas' ? 'vendido' : 'en tratos';
+            const tarjetas = [
+                { icono: 'cash', titulo: `Monto ${palabra}`, valor: dineroCorto(r.monto), pie: `<strong>${dineroCorto(r.montoCompletado)}</strong> ya completado` },
+                { icono: 'file-invoice', titulo: 'Tratos', valor: entero(r.tratos), pie: `<strong>${entero(r.completados)}</strong> completados · ${entero(r.enCurso)} en curso · ${entero(r.cancelados)} cancelados` },
+                { icono: 'receipt', titulo: 'Ticket promedio', valor: dineroCorto(r.ticketPromedio), pie: 'monto promedio por trato' },
+                { icono: 'target-arrow', titulo: 'Subastas con ganador', valor: r.tasaExito === null ? '—' : porcentaje(r.tasaExito), pie: `de las terminadas · ${entero(r.subastas)} subastas en el periodo` }
+            ];
+            document.getElementById('kpiGrid').innerHTML = tarjetas.map(t => `
+                <div class="kpi">
+                    <div class="kpi-cabecera"><span>${t.titulo}</span><span class="kpi-icono"><i class="ti ti-${t.icono}"></i></span></div>
+                    <div class="kpi-valor" title="${esc(t.valor)}">${t.valor}</div>
+                    <div class="kpi-pie">${t.pie}</div>
+                </div>`).join('');
+        }
+
+        function destruir(clave) { if (estado.graficas[clave]) { estado.graficas[clave].destroy(); delete estado.graficas[clave]; } }
+        function lienzo(wrapId, canvasId, etiqueta) {
+            const wrap = document.getElementById(wrapId);
+            if (!wrap.querySelector('canvas')) wrap.innerHTML = `<canvas id="${canvasId}" role="img" aria-label="${etiqueta}"></canvas>`;
+            return document.getElementById(canvasId);
+        }
+        const tooltipBase = () => ({ backgroundColor: '#2a1a12', titleColor: '#fff', bodyColor: '#f3e9e3', padding: 10, cornerRadius: 6, boxPadding: 4, usePointStyle: true });
+        const ejeValor = (extra = {}) => ({ beginAtZero: true, grid: { color: colorVar('--grid'), drawTicks: false }, border: { display: false }, ticks: { padding: 6, ...extra } });
+        const ejeCategoria = () => ({ grid: { display: false }, border: { color: colorVar('--grid') }, ticks: { padding: 6 } });
+
+        function renderVentas(serie) {
+            destruir('ventas');
+            const cMonto = colorVar('--serie-1'), cTratos = colorVar('--serie-2');
+            document.getElementById('leyendaVentas').innerHTML = leyendaHTML([{ nombre: 'Monto (C$)', color: cMonto }, { nombre: 'Número de tratos', color: cTratos }]);
+            document.getElementById('tablaVentas').innerHTML = tablaHTML(
+                [{ titulo: 'Mes' }, { titulo: 'Tratos', num: true }, { titulo: 'Completados', num: true }, { titulo: 'Cancelados', num: true }, { titulo: 'Monto', num: true }],
+                serie.map(m => [nombreMes(m.mes, true), entero(m.tratos), entero(m.completados), entero(m.cancelados), dinero(m.monto)]));
+            const wrap = document.getElementById('graficaVentasWrap');
+            if (!window.Chart || serie.every(m => m.tratos === 0)) {
+                wrap.innerHTML = vacioHTML('chart-bar-off', 'Todavía no hay tratos en este periodo.');
+                return;
+            }
+            estado.graficas.ventas = new Chart(lienzo('graficaVentasWrap', 'graficaVentas', 'Gráfica de ventas por mes'), {
+                data: {
+                    labels: serie.map(m => nombreMes(m.mes)),
+                    datasets: [
+                        { type: 'bar', label: 'Monto', data: serie.map(m => m.monto), backgroundColor: cMonto, borderRadius: 4, maxBarThickness: 46, yAxisID: 'y', order: 2 },
+                        { type: 'line', label: 'Tratos', data: serie.map(m => m.tratos - m.cancelados), borderColor: cTratos, backgroundColor: cTratos,
+                          borderWidth: 2, pointRadius: 4, pointBorderColor: '#fff', pointBorderWidth: 2, yAxisID: 'y2', order: 1, cubicInterpolationMode: 'monotone' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { display: false }, tooltip: { ...tooltipBase(), callbacks: {
+                        title: (it) => nombreMes(serie[it[0].dataIndex].mes, true),
+                        label: (it) => it.dataset.yAxisID === 'y' ? ` Monto: ${dinero(it.raw)}` : ` Tratos: ${entero(it.raw)}` } } },
+                    scales: {
+                        x: ejeCategoria(),
+                        y: ejeValor({ callback: (v) => dineroCorto(v) }),
+                        y2: { position: 'right', beginAtZero: true, grid: { display: false }, border: { display: false }, ticks: { precision: 0, padding: 6 } }
+                    }
+                }
+            });
+        }
+
+        function renderEstado(estados) {
+            destruir('estado');
+            const colores = { 'Con ganador': '#0ca30c', 'Sin pujas': '#c98500', 'Canceladas': '#9c8b80', 'En curso': '#2f6fd6' };
+            const total = estados.reduce((t, e) => t + e.total, 0);
+            document.getElementById('subEstado').textContent = `${entero(total)} subasta${total === 1 ? '' : 's'} abierta${total === 1 ? '' : 's'} en el periodo`;
+            const wrap = document.getElementById('graficaEstadoWrap');
+            if (!window.Chart || total === 0) { wrap.innerHTML = vacioHTML('chart-donut', 'No hubo subastas en este periodo.'); return; }
+            estado.graficas.estado = new Chart(lienzo('graficaEstadoWrap', 'graficaEstado', 'Gráfica del resultado de las subastas'), {
+                type: 'doughnut',
+                data: { labels: estados.map(e => e.estado), datasets: [{ data: estados.map(e => e.total), backgroundColor: estados.map(e => colores[e.estado]), borderColor: '#fff', borderWidth: 2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '62%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14, generateLabels: (c) => c.data.labels.map((l, i) => ({
+                            text: `${l}: ${entero(c.data.datasets[0].data[i])}`, fillStyle: c.data.datasets[0].backgroundColor[i], strokeStyle: '#fff', pointStyle: 'circle', index: i })) } },
+                        tooltip: { ...tooltipBase(), callbacks: { label: (it) => ` ${it.label}: ${entero(it.raw)} (${porcentaje(it.raw / total)})` } }
+                    }
+                }
+            });
+        }
+
+        function renderMateriales(lista) {
+            destruir('materiales');
+            document.getElementById('tablaMateriales').innerHTML = tablaHTML(
+                [{ titulo: 'Categoría' }, { titulo: 'Pujas', num: true }, { titulo: 'Subastas', num: true }, { titulo: 'Puja más alta', num: true }],
+                lista.map(m => [esc(m.categoria), entero(m.pujas), entero(m.subastas), dinero(m.pujaMaxima)]));
+            const wrap = document.getElementById('graficaMaterialesWrap');
+            if (!window.Chart || !lista.length) { wrap.style.height = ''; wrap.innerHTML = vacioHTML('flame-off', 'Todavía no hay pujas en este periodo.'); return; }
+            wrap.style.height = Math.max(200, lista.length * 36 + 40) + 'px';
+            estado.graficas.materiales = new Chart(lienzo('graficaMaterialesWrap', 'graficaMateriales', 'Gráfica de materiales más pedidos'), {
+                type: 'bar',
+                data: { labels: lista.map(m => m.categoria.length > 30 ? m.categoria.slice(0, 29) + '…' : m.categoria),
+                        datasets: [{ label: 'Pujas', data: lista.map(m => m.pujas), backgroundColor: colorVar('--serie-3'), borderRadius: 4, maxBarThickness: 24 }] },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { ...tooltipBase(), callbacks: { title: (it) => lista[it[0].dataIndex].categoria, label: (it) => ` ${entero(it.raw)} pujas en ${entero(lista[it.dataIndex].subastas)} subasta(s)` } } },
+                    scales: { x: ejeValor({ precision: 0 }), y: ejeCategoria() }
+                }
+            });
+        }
+
+        function renderPrecios(precios) {
+            destruir('precios');
+            const paleta = ['#993D24', '#008f6b', '#c98500', '#2f6fd6', '#8a3ffc'];
+            const series = precios.series.map((s, i) => ({ ...s, nombre: s.categoria, color: paleta[i % paleta.length] }));
+            document.getElementById('leyendaPrecios').innerHTML = leyendaHTML(series);
+            document.getElementById('tablaPrecios').innerHTML = tablaHTML(
+                [{ titulo: 'Mes' }, ...series.map(s => ({ titulo: esc(s.nombre), num: true }))],
+                precios.meses.map((mes, i) => [nombreMes(mes, true), ...series.map(s => s.valores[i] === null ? '—' : dinero(s.valores[i]))]));
+            const wrap = document.getElementById('graficaPreciosWrap');
+            if (!window.Chart || !series.length) { wrap.innerHTML = vacioHTML('chart-line', 'No salieron lotes a subasta en este periodo.'); return; }
+            estado.graficas.precios = new Chart(lienzo('graficaPreciosWrap', 'graficaPrecios', 'Gráfica de precios por categoría'), {
+                type: 'line',
+                data: { labels: precios.meses.map(m => nombreMes(m)),
+                        datasets: series.map(s => ({ label: s.nombre, data: s.valores, borderColor: s.color, backgroundColor: s.color, borderWidth: 2,
+                            pointRadius: 4, pointBorderColor: '#fff', pointBorderWidth: 2, spanGaps: true, cubicInterpolationMode: 'monotone' })) },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { display: false }, tooltip: { ...tooltipBase(), callbacks: {
+                        title: (it) => nombreMes(precios.meses[it[0].dataIndex], true),
+                        label: (it) => ` ${it.dataset.label}: ${it.raw === null ? 'sin lotes' : dinero(it.raw)}` } } },
+                    scales: { x: ejeCategoria(), y: ejeValor({ callback: (v) => dineroCorto(v) }) }
+                }
+            });
+        }
+
+        function renderLotes(lotes) {
+            document.getElementById('tablaLotes').innerHTML = tablaHTML(
+                [{ titulo: 'Lote' }, { titulo: 'Categoría' }, { titulo: 'Pujas', num: true }, { titulo: 'Precio base', num: true },
+                 { titulo: 'Precio final', num: true }, { titulo: 'Subió', num: true }, { titulo: 'Estado' }],
+                lotes.map(l => [`<span class="lote">${esc(l.lote)}</span>`, `<span class="secundario">${esc(l.categoria)}</span>`, entero(l.pujas),
+                    dinero(l.precioBase), `<strong>${dinero(l.precioFinal)}</strong>`, porcentaje(l.incremento), chip(l.estado)]));
+        }
+
+        function renderTratos(tratos, alcance) {
+            const columnas = [{ titulo: 'Fecha' }, { titulo: 'Lote' }];
+            if (alcance !== 'ventas') columnas.push({ titulo: 'Proveedor' });
+            if (alcance !== 'compras') columnas.push({ titulo: 'Comprador' });
+            columnas.push({ titulo: 'Monto', num: true }, { titulo: 'Estado' });
+            document.getElementById('subDetalle').textContent = tratos.length >= 200
+                ? 'Los 200 tratos más recientes del periodo (el Excel trae los mismos)'
+                : `${entero(tratos.length)} trato${tratos.length === 1 ? '' : 's'} en el periodo`;
+            document.getElementById('tablaTratos').innerHTML = tablaHTML(columnas, tratos.map(t => [
+                fecha(t.fecha), `<span class="lote">${esc(t.lote)}</span>`,
+                ...(alcance !== 'ventas' ? [esc(t.proveedor)] : []), ...(alcance !== 'compras' ? [esc(t.comprador)] : []),
+                dinero(t.monto), chip(t.estado)]));
+        }
+
+        function alternarVista(boton) {
+            const clave = boton.dataset.vista;
+            const nombre = clave.charAt(0).toUpperCase() + clave.slice(1);
+            const verTabla = boton.getAttribute('aria-pressed') !== 'true';
+            boton.setAttribute('aria-pressed', String(verTabla));
+            boton.innerHTML = verTabla ? '<i class="ti ti-chart-bar"></i> Ver gráfica' : '<i class="ti ti-table"></i> Ver tabla';
+            document.getElementById('tabla' + nombre).hidden = !verTabla;
+            document.getElementById('grafica' + nombre + 'Wrap').hidden = verTabla;
+            const leyenda = document.getElementById('leyenda' + nombre);
+            if (leyenda) leyenda.hidden = verTabla;
+        }
+
+        /* ==========================================================
+           EXPORTAR
+           ========================================================== */
+        function prepararImpresion() {
+            terminarImpresion();
+            Object.values(estado.graficas).forEach(g => {
+                const img = document.createElement('img');
+                img.className = 'imagen-impresion';
+                img.alt = g.canvas.getAttribute('aria-label') || 'Gráfica';
+                // Estado final: se corta cualquier animación en curso (p. ej. tras "Ver tabla")
+                g.stop();
+                g.resize();
+                g.update('none');
+                img.src = g.toBase64Image('image/png', 1);
+                g.canvas.classList.add('oculto-impresion');
+                g.canvas.after(img);
+            });
+        }
+        function terminarImpresion() {
+            document.querySelectorAll('img.imagen-impresion').forEach(img => img.remove());
+            document.querySelectorAll('canvas.oculto-impresion').forEach(c => c.classList.remove('oculto-impresion'));
+        }
+
+        // PDF: se usa la impresión del navegador ("Guardar como PDF"), que deja el texto
+        // seleccionable y funciona igual en la computadora y en el celular.
+        // El PDF siempre sale en claro (papel blanco): en modo oscuro las gráficas se vuelven
+        // a dibujar con los colores claros solo para imprimir, y después se regresa al oscuro.
+        function exportarPdf() {
+            mostrarToast('En la ventana de impresión elige "Guardar como PDF" como destino.');
+            const raiz = document.documentElement;
+            const oscuro = raiz.getAttribute('data-tema') === 'oscuro';
+            const redibujar = (tema) => {
+                raiz.setAttribute('data-tema', tema);
+                if (window.Chart) Chart.defaults.color = colorVar('--texto-2');
+                if (estado.datos) renderTodo();
+            };
+            if (oscuro) {
+                redibujar('claro');
+                window.addEventListener('afterprint', () => redibujar('oscuro'), { once: true });
+            }
+            setTimeout(() => window.print(), oscuro ? 900 : 300);
+        }
+
+        function cargarScript(url) {
+            return new Promise((ok, falla) => {
+                if (window.ExcelJS) return ok();
+                const s = document.createElement('script');
+                s.src = url;
+                s.onload = ok;
+                s.onerror = () => falla(new Error('No se pudo descargar la librería de Excel'));
+                document.head.appendChild(s);
+            });
+        }
+        const fechaExcel = (f) => { const d = new Date(f); return new Date(d.getTime() - d.getTimezoneOffset() * 60000); };
+        const FORMATO = { dinero: '"C$" #,##0.00', entero: '#,##0', porcentaje: '0.0%', fecha: 'dd/mm/yyyy' };
+
+        function agregarHoja(libro, nombre, titulo, columnas, filas, total = null) {
+            const hoja = libro.addWorksheet(nombre, { views: [{ state: 'frozen', ySplit: 4 }], properties: { tabColor: { argb: 'FF7D381B' } } });
+            hoja.columns = columnas.map(c => ({ key: c.clave, width: c.ancho || 16 }));
+            const n = columnas.length;
+            hoja.mergeCells(1, 1, 1, n);
+            Object.assign(hoja.getCell(1, 1), { value: titulo });
+            hoja.getCell(1, 1).font = { size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+            hoja.getCell(1, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3D170A' } };
+            hoja.getCell(1, 1).alignment = { vertical: 'middle', indent: 1 };
+            hoja.getRow(1).height = 28;
+            hoja.mergeCells(2, 1, 2, n);
+            hoja.getCell(2, 1).value = `EntreLazados · ${document.getElementById('periodoTexto').textContent} · Generado el ${new Date(estado.datos.generado).toLocaleString('es-NI')}`;
+            hoja.getCell(2, 1).font = { italic: true, size: 10, color: { argb: 'FF6B5A50' } };
+            const cab = hoja.getRow(4);
+            columnas.forEach((c, i) => {
+                const celda = cab.getCell(i + 1);
+                celda.value = c.titulo;
+                celda.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF993D24' } };
+                celda.alignment = { horizontal: c.formato ? 'right' : 'left', vertical: 'middle', wrapText: true };
+            });
+            cab.height = 22;
+            filas.forEach((f, idx) => {
+                const fila = hoja.addRow(f);
+                fila.eachCell({ includeEmpty: true }, (celda, i) => {
+                    const col = columnas[i - 1];
+                    if (col && col.formato) celda.numFmt = FORMATO[col.formato];
+                    if (idx % 2 === 1) celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAF6F2' } };
+                });
+            });
+            if (!filas.length) {
+                hoja.addRow(['Sin datos para este periodo.']).getCell(1).font = { italic: true, color: { argb: 'FF8D7D73' } };
+            } else if (total) {
+                const fila = hoja.addRow(total);
+                fila.eachCell({ includeEmpty: true }, (celda, i) => {
+                    const col = columnas[i - 1];
+                    if (col && col.formato) celda.numFmt = FORMATO[col.formato];
+                    celda.font = { bold: true };
+                    celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1E7DF' } };
+                });
+            }
+        }
+
+        async function exportarExcel() {
+            const d = estado.datos;
+            if (!d) return;
+            const boton = document.getElementById('btnExcel');
+            const original = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = '<i class="ti ti-loader-2"></i> Generando…';
+            try {
+                await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+                const libro = new ExcelJS.Workbook();
+                libro.creator = 'EntreLazados';
+                libro.created = new Date();
+                const r = d.resumen;
+                const t = TEXTOS[d.alcance] || TEXTOS.plataforma;
+
+                agregarHoja(libro, 'Resumen', t.titulo, [{ clave: 'i', titulo: 'Indicador', ancho: 38 }, { clave: 'v', titulo: 'Valor', ancho: 18, formato: null }], [
+                    ['Monto total (sin cancelados)', r.monto], ['Monto completado', r.montoCompletado], ['Tratos', r.tratos], ['Completados', r.completados],
+                    ['En curso', r.enCurso], ['Cancelados', r.cancelados], ['Ticket promedio', r.ticketPromedio], ['Subastas en el periodo', r.subastas],
+                    ['Subastas terminadas con ganador', r.tasaExito === null ? '—' : r.tasaExito]
+                ]);
+                const hojaResumen = libro.getWorksheet('Resumen');
+                [5, 6, 11].forEach(fila => { hojaResumen.getCell(fila, 2).numFmt = FORMATO.dinero; });
+                [7, 8, 9, 10, 12].forEach(fila => { hojaResumen.getCell(fila, 2).numFmt = FORMATO.entero; });
+                if (r.tasaExito !== null) hojaResumen.getCell(13, 2).numFmt = FORMATO.porcentaje;
+
+                const vm = d.ventasPorMes;
+                agregarHoja(libro, 'Por mes', t.ventas, [
+                    { clave: 'm', titulo: 'Mes', ancho: 20 }, { clave: 't', titulo: 'Tratos', formato: 'entero' }, { clave: 'c', titulo: 'Completados', formato: 'entero' },
+                    { clave: 'x', titulo: 'Cancelados', formato: 'entero' }, { clave: 'mo', titulo: 'Monto', formato: 'dinero' }, { clave: 'mc', titulo: 'Monto completado', formato: 'dinero', ancho: 18 }],
+                    vm.map(m => [nombreMes(m.mes, true), m.tratos, m.completados, m.cancelados, m.monto, m.montoCompletado]),
+                    ['Total', ...['tratos', 'completados', 'cancelados', 'monto', 'montoCompletado'].map(k => vm.reduce((s, m) => s + m[k], 0))]);
+
+                agregarHoja(libro, 'Materiales', 'Materiales más pedidos', [
+                    { clave: 'c', titulo: 'Categoría', ancho: 40 }, { clave: 'p', titulo: 'Pujas', formato: 'entero' },
+                    { clave: 's', titulo: 'Subastas', formato: 'entero' }, { clave: 'm', titulo: 'Puja más alta', formato: 'dinero' }],
+                    d.materialesMasPedidos.map(m => [m.categoria, m.pujas, m.subastas, m.pujaMaxima]));
+
+                agregarHoja(libro, 'Lotes', 'Lotes más disputados', [
+                    { clave: 'l', titulo: 'Lote', ancho: 36 }, { clave: 'c', titulo: 'Categoría', ancho: 30 }, { clave: 'p', titulo: 'Pujas', formato: 'entero', ancho: 10 },
+                    { clave: 'b', titulo: 'Precio base', formato: 'dinero' }, { clave: 'f', titulo: 'Precio final', formato: 'dinero' },
+                    { clave: 'i', titulo: 'Subió', formato: 'porcentaje', ancho: 10 }, { clave: 'e', titulo: 'Estado', ancho: 14 }],
+                    d.lotesMasDisputados.map(l => [l.lote, l.categoria, l.pujas, l.precioBase, l.precioFinal, l.incremento, l.estado]));
+
+                const pc = d.preciosPorCategoria;
+                agregarHoja(libro, 'Precios', 'Precio base promedio por categoría (todo el mercado)', [
+                    { clave: 'm', titulo: 'Mes', ancho: 20 }, ...pc.series.map((s, i) => ({ clave: 's' + i, titulo: s.categoria, formato: 'dinero', ancho: 22 }))],
+                    pc.meses.map((mes, i) => [nombreMes(mes, true), ...pc.series.map(s => s.valores[i])]));
+
+                const cols = [{ clave: 'f', titulo: 'Fecha', formato: 'fecha', ancho: 13 }, { clave: 'l', titulo: 'Lote', ancho: 36 },
+                    { clave: 'p', titulo: 'Proveedor', ancho: 26 }, { clave: 'c', titulo: 'Comprador', ancho: 26 },
+                    { clave: 'm', titulo: 'Monto', formato: 'dinero' }, { clave: 'e', titulo: 'Estado', ancho: 13 }];
+                agregarHoja(libro, 'Tratos', t.detalle, cols,
+                    d.tratos.map(x => [fechaExcel(x.fecha), x.lote, x.proveedor, x.comprador, x.monto, x.estado === 'EnProceso' ? 'En proceso' : x.estado]),
+                    ['', 'Total', '', '', d.tratos.filter(x => x.estado !== 'Cancelado').reduce((s, x) => s + x.monto, 0), 'sin cancelados']);
+
+                const buffer = await libro.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const hoy = new Date();
+                const nombre = `EntreLazados_${t.titulo.replace(/\s+/g, '_')}_${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}.xlsx`;
+                const enlace = document.createElement('a');
+                enlace.href = URL.createObjectURL(blob);
+                enlace.download = nombre;
+                document.body.appendChild(enlace);
+                enlace.click();
+                setTimeout(() => { URL.revokeObjectURL(enlace.href); enlace.remove(); }, 1000);
+                mostrarToast(`Reporte descargado: ${nombre}`);
+            } catch (err) {
+                console.error('Error al exportar:', err);
+                mostrarToast('No se pudo generar el archivo de Excel. Inténtalo de nuevo.', true);
+            } finally {
+                boton.disabled = false;
+                boton.innerHTML = original;
+            }
+        }
+
+        // Si cierra un trato o una subasta mientras la página está abierta, el reporte se actualiza
+        let recargaPendiente = null;
+        ['entrelazados:subastas:cambio', 'entrelazados:notificacion:nueva'].forEach(evento => document.addEventListener(evento, () => {
+            clearTimeout(recargaPendiente);
+            recargaPendiente = setTimeout(cargarReporte, 1500);
+        }));
+    </script>
+</body>
+</html>

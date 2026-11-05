@@ -55,8 +55,8 @@ test('openapi.yaml no documenta rutas que ya no existen', () => {
     assert.deepEqual(sobran, [], 'Estas rutas están en openapi.yaml pero no en el código');
 });
 
-test('la API tiene 37 rutas documentadas', () => {
-    assert.equal(rutasDocumentadas(especificacion).size, 37);
+test('la API tiene 52 rutas documentadas', () => {
+    assert.equal(rutasDocumentadas(especificacion).size, 52);
 });
 
 test('cada ruta documentada tiene resumen, grupo y respuestas', () => {

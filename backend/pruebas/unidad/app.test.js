@@ -71,7 +71,7 @@ test('una ruta de la API que no existe responde 404 en JSON', async () => {
 });
 
 test('una ruta con sesión responde 401 si no se envía el token', async () => {
-    for (const ruta of ['/api/tratos', '/api/dashboard', '/api/chat/contactos', '/api/admin/metricas']) {
+    for (const ruta of ['/api/tratos', '/api/dashboard', '/api/chat/contactos', '/api/admin/metricas', '/api/notificaciones', '/api/reportes']) {
         const r = await pedir(ruta);
         assert.equal(r.status, 401, ruta);
     }

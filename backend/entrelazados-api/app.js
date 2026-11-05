@@ -16,6 +16,18 @@ const limites = require('./middlewares/limites');
 const fotos = require('./servicios/fotos');
 const { crearAutenticacion } = require('./middlewares/autenticacion');
 const { rutaNoEncontrada, manejadorErrores } = require('./middlewares/errores');
+const { tiempoRealNulo } = require('./servicios/tiempoReal');
+const { notificacionesNulas } = require('./servicios/notificaciones');
+const { favoritosNulos } = require('./servicios/favoritos');
+const { NO_DISPONIBLE } = require('./servicios/asistenteIA');
+const { ErrorHttp } = require('./utilidades');
+
+// Asistente de IA que siempre responde "no disponible" (pruebas sin base de datos)
+const asistenteNulo = {
+    configurado: false,
+    describirPublicacion: async () => { throw new ErrorHttp(503, NO_DISPONIBLE); },
+    sugerirPrecio: async () => { throw new ErrorHttp(503, NO_DISPONIBLE); }
+};
 
 function crearApp({ config, db, correo, servicios, verificarCorreo }) {
     const app = express();
@@ -35,6 +47,11 @@ function crearApp({ config, db, correo, servicios, verificarCorreo }) {
     // Dirección pública del sitio para los enlaces de los correos
     const urlPublica = (req) => config.urlPublica || `${req.protocol}://${req.get('host')}`;
     const { ofertas, tratos, cierreSubastas, kan } = servicios;
+    // Tiempo real y notificaciones son opcionales (las pruebas sin base de datos no los usan)
+    const tiempoReal = servicios.tiempoReal || tiempoRealNulo;
+    const notificaciones = servicios.notificaciones || notificacionesNulas;
+    const favoritos = servicios.favoritos || favoritosNulos;
+    const asistenteIA = servicios.asistenteIA || asistenteNulo;
 
     // ------------------------------------------------------------ RUTAS
     app.use('/', require('./rutas/cuentas')({
@@ -42,13 +59,18 @@ function crearApp({ config, db, correo, servicios, verificarCorreo }) {
     }));
     app.use('/api', require('./rutas/publicas')({ db }));
     app.use('/api/chat/ia', require('./rutas/kan')({ kan, verificarToken }));
-    app.use('/api/chat', require('./rutas/chat')({ db, verificarToken }));
-    app.use('/api/ofertas', require('./rutas/ofertas')({ db, ofertas, verificarToken, soloRoles }));
-    app.use('/api', require('./rutas/subastas')({ db, ofertas, verificarToken, soloRoles }));
+    app.use('/api/chat', require('./rutas/chat')({ db, tiempoReal, verificarToken }));
+    app.use('/api/ofertas', require('./rutas/ofertas')({ db, ofertas, favoritos, tiempoReal, verificarToken, soloRoles }));
+    app.use('/api', require('./rutas/subastas')({ db, ofertas, tiempoReal, notificaciones, verificarToken, soloRoles }));
     app.use('/api/tratos', require('./rutas/tratos')({ db, tratos, verificarToken }));
     app.use('/api', require('./rutas/usuarios')({ db, tratos, verificarToken }));
     app.use('/api/dashboard', require('./rutas/dashboard')({ db, verificarToken }));
-    app.use('/api/admin', require('./rutas/admin')({ db, ofertas, cierreSubastas, verificarAdmin }));
+    app.use('/api/reportes', require('./rutas/reportes')({ db, verificarToken }));
+    app.use('/api/notificaciones', require('./rutas/notificaciones')({ notificaciones, verificarToken }));
+    app.use('/api', require('./rutas/favoritos')({ favoritos, verificarToken }));
+    app.use('/api/mapa', require('./rutas/mapa')({ db, verificarToken }));
+    app.use('/api/ia', require('./rutas/ia')({ asistenteIA, verificarToken, soloRoles }));
+    app.use('/api/admin', require('./rutas/admin')({ db, ofertas, cierreSubastas, tiempoReal, verificarAdmin }));
 
     // ------------------------------------------------- ARCHIVOS ESTÁTICOS
     // Solo se publica la carpeta "public": así el código, el .env y los scripts

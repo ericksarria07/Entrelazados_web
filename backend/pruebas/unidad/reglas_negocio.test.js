@@ -12,8 +12,15 @@ const ofertaValida = { titulo: '  Cuero vacuno  ', precio: '450', unidad: ' pie�
 
 test('validarOferta limpia y convierte los datos de una publicación correcta', () => {
     assert.deepEqual(validarOferta(ofertaValida), {
-        titulo: 'Cuero vacuno', unidad: 'pie²', precio: 450, categoriaId: 1, distancia: 12
+        titulo: 'Cuero vacuno', unidad: 'pie²', precio: 450, categoriaId: 1, distancia: 12, descripcion: null
     });
+});
+
+test('validarOferta acepta una descripción opcional de hasta 1000 caracteres', () => {
+    assert.equal(validarOferta({ ...ofertaValida, descripcion: '  Cuero firme, ideal para botas.  ' }).descripcion, 'Cuero firme, ideal para botas.');
+    assert.equal(validarOferta({ ...ofertaValida, descripcion: '   ' }).descripcion, null);
+    assert.ok(!validarOferta({ ...ofertaValida, descripcion: 'x'.repeat(1000) }).error);
+    assert.match(validarOferta({ ...ofertaValida, descripcion: 'x'.repeat(1001) }).error, /1000/);
 });
 
 test('validarOferta pide los campos obligatorios', () => {

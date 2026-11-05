@@ -12,6 +12,7 @@ const { enTransaccion } = require('../db');
 const {
     validarOferta, esCategoriaInvalida, leerFotosAntiguas, insertarSubasta, mensajeOfertaBorrada
 } = require('../servicios/ofertas');
+const { favoritosNulos } = require('../servicios/favoritos');
 const {
     ErrorHttp, enteroPositivo, leerPaginacion, respuestaPaginada, patronLike, redondearCalificacion, conRespaldo
 } = require('../utilidades');
@@ -34,10 +35,11 @@ function leerFotosQuitar(valor) {
     return lista;
 }
 
-function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
+function crearRutasOfertas({ db, ofertas, favoritos = favoritosNulos, tiempoReal, verificarToken, soloRoles }) {
     const router = express.Router();
 
-    // Filtros opcionales: ?q=texto&categoria=ID&maxKm=30&proveedorId=ID
+    // Filtros opcionales: ?q=texto&categoria=ID&maxKm=30&proveedorId=ID&id=ID
+    // (q busca en el título y en la descripción; id trae una sola publicación, p. ej. desde una notificación)
     // Con ?pagina=N&porPagina=M responde { datos, total, pagina, porPagina, paginas }.
     // Cada oferta trae el nombre de su proveedor y su calificación promedio.
     router.get('/', conRespaldo([], async (req, res) => {
@@ -45,8 +47,8 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
         const condiciones = [];
         const params = [];
         if (typeof req.query.q === 'string' && req.query.q.trim()) {
-            condiciones.push('o.TituloMaterial LIKE ?');
-            params.push(patronLike(req.query.q));
+            condiciones.push('(o.TituloMaterial LIKE ? OR o.Descripcion LIKE ?)');
+            params.push(patronLike(req.query.q), patronLike(req.query.q));
         }
         const categoria = enteroPositivo(req.query.categoria);
         if (categoria) { condiciones.push('o.CategoriaID = ?'); params.push(categoria); }
@@ -57,10 +59,12 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
         }
         const proveedor = enteroPositivo(req.query.proveedorId);
         if (proveedor) { condiciones.push('o.ProveedorID = ?'); params.push(proveedor); }
+        const unaOferta = enteroPositivo(req.query.id);
+        if (unaOferta) { condiciones.push('o.OfertaID = ?'); params.push(unaOferta); }
         const where = condiciones.length ? 'WHERE ' + condiciones.join(' AND ') : '';
 
         const [filas] = await db.query(`
-            SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos,
+            SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Descripcion, o.Precio, o.UnidadMedida, o.DistanciaSimuladaKm, o.Fotos,
                    o.CategoriaID, c.NombreCategoria, o.FechaPublicacion,
                    COALESCE(pr.NombreRazonSocial, 'Proveedor') AS NombreProveedor,
                    cal.Promedio AS CalificacionProveedor, COALESCE(cal.Total, 0) AS TotalCalificaciones
@@ -102,9 +106,9 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
         try {
             const ofertaId = await enTransaccion(db, async (conn) => {
                 const [oferta] = await conn.query(
-                    `INSERT INTO Ofertas (ProveedorID, TituloMaterial, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm)
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [proveedorId, datos.titulo, datos.categoriaId, datos.precio, datos.unidad, datos.distancia]
+                    `INSERT INTO Ofertas (ProveedorID, TituloMaterial, Descripcion, CategoriaID, Precio, UnidadMedida, DistanciaSimuladaKm)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [proveedorId, datos.titulo, datos.descripcion, datos.categoriaId, datos.precio, datos.unidad, datos.distancia]
                 );
                 if (urls.length > 0) {
                     await conn.query(
@@ -120,6 +124,12 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
                     precioBase: datos.precio
                 });
                 return oferta.insertId;
+            });
+            tiempoReal.aTodos('subastas:cambio', { motivo: 'nueva' });
+            // Alertas de búsqueda: sin esperar (los avisos nunca hacen fallar la publicación)
+            favoritos.avisarNuevaPublicacion({
+                ofertaId, proveedorId, titulo: datos.titulo, descripcion: datos.descripcion,
+                categoriaId: datos.categoriaId, precio: datos.precio
             });
             res.json({ message: "¡Material publicado y lote en subasta activo exitosamente!", ofertaId, fotos: urls });
         } catch (err) {
@@ -149,7 +159,7 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
         try {
             resultado = await enTransaccion(db, async (conn) => {
                 const [[oferta]] = await conn.query(
-                    `SELECT OfertaID, Fotos FROM Ofertas WHERE OfertaID = ? ${req.usuario.esAdmin ? '' : 'AND ProveedorID = ?'} FOR UPDATE`,
+                    `SELECT OfertaID, ProveedorID, Precio, Fotos FROM Ofertas WHERE OfertaID = ? ${req.usuario.esAdmin ? '' : 'AND ProveedorID = ?'} FOR UPDATE`,
                     req.usuario.esAdmin ? [ofertaId] : [ofertaId, req.usuario.id]
                 );
                 if (!oferta) throw noEsTuya;
@@ -166,8 +176,8 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
 
                 urlsNuevas = await fotos.guardarFotos(archivos);
                 await conn.query(
-                    'UPDATE Ofertas SET TituloMaterial = ?, CategoriaID = ?, Precio = ?, UnidadMedida = ?, DistanciaSimuladaKm = ? WHERE OfertaID = ?',
-                    [datos.titulo, datos.categoriaId, datos.precio, datos.unidad, datos.distancia, ofertaId]
+                    'UPDATE Ofertas SET TituloMaterial = ?, Descripcion = ?, CategoriaID = ?, Precio = ?, UnidadMedida = ?, DistanciaSimuladaKm = ? WHERE OfertaID = ?',
+                    [datos.titulo, datos.descripcion, datos.categoriaId, datos.precio, datos.unidad, datos.distancia, ofertaId]
                 );
                 if (antiguasQuedan.length !== antiguas.length) {
                     await conn.query('UPDATE Ofertas SET Fotos = ? WHERE OfertaID = ?', [JSON.stringify(antiguasQuedan), ofertaId]);
@@ -189,7 +199,10 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
                     "UPDATE Subastas SET TituloLote = ?, CategoriaID = ? WHERE OfertaID = ? AND Estado = 'Activa' AND FechaFin > NOW()",
                     [`Lote Subasta: ${datos.titulo}`, datos.categoriaId, ofertaId]
                 );
-                return { borradas, antiguasQuedan, subastaActualizada: subasta.affectedRows > 0 };
+                return {
+                    borradas, antiguasQuedan, subastaActualizada: subasta.affectedRows > 0,
+                    proveedorId: oferta.ProveedorID, precioAnterior: Number(oferta.Precio)
+                };
             });
         } catch (err) {
             await fotos.borrarFotos(urlsNuevas);
@@ -198,6 +211,12 @@ function crearRutasOfertas({ db, ofertas, verificarToken, soloRoles }) {
 
         await fotos.borrarFotos(resultado.borradas.map(f => f.FotoURL));
         const fotosFinales = (await ofertas.urlsDeFotos([ofertaId])).get(ofertaId) || resultado.antiguasQuedan;
+        if (resultado.subastaActualizada) tiempoReal.aTodos('subastas:cambio', { motivo: 'editada' });
+        // Si bajó de precio, se avisa a quienes la guardaron en favoritos (sin esperar)
+        favoritos.avisarRebaja({
+            ofertaId, proveedorId: resultado.proveedorId, titulo: datos.titulo,
+            precioAnterior: resultado.precioAnterior, precioNuevo: datos.precio
+        });
         res.json({
             message: resultado.subastaActualizada
                 ? "Publicación actualizada. Su subasta abierta también muestra el título y la categoría nuevos."

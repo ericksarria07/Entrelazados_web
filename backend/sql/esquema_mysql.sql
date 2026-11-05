@@ -4,6 +4,8 @@
 --   * CategoriasMateriales.Descripcion (formulario de nuevas categorias del admin)
 --   * Usuarios.CorreoVerificado / TokenVerificacion (confirmar el correo al registrarse)
 --   * Calificaciones (1 a 5 estrellas al completar un trato)
+--   * Notificaciones (la campana del menú; versión 12)
+--   * Favoritos, AlertasBusqueda y Ofertas.Descripcion (versión 13)
 -- Uso: crear la base, seleccionarla con USE y ejecutar este archivo.
 
 CREATE TABLE Departamentos (
@@ -82,6 +84,7 @@ CREATE TABLE Ofertas (
     OfertaID INT AUTO_INCREMENT PRIMARY KEY,
     ProveedorID INT NOT NULL,
     TituloMaterial VARCHAR(150) NOT NULL,
+    Descripcion VARCHAR(1000) NULL,
     CategoriaID INT NOT NULL,
     Precio DECIMAL(10,2) NOT NULL,
     UnidadMedida VARCHAR(30) NOT NULL,
@@ -176,6 +179,44 @@ CREATE TABLE Calificaciones (
     CONSTRAINT fk_calificaciones_autor FOREIGN KEY (AutorID) REFERENCES Usuarios(UsuarioID),
     CONSTRAINT fk_calificaciones_calificado FOREIGN KEY (CalificadoID) REFERENCES Usuarios(UsuarioID),
     INDEX idx_calificaciones_calificado (CalificadoID)
+) ENGINE=InnoDB;
+
+CREATE TABLE Notificaciones (
+    NotificacionID INT AUTO_INCREMENT PRIMARY KEY,
+    UsuarioID INT NOT NULL,
+    -- PujaSuperada, PujaRecibida, SubastaGanada, SubastaTerminada, SubastaCancelada,
+    -- TratoActualizado, CalificacionRecibida, AlertaBusqueda, FavoritoRebajado
+    Tipo VARCHAR(30) NOT NULL,
+    Titulo VARCHAR(120) NOT NULL,
+    Mensaje VARCHAR(300) NOT NULL,
+    Enlace VARCHAR(200) NULL,          -- página a la que lleva al hacer clic (p. ej. mercado.html)
+    ReferenciaID INT NULL,             -- SubastaID o TratoID, para no repetir avisos
+    EsLeida TINYINT(1) NOT NULL DEFAULT 0,
+    FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notificaciones_usuario FOREIGN KEY (UsuarioID) REFERENCES Usuarios(UsuarioID) ON DELETE CASCADE,
+    INDEX idx_notificaciones_usuario (UsuarioID, EsLeida, FechaCreacion)
+) ENGINE=InnoDB;
+
+CREATE TABLE Favoritos (
+    UsuarioID INT NOT NULL,
+    OfertaID INT NOT NULL,
+    FechaGuardado DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (UsuarioID, OfertaID),
+    CONSTRAINT fk_favoritos_usuario FOREIGN KEY (UsuarioID) REFERENCES Usuarios(UsuarioID) ON DELETE CASCADE,
+    CONSTRAINT fk_favoritos_oferta FOREIGN KEY (OfertaID) REFERENCES Ofertas(OfertaID) ON DELETE CASCADE,
+    INDEX idx_favoritos_oferta (OfertaID)
+) ENGINE=InnoDB;
+
+CREATE TABLE AlertasBusqueda (
+    AlertaID INT AUTO_INCREMENT PRIMARY KEY,
+    UsuarioID INT NOT NULL,
+    PalabraClave VARCHAR(60) NULL,
+    CategoriaID INT NULL,
+    PrecioMaximo DECIMAL(10,2) NULL,
+    FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_alertas_usuario FOREIGN KEY (UsuarioID) REFERENCES Usuarios(UsuarioID) ON DELETE CASCADE,
+    CONSTRAINT fk_alertas_categoria FOREIGN KEY (CategoriaID) REFERENCES CategoriasMateriales(CategoriaID) ON DELETE CASCADE,
+    INDEX idx_alertas_usuario (UsuarioID)
 ) ENGINE=InnoDB;
 
 ALTER TABLE Usuarios 

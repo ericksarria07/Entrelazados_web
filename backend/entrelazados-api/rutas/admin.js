@@ -22,7 +22,7 @@ const {
 const ESTADOS_CUENTA = ['Activo', 'Inactivo', 'Suspendido'];
 const MOTIVO_BAJA = 'porque la cuenta del proveedor fue dada de baja';
 
-function crearRutasAdmin({ db, ofertas, cierreSubastas, verificarAdmin }) {
+function crearRutasAdmin({ db, ofertas, cierreSubastas, tiempoReal, verificarAdmin }) {
     const router = express.Router();
     router.use(verificarAdmin);
 
@@ -123,6 +123,8 @@ function crearRutasAdmin({ db, ofertas, cierreSubastas, verificarAdmin }) {
         }
         const [resultado] = await db.query('UPDATE Usuarios SET EstadoCuenta = ? WHERE UsuarioID = ?', [nuevoEstado, req.params.id]);
         if (resultado.affectedRows === 0) throw usuarioNoEncontrado();
+        // También se cortan sus conexiones en tiempo real (dejan de llegarle avisos)
+        if (nuevoEstado === 'Suspendido') tiempoReal.desconectarUsuario(Number(req.params.id));
         res.json({ success: true, message: `Estado del usuario cambiado a '${nuevoEstado}'.` });
     });
 
@@ -172,8 +174,9 @@ function crearRutasAdmin({ db, ofertas, cierreSubastas, verificarAdmin }) {
         });
 
         await fotos.borrarFotos(urlsFotos);
-        cierreSubastas.avisarCancelacionPorCorreo(avisos, MOTIVO_BAJA)
-            .catch(err => console.error('⚠️ Aviso de subasta cancelada no enviado:', err.message));
+        tiempoReal.desconectarUsuario(usuarioId);
+        if (avisos.length > 0) tiempoReal.aTodos('subastas:cambio', { motivo: 'cancelada' });
+        await cierreSubastas.avisarCancelacion(avisos, MOTIVO_BAJA);
         const pujadoresAvisados = new Set(avisos.map(a => a.emprendedorId)).size;
         res.json({
             success: true,

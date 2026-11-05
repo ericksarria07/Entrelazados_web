@@ -11,7 +11,8 @@
 // (también se puede pasar de Pendiente a Completado si se entrega enseguida).
 // Completado y Cancelado son finales. Cualquiera de las dos partes puede
 // cambiar el estado; la otra parte recibe un mensaje automático en el chat
-// (queda como registro de quién hizo qué) y un correo si está configurado.
+// (queda como registro de quién hizo qué), una notificación en la campana y
+// un correo si está configurado.
 //
 // CALIFICACIONES: cuando el trato está Completado, cada parte califica a la
 // otra una sola vez (1 a 5 estrellas y un comentario opcional). El promedio
@@ -20,6 +21,8 @@
 const { nombreLote } = require('./subastas');
 const { ErrorHttp, redondearCalificacion } = require('../utilidades');
 const { enTransaccion } = require('../db');
+const { tiempoRealNulo } = require('./tiempoReal');
+const { notificacionesNulas } = require('./notificaciones');
 
 // A cada estado nuevo solo se puede llegar desde estos estados
 const ESTADOS_ORIGEN = {
@@ -54,7 +57,7 @@ function textoDelChat(estado, lote, motivo) {
     return `❌ [Aviso automático de EntreLazados] Cancelé el trato «${lote}».` + (motivo ? ` Motivo: ${motivo}` : '');
 }
 
-function crearServicioTratos({ db, correo, urlBase }) {
+function crearServicioTratos({ db, correo, urlBase, tiempoReal = tiempoRealNulo, notificaciones = notificacionesNulas }) {
 
     // Cambia el estado de un trato en el que participa usuarioId.
     // Lanza un ErrorHttp (400, 404 o 409) si no se puede.
@@ -98,6 +101,20 @@ function crearServicioTratos({ db, correo, urlBase }) {
         // El correo va después de guardar y sin bloquear: si falla, el cambio igual queda hecho
         avisarPorCorreo({ trato, usuarioId, contraparteId, estado, motivo: motivoLimpio })
             .catch(err => console.error('⚠️ Aviso de trato no enviado:', err.message));
+        tiempoReal.aUsuario([contraparteId, usuarioId], 'chat:mensaje', { remitenteId: usuarioId, destinatarioId: contraparteId });
+        const lote = loteDelTrato(trato.DescripcionResumen);
+        await notificaciones.enviar([{
+            usuarioId: contraparteId,
+            tipo: 'TratoActualizado',
+            referenciaId: tratoId,
+            titulo: `Trato «${lote}»: ${ETIQUETAS[estado]}`,
+            mensaje: {
+                EnProceso: 'La otra parte marcó el trato como en proceso: ya acordaron el pago y la entrega.',
+                Completado: 'La otra parte marcó el trato como completado. Ya puedes calificarla.',
+                Cancelado: 'La otra parte canceló el trato.' + (motivoLimpio ? ` Motivo: ${motivoLimpio}` : '')
+            }[estado],
+            enlace: 'dashboard.html'
+        }]);
 
         return {
             tratoId,
@@ -145,7 +162,7 @@ function crearServicioTratos({ db, correo, urlBase }) {
         }
         const comentarioLimpio = typeof comentario === 'string' ? comentario.trim().slice(0, LARGO_MAXIMO_COMENTARIO) : '';
 
-        return enTransaccion(db, async (conn) => {
+        const resultado = await enTransaccion(db, async (conn) => {
             const [[trato]] = await conn.query(
                 `SELECT TratoID, ProveedorID, EmprendedorID, DescripcionResumen, EstadoTrato
                  FROM TratosCerrados
@@ -174,8 +191,20 @@ function crearServicioTratos({ db, correo, urlBase }) {
                     `⭐ [Aviso automático de EntreLazados] Califiqué el trato «${lote}» con ${estrellas} de 5 estrellas.` +
                     (comentarioLimpio ? ` Comentario: ${comentarioLimpio}` : '')]
             );
-            return { tratoId, puntuacion: estrellas, calificadoId };
+            return { tratoId, puntuacion: estrellas, calificadoId, lote };
         });
+
+        const { lote, ...respuesta } = resultado;
+        tiempoReal.aUsuario([respuesta.calificadoId, usuarioId], 'chat:mensaje', { remitenteId: usuarioId, destinatarioId: respuesta.calificadoId });
+        await notificaciones.enviar([{
+            usuarioId: respuesta.calificadoId,
+            tipo: 'CalificacionRecibida',
+            referenciaId: tratoId,
+            titulo: `Te calificaron con ${'★'.repeat(estrellas)}${'☆'.repeat(5 - estrellas)}`,
+            mensaje: `Por el trato «${lote}».` + (comentarioLimpio ? ` "${comentarioLimpio}"` : ''),
+            enlace: 'perfil.html'
+        }]);
+        return respuesta;
     }
 
     // Promedio, total y las últimas calificaciones (con comentario) que recibió un usuario
@@ -201,7 +230,77 @@ function crearServicioTratos({ db, correo, urlBase }) {
         };
     }
 
-    return { cambiarEstado, calificar, reputacion };
+    // Datos del comprobante de un trato (para imprimirlo o guardarlo como PDF en comprobante.html).
+    // Lo pueden ver las dos partes y el administrador; a cualquier otra persona se le responde 404.
+    async function comprobante({ tratoId, usuarioId, esAdmin = false }) {
+        if (!Number.isInteger(tratoId) || tratoId <= 0) throw fallo(404, 'Ese trato no existe o no participas en él.');
+        const [[t]] = await db.query(
+            `SELECT TratoID, ProveedorID, EmprendedorID, TipoOrigen, OrigenID, DescripcionResumen, MontoTotal, EstadoTrato, FechaCierre
+             FROM TratosCerrados WHERE TratoID = ?`, [tratoId]);
+        if (!t || (!esAdmin && t.ProveedorID !== usuarioId && t.EmprendedorID !== usuarioId)) {
+            throw fallo(404, 'Ese trato no existe o no participas en él.');
+        }
+        const [partes] = await db.query(
+            `SELECT u.UsuarioID, u.CorreoElectronico, p.NombreRazonSocial, p.TelefonoWhatsApp, p.DireccionExacta,
+                    d.NombreDepartamento, prov.NumeroRUC, prov.NombreComercial, emp.NombreMarca
+             FROM Usuarios u
+             LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = u.UsuarioID
+             LEFT JOIN Departamentos d ON d.DepartamentoID = p.DepartamentoID
+             LEFT JOIN Proveedores prov ON prov.UsuarioID = u.UsuarioID
+             LEFT JOIN Emprendedores emp ON emp.UsuarioID = u.UsuarioID
+             WHERE u.UsuarioID IN (?, ?)`, [t.ProveedorID, t.EmprendedorID]);
+        const parte = (id, rol) => {
+            const f = partes.find(x => x.UsuarioID === id) || {};
+            return {
+                id,
+                rol,
+                nombre: f.NombreRazonSocial || 'Usuario eliminado',
+                nombreComercial: (rol === 'Proveedor' ? f.NombreComercial : f.NombreMarca) || null,
+                ruc: rol === 'Proveedor' ? (f.NumeroRUC || null) : null,
+                correo: f.CorreoElectronico || null,
+                telefono: f.TelefonoWhatsApp || null,
+                departamento: f.NombreDepartamento || null,
+                direccion: f.DireccionExacta || null
+            };
+        };
+
+        let subasta = null;
+        if (t.TipoOrigen === 'Subasta' && t.OrigenID) {
+            const [[s]] = await db.query(
+                `SELECT s.SubastaID, s.TituloLote, s.PrecioBase, s.FechaInicio, s.FechaFin, c.NombreCategoria,
+                        (SELECT COUNT(*) FROM Pujas p WHERE p.SubastaID = s.SubastaID) AS pujas
+                 FROM Subastas s LEFT JOIN CategoriasMateriales c ON c.CategoriaID = s.CategoriaID
+                 WHERE s.SubastaID = ?`, [t.OrigenID]);
+            if (s) {
+                subasta = {
+                    id: s.SubastaID,
+                    lote: nombreLote(s.TituloLote),
+                    categoria: s.NombreCategoria || null,
+                    precioBase: Number(s.PrecioBase),
+                    pujas: Number(s.pujas),
+                    inicio: s.FechaInicio,
+                    cierre: s.FechaFin
+                };
+            }
+        }
+
+        return {
+            folio: `EL-${String(t.TratoID).padStart(6, '0')}`,
+            tratoId: t.TratoID,
+            origen: t.TipoOrigen,
+            concepto: subasta ? subasta.lote : loteDelTrato(t.DescripcionResumen),
+            monto: Number(t.MontoTotal),
+            moneda: 'NIO',
+            estado: t.EstadoTrato,
+            fechaCierre: t.FechaCierre,
+            emitido: new Date(),
+            proveedor: parte(t.ProveedorID, 'Proveedor'),
+            comprador: parte(t.EmprendedorID, 'Emprendedor'),
+            subasta
+        };
+    }
+
+    return { cambiarEstado, calificar, reputacion, comprobante };
 }
 
 module.exports = { crearServicioTratos, ESTADOS_ORIGEN, loteDelTrato };

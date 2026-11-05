@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="tema.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Chat y Mensajes</title>
 
@@ -1057,6 +1058,17 @@
             });
         });
 
+        // TIEMPO REAL: llegó un mensaje (o lo envié desde otra pestaña)
+        document.addEventListener('entrelazados:chat:mensaje', (evento) => {
+            const { remitenteId, destinatarioId } = evento.detail || {};
+            const otro = remitenteId === miId ? destinatarioId : remitenteId;
+            if (contactoSeleccionadoId && !esChatKanActivo && (otro === contactoSeleccionadoId || !otro)) {
+                cargarMensajesDeLaConversacion();
+            }
+            // Alguien que todavía no estaba en la lista de contactos
+            if (otro && !document.getElementById(`contacto-${otro}`)) cargarContactos();
+        });
+
         /* --- LÓGICA DE CHATS CON USUARIOS MYSQL --- */
         function seleccionarContacto(id, nombre, departamento) {
             esChatKanActivo = false;
@@ -1085,15 +1097,24 @@
             if (bucleActualizacion) clearInterval(bucleActualizacion);
 
             cargarMensajesDeLaConversacion();
-            bucleActualizacion = setInterval(cargarMensajesDeLaConversacion, 2000);
+            // Con tiempo real los mensajes nuevos llegan solos (evento chat:mensaje, más abajo);
+            // la consulta cada 2 s solo se usa si la conexión en tiempo real no está disponible
+            // (y, de respaldo, cada 15 s aunque lo esté).
+            bucleActualizacion = setInterval(() => {
+                const enVivo = window.tiempoRealEntrelazados && window.tiempoRealEntrelazados.conectado;
+                if (enVivo && Date.now() - ultimaCargaMensajes < 15000) return;
+                cargarMensajesDeLaConversacion();
+            }, 2000);
         }
 
         function volverAContactos() {
             document.getElementById('chat-layout-box').classList.remove('mobile-active');
         }
 
+        let ultimaCargaMensajes = 0;
         async function cargarMensajesDeLaConversacion() {
             if (!contactoSeleccionadoId || esChatKanActivo) return;
+            ultimaCargaMensajes = Date.now();
 
             const areaMensajes = document.getElementById('chat-msgs');
             try {

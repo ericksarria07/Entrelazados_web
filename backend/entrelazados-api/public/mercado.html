@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="tema.js"></script>
     <script src="kan.js" data-contexto="mercado" defer></script>
     <script src="categorias.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -203,6 +204,8 @@
         }
 
         #app {
+            /* width: el body es flex; sin esto el ancho cambiaba según el contenido de cada pestaña */
+            width: 100%;
             max-width: 1100px;
             margin: 24px auto 40px auto;
             padding: 0 20px;
@@ -518,6 +521,14 @@
             font-weight: 600;
         }
 
+        /* Tiempo real: el precio parpadea cuando alguien puja */
+        .bid-amount.recien-pujado { animation: precio-nuevo 1.6s ease; }
+        @keyframes precio-nuevo { 0% { background: #ffe8a3; transform: scale(1.08); } 100% { background: transparent; transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .bid-amount.recien-pujado { animation: none; } }
+        .en-vivo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #2b8a3e; }
+        .en-vivo::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #2b8a3e; box-shadow: 0 0 0 3px rgba(43,138,62,.2); }
+        .en-vivo[hidden] { display: none; }
+
         .bid-amount {
             font-size: 20px;
             font-weight: 900;
@@ -812,6 +823,81 @@
 
         /* FOTOS QUE YA TIENE UNA PUBLICACIÓN (al editarla) */
         .photo-preview-item.existente { outline: 2px solid var(--color-principal); outline-offset: -2px; }
+
+        /* DESCRIPCIÓN DE LA PUBLICACIÓN (3 líneas como máximo en la tarjeta) */
+        .listing-desc {
+            font-size: 13px; color: var(--text-muted); line-height: 1.45; margin: 0 0 12px;
+            display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        }
+
+        /* FAVORITOS: el corazón de cada tarjeta */
+        .btn-fav {
+            background: transparent; border: 1px solid var(--border-color); border-radius: 50%;
+            width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+            color: var(--color-terciario); font-size: 18px; cursor: pointer; transition: transform .15s ease, background .2s ease;
+        }
+        .btn-fav:hover { background: var(--bg-main); }
+        .btn-fav[aria-pressed="true"] { background: #fde8e4; border-color: #f3b5a8; }
+        .btn-fav:active { transform: scale(0.9); }
+
+        /* AVISO "Mostrando solo..." (enlace de una notificación o del mapa) */
+        .aviso-filtro {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            background: #fff7e0; color: #5c3d00; border: 1px solid #f0d58a; border-radius: var(--radius-md);
+            padding: 10px 14px; margin-bottom: 14px; font-size: 13px; font-weight: 600;
+        }
+        .aviso-filtro[hidden] { display: none; }
+        .aviso-filtro button { margin-left: auto; }
+
+        /* FAVORITOS Y ALERTAS (pestaña) */
+        .titulo-bloque { font-size: 15px; font-weight: 800; color: var(--color-secundario); display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+        .nota-bloque { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+        .form-alerta { display: grid; grid-template-columns: 2fr 2fr 1fr auto; gap: 8px; align-items: end; }
+        .form-alerta .form-label { font-size: 12px; margin-bottom: 4px; }
+        .lista-alertas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .chip-alerta {
+            display: inline-flex; align-items: center; gap: 6px; background: var(--bg-main); color: var(--color-secundario);
+            border: 1px solid var(--border-color); border-radius: 20px; padding: 5px 6px 5px 12px; font-size: 13px; font-weight: 600;
+        }
+        .chip-alerta button { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; border-radius: 50%; width: 24px; height: 24px; }
+        .chip-alerta button:hover { background: #fde8e4; color: #c92a2a; }
+        .vacio { text-align: center; color: var(--text-muted); padding: 18px; font-size: 14px; }
+        .vacio-oscuro { text-align: center; color: #f1e8e3; padding: 18px; font-size: 14px; }
+
+        /* MAPA DE PROVEEDORES */
+        .mapa-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .mapa-resumen { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        .lista-mapa { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 16px; }
+        .depto-card { background: var(--bg-card); border: 1px solid var(--border-color); border-top: 3px solid var(--color-principal); border-radius: var(--radius-md); padding: 14px; box-shadow: var(--shadow-sm); }
+        .depto-card h4 { font-size: 15px; color: var(--color-secundario); display: flex; justify-content: space-between; gap: 6px; margin-bottom: 8px; cursor: pointer; }
+        .depto-card h4 small { font-weight: 600; color: var(--text-muted); font-size: 12px; }
+        .depto-card.mio { border-top-color: #2b8a3e; }
+        .prov-fila { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px dashed var(--border-color); font-size: 13px; }
+        .prov-fila strong { color: var(--text-dark); }
+        .prov-fila .prov-meta { display: block; font-size: 11px; color: var(--text-muted); }
+        .prov-fila button, .prov-fila a { font-size: 12px; padding: 5px 9px; white-space: nowrap; }
+        .popup-prov { font-family: var(--font-secundaria); min-width: 210px; }
+        .popup-prov h4 { margin: 0 0 6px; font-size: 14px; }
+        .popup-prov ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+        .popup-prov li { padding: 5px 0; border-top: 1px solid #eee; font-size: 12px; }
+        .popup-prov li button { font-size: 11px; padding: 3px 7px; margin-top: 3px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; }
+        .leyenda-mapa { font-size: 12px; color: var(--text-muted); margin-top: 8px; display: flex; gap: 14px; flex-wrap: wrap; }
+        .leyenda-mapa span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; background: var(--color-principal); }
+        .leyenda-mapa span.tuyo::before { background: #2b8a3e; }
+
+        /* ASISTENTE DE IA EN EL FORMULARIO */
+        .caja-ia { border: 1px dashed #c9a227; background: #fffaf0; border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px; }
+        .caja-ia .titulo-ia { font-size: 13px; font-weight: 800; color: #6b4e00; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+        .caja-ia p { font-size: 12px; color: #6b5a33; margin-bottom: 8px; }
+        .botones-ia { display: flex; gap: 8px; flex-wrap: wrap; }
+        .botones-ia .btn-sm { display: inline-flex; align-items: center; gap: 5px; }
+        .resultado-ia { font-size: 12.5px; margin-top: 10px; padding: 10px; border-radius: var(--radius-sm); background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-dark); line-height: 1.45; }
+        .resultado-ia[hidden] { display: none; }
+        .resultado-ia.error { border-color: #f1aeb5; color: #a61e1e; background: #fff5f5; }
+        .resultado-ia .btn-sm { margin-top: 8px; }
+        textarea.form-input { resize: vertical; min-height: 84px; line-height: 1.45; }
+        .contador { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 3px; }
+        @media (max-width: 768px) { .form-alerta { grid-template-columns: 1fr 1fr; } .form-alerta .btn-primary { grid-column: 1 / -1; } }
     </style>
     <!-- AJUSTES RESPONSIVOS PARA CELULAR (cabecera y sub-barra) -->
     <style>
@@ -850,8 +936,8 @@
             <select id="searchCategory" class="search-category" aria-label="Categoría" onchange="renderizarOfertasFiltradas()">
                 <option value="todos">Todos los insumos</option>
             </select>
-            <input type="text" id="searchInput" class="search-input" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
-            <button type="submit" class="search-btn"><i class="ti ti-search"></i></button>
+            <input type="text" id="searchInput" class="search-input" aria-label="Buscar materiales" placeholder="Buscar cuero vacuno, hebillas, remaches, suelas...">
+            <button type="submit" class="search-btn" aria-label="Buscar"><i class="ti ti-search"></i></button>
         </form>
 
         <div class="nav-user">
@@ -866,32 +952,44 @@
         <a href="dashboard.html"><i class="ti ti-chart-bar"></i> Dashboard</a>
     </div>
 
-    <div id="app">
+    <main id="app">
 
-        <div class="tab-bar">
-            <button class="tab active" onclick="switchMarketTab(this,'listings')">
+        <div class="tab-bar" role="tablist" aria-label="Secciones del mercado">
+            <button class="tab active" role="tab" aria-selected="true" onclick="switchMarketTab(this,'listings')">
                 <i class="ti ti-building-store" style="margin-right: 4px;"></i> Ofertas Directas
             </button>
-            <button class="tab" onclick="switchMarketTab(this,'auctions')">
+            <button class="tab" role="tab" aria-selected="false" onclick="switchMarketTab(this,'auctions')">
                 <i class="ti ti-gavel" style="margin-right: 4px;"></i> Subastas Activas
             </button>
-            <button class="tab" onclick="switchMarketTab(this,'map')">
+            <button class="tab" role="tab" aria-selected="false" onclick="switchMarketTab(this,'map')">
                 <i class="ti ti-map-2" style="margin-right: 4px;"></i> Mapa de Proveedores
+            </button>
+            <button class="tab" role="tab" aria-selected="false" onclick="switchMarketTab(this,'favorites')">
+                <i class="ti ti-heart" style="margin-right: 4px;"></i> Favoritos y Alertas
             </button>
         </div>
 
         <div id="tab-listings" class="section">
             <div class="filter-bar">
-                <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
                     <div style="display:flex; align-items:center; gap: 10px;">
-                        <label><i class="ti ti-map-pin" style="font-size:16px; color: var(--color-principal);"></i> Radio de Cercanía:</label>
-                        <input type="range" id="range-km" min="5" max="200" value="30" step="5" oninput="actualizarFiltroKilometros(this.value)">
+                        <label for="range-km"><i class="ti ti-map-pin" style="font-size:16px; color: var(--color-principal);"></i> Radio de Cercanía:</label>
+                        <input type="range" id="range-km" min="5" max="200" value="30" step="5" oninput="actualizarFiltroKilometros(this.value)" aria-describedby="range-val">
                         <span class="range-val" id="range-val">30km</span>
                     </div>
-                    <button id="btn-publicar-modal" class="btn-primary" style="display: none;" onclick="abrirModal()">
-                        <i class="ti ti-plus"></i> Publicar Oferta
-                    </button>
+                    <div style="display:flex; align-items:center; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn-sm" onclick="crearAlertaDeBusqueda()" title="Te avisamos cuando publiquen algo con el texto y la categoría que buscaste">
+                            <i class="ti ti-bell-plus"></i> Avísame de nuevas
+                        </button>
+                        <button id="btn-publicar-modal" class="btn-primary" style="display: none;" onclick="abrirModal()">
+                            <i class="ti ti-plus"></i> Publicar Oferta
+                        </button>
+                    </div>
                 </div>
+            </div>
+            <div class="aviso-filtro" id="aviso-filtro" role="status" hidden>
+                <i class="ti ti-filter"></i> <span id="texto-aviso-filtro"></span>
+                <button type="button" class="btn-sm" onclick="quitarFiltroFijo()">Ver todas las publicaciones</button>
             </div>
             <div class="listings" id="contenedor-ofertas">
                 <p style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando materiales disponibles...</p>
@@ -903,6 +1001,7 @@
             <div class="filter-bar" style="display: flex; justify-content: space-between; align-items: center; border-top-color: var(--color-terciario);">
                 <div style="font-size: 14px; font-weight: 700; color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
                     <i class="ti ti-gavel" style="font-size: 18px; color: var(--color-terciario);"></i> Lotes en Subasta Pública
+                    <span class="en-vivo" id="indicador-en-vivo" title="Los precios se actualizan solos cuando alguien puja" hidden>En vivo</span>
                 </div>
                 <button id="btn-subasta-modal" class="btn-primary" style="display: none; background-color: var(--color-terciario);" onclick="abrirModalSubasta()">
                     <i class="ti ti-plus"></i> Crear Subasta
@@ -916,43 +1015,97 @@
 
         <div id="tab-map" class="section" style="display:none;">
             <div class="filter-bar">
-                <div style="font-size: 14px; font-weight: 700; color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
-                    <i class="ti ti-map-2" style="font-size: 18px; color: var(--color-principal);"></i> Proveedores Cercanos en Nicaragua
+                <div class="mapa-cabecera">
+                    <div style="font-size: 14px; font-weight: 700; color: var(--color-secundario); display: flex; align-items: center; gap: 6px;">
+                        <i class="ti ti-map-2" style="font-size: 18px; color: var(--color-principal);"></i> Proveedores en Nicaragua
+                    </div>
+                    <span class="mapa-resumen" id="mapa-resumen" aria-live="polite">Cargando proveedores…</span>
+                </div>
+                <div class="leyenda-mapa">
+                    <span>Proveedores por departamento (el círculo crece con la cantidad)</span>
+                    <span class="tuyo">Tu departamento</span>
+                    <span style="display:none" id="leyenda-categoria"></span>
                 </div>
             </div>
-            <div id="mapa-interactivo"></div>
+            <div id="mapa-interactivo" role="region" aria-label="Mapa de proveedores por departamento"></div>
+            <div class="lista-mapa" id="lista-mapa" aria-label="Proveedores por departamento"></div>
         </div>
-    </div>
 
-    <div id="modalOferta" class="modal">
+        <div id="tab-favorites" class="section" style="display:none;">
+            <div class="filter-bar">
+                <div class="titulo-bloque"><i class="ti ti-bell-ringing" style="color: var(--color-principal);"></i> Mis alertas de búsqueda</div>
+                <p class="nota-bloque">Te avisamos en la campana y por correo cuando alguien publique algo así. Hasta 10 alertas.</p>
+                <form class="form-alerta" onsubmit="guardarAlerta(event)">
+                    <div>
+                        <label class="form-label" for="alertaPalabra">Palabra clave</label>
+                        <input class="form-input" id="alertaPalabra" maxlength="60" placeholder="Ej. cuero café, suela TR">
+                    </div>
+                    <div>
+                        <label class="form-label" for="alertaCategoria">Categoría</label>
+                        <select class="form-input" id="alertaCategoria" style="height: 42px;"><option value="">Cualquier categoría</option></select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="alertaPrecio">Precio máx. (C$)</label>
+                        <input class="form-input" id="alertaPrecio" type="number" min="1" step="0.01" placeholder="Opcional">
+                    </div>
+                    <button type="submit" class="btn-primary" id="btnGuardarAlerta"><i class="ti ti-bell-plus"></i> Crear alerta</button>
+                </form>
+                <div class="lista-alertas" id="lista-alertas" aria-live="polite"></div>
+            </div>
+
+            <div class="filter-bar" style="margin-bottom: 14px;">
+                <div class="titulo-bloque"><i class="ti ti-heart-filled" style="color: var(--color-terciario);"></i> Publicaciones guardadas</div>
+                <p class="nota-bloque" style="margin-bottom: 0;">Guarda una publicación con el corazón. Si baja de precio, te avisamos.</p>
+            </div>
+            <div class="listings" id="contenedor-favoritos"></div>
+        </div>
+    </main>
+
+    <div id="modalOferta" class="modal" role="dialog" aria-modal="true" aria-labelledby="encabezadoModalOferta">
         <div class="modal-content">
-            <span class="close-btn" onclick="cerrarModal()">&times;</span>
-            <h3 style="margin-bottom: 18px; color: var(--color-secundario); display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="close-btn" onclick="cerrarModal()" aria-label="Cerrar" style="border:none; background:none;">&times;</button>
+            <h3 id="encabezadoModalOferta" style="margin-bottom: 18px; color: var(--color-secundario); display: flex; align-items: center; gap: 8px;">
                 <i class="ti ti-package" style="color: var(--color-principal);"></i> <span id="tituloModalOferta">Publicar Oferta Directa</span>
             </h3>
-            
-            <div class="form-group">
-                <label class="form-label">Título del Material</label>
-                <input class="form-input" type="text" id="ofertaTitulo" placeholder="Ej. Lote Suelas TR Caballero">
+
+            <div class="caja-ia">
+                <div class="titulo-ia"><i class="ti ti-sparkles"></i> Asistente de IA</div>
+                <p>Sube una foto (o escribe el título) y la IA propone el título, la descripción, la categoría y la unidad. También te sugiere un precio comparando con publicaciones parecidas. Revisa siempre lo que propone.</p>
+                <div class="botones-ia">
+                    <button type="button" class="btn-sm" id="btnIaDescribir" onclick="completarConIA()"><i class="ti ti-wand"></i> Completar con IA</button>
+                    <button type="button" class="btn-sm" id="btnIaPrecio" onclick="sugerirPrecioIA()"><i class="ti ti-coin"></i> Sugerir precio</button>
+                </div>
+                <div class="resultado-ia" id="resultadoIA" role="status" aria-live="polite" hidden></div>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Precio (C$)</label>
-                <input class="form-input" type="number" id="ofertaPrecio" placeholder="Ej. 450">
+                <label class="form-label" for="ofertaTitulo">Título del Material</label>
+                <input class="form-input" type="text" id="ofertaTitulo" maxlength="120" placeholder="Ej. Lote Suelas TR Caballero">
             </div>
 
             <div class="form-group">
-                <label class="form-label">Unidad de Medida</label>
-                <input class="form-input" type="text" id="ofertaUnidad" placeholder="Ej. por par, por pie², por docena">
+                <label class="form-label" for="ofertaDescripcion">Descripción <span style="font-weight:400; color: var(--text-muted);">(opcional)</span></label>
+                <textarea class="form-input" id="ofertaDescripcion" maxlength="1000" placeholder="Color, grosor, acabado, para qué sirve..." oninput="contarDescripcion()" aria-describedby="contadorDescripcion"></textarea>
+                <div class="contador" id="contadorDescripcion">0 / 1000</div>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Distancia Simulada (Km)</label>
+                <label class="form-label" for="ofertaPrecio">Precio (C$)</label>
+                <input class="form-input" type="number" id="ofertaPrecio" min="0.01" step="0.01" placeholder="Ej. 450">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="ofertaUnidad">Unidad de Medida</label>
+                <input class="form-input" type="text" id="ofertaUnidad" maxlength="30" placeholder="Ej. por par, por pie², por docena">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="ofertaDistancia">Distancia Simulada (Km)</label>
                 <input class="form-input" type="number" id="ofertaDistancia" placeholder="Ej. 15">
             </div>
 
             <div class="form-group">
-                <label class="form-label">Categoría del Material</label>
+                <label class="form-label" for="ofertaCategoria">Categoría del Material</label>
                 <select class="form-input" id="ofertaCategoria" style="height: 42px;">
                     <option value="" disabled selected>-- Selecciona una categoría --</option>
                 </select>
@@ -960,7 +1113,7 @@
 
             <div class="form-group">
                 <label class="form-label">Fotografías del Producto</label>
-                <div class="upload-box" onclick="document.getElementById('inputFotos').click()">
+                <div class="upload-box" role="button" tabindex="0" aria-label="Tomar o seleccionar fotos del material" onclick="document.getElementById('inputFotos').click()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }">
                     <i class="ti ti-camera-plus upload-box-icon"></i>
                     <div class="upload-box-text">Tomar o seleccionar fotos del material</div>
                     <div class="upload-box-subtext">Hasta 5 fotos en total (JPG, PNG o WebP). Se reducen automáticamente antes de subirlas.</div>
@@ -976,10 +1129,10 @@
         </div>
     </div>
 
-    <div id="modalSubasta" class="modal">
+    <div id="modalSubasta" class="modal" role="dialog" aria-modal="true" aria-labelledby="encabezadoModalSubasta">
         <div class="modal-content" style="border-top-color: var(--color-terciario);">
-            <span class="close-btn" onclick="cerrarModalSubasta()">&times;</span>
-            <h3 style="margin-bottom: 18px; color: var(--color-secundario); display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="close-btn" onclick="cerrarModalSubasta()" aria-label="Cerrar" style="border:none; background:none;">&times;</button>
+            <h3 id="encabezadoModalSubasta" style="margin-bottom: 18px; color: var(--color-secundario); display: flex; align-items: center; gap: 8px;">
                 <i class="ti ti-gavel" style="color: var(--color-terciario);"></i> Crear Nueva Subasta
             </h3>
             
@@ -997,7 +1150,7 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Precio Base / Inicial de Salida (C$)</label>
+                <label class="form-label" for="subastaPrecioBase">Precio Base / Inicial de Salida (C$)</label>
                 <input class="form-input" type="number" id="subastaPrecioBase" min="1" step="0.01" placeholder="Ej. 1200">
             </div>
 
@@ -1013,7 +1166,7 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Categoría del Material</label>
+                <label class="form-label" for="subastaCategoria">Categoría del Material</label>
                 <select class="form-input" id="subastaCategoria" style="height: 42px;">
                     <option value="" disabled selected>-- Selecciona una categoría --</option>
                 </select>
@@ -1065,6 +1218,12 @@
         const POR_PAGINA_SUBASTAS = 8;
         let paginaOfertas = 1;
         let paginaSubastas = 1;
+        // Favoritos: números de las publicaciones que guardé (para pintar los corazones)
+        let favoritosIds = new Set();
+        // "Mostrando solo...": una publicación (?oferta=ID, desde una notificación) o un proveedor (?proveedor=ID, desde el mapa)
+        let filtroFijo = null;
+        // Mapa: capa con los círculos de los departamentos
+        let capaMapa = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             const userEmail = localStorage.getItem('userEmail');
@@ -1115,11 +1274,11 @@
             if (authArea) {
                 authArea.innerHTML = `
                     <div class="user-dropdown-wrapper">
-                        <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                        <button class="user-btn-nav" onclick="toggleUserDropdown(event)" aria-haspopup="true" aria-label="Menú de ${esc(userNombre)}">
                             <i class="ti ti-user-circle" style="font-size: 22px;"></i>
                             <div class="user-nav-text">
-                                <span class="user-nav-name">${userNombre}</span>
-                                <span class="user-nav-role">${userRol.toUpperCase()}</span>
+                                <span class="user-nav-name">${esc(userNombre)}</span>
+                                <span class="user-nav-role">${esc(userRol.toUpperCase())}</span>
                             </div>
                             <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
                         </button>
@@ -1158,8 +1317,14 @@
                 document.getElementById('range-val').textContent = `${radioParam}km`;
             }
 
+            // Enlaces de una notificación (?oferta=ID) o del mapa (?proveedor=ID&nombre=...)
+            const ofertaParam = parseInt(urlParams.get('oferta'), 10);
+            const proveedorParam = parseInt(urlParams.get('proveedor'), 10);
+            if (ofertaParam > 0) filtroFijo = { tipo: 'oferta', id: ofertaParam, texto: 'Mostrando la publicación del aviso que abriste.' };
+            else if (proveedorParam > 0) filtroFijo = { tipo: 'proveedor', id: proveedorParam, texto: `Mostrando las publicaciones de ${urlParams.get('nombre') || 'este proveedor'}.` };
+
             // Primero las categorías: ?categoria= tiene que estar elegida antes de pedir las ofertas
-            await prepararCategorias(catParam);
+            await Promise.all([prepararCategorias(catParam), cargarIdsFavoritos()]);
             cargarOfertasDesdeBD(1);
             cargarSubastasDesdeBD(1);
         });
@@ -1262,6 +1427,7 @@
             const placeholder = { valor: '', texto: '-- Selecciona una categoría --', deshabilitada: true };
             Categorias.llenarSelect(document.getElementById('ofertaCategoria'), lista, { primera: placeholder });
             Categorias.llenarSelect(document.getElementById('subastaCategoria'), lista, { primera: placeholder });
+            Categorias.llenarSelect(document.getElementById('alertaCategoria'), lista, { primera: { valor: '', texto: 'Cualquier categoría' } });
         }
 
         // Filtros del buscador (texto y categoría) compartidos por ofertas y subastas
@@ -1292,10 +1458,15 @@
 
         async function cargarOfertasDesdeBD(pagina = paginaOfertas, desplazar = false) {
             paginaOfertas = pagina;
-            const params = parametrosBusqueda();
+            // Con un filtro fijo (una publicación o un proveedor) se ignoran el buscador y la distancia
+            const params = filtroFijo ? new URLSearchParams() : parametrosBusqueda();
             params.set('pagina', pagina);
             params.set('porPagina', POR_PAGINA_OFERTAS);
-            params.set('maxKm', document.getElementById('range-km').value);
+            if (filtroFijo) params.set(filtroFijo.tipo === 'oferta' ? 'id' : 'proveedorId', filtroFijo.id);
+            else params.set('maxKm', document.getElementById('range-km').value);
+            const aviso = document.getElementById('aviso-filtro');
+            aviso.hidden = !filtroFijo;
+            if (filtroFijo) document.getElementById('texto-aviso-filtro').textContent = filtroFijo.texto;
             try {
                 const response = await fetch(`${API_URL}/api/ofertas?${params}`);
                 if (!response.ok) throw new Error("Error backend");
@@ -1319,75 +1490,241 @@
             temporizadorFiltros = setTimeout(() => {
                 cargarOfertasDesdeBD(1);
                 cargarSubastasDesdeBD(1);
+                if (mapa && pestanaVisible('map')) cargarMapa();
             }, 250);
         }
 
         function renderizarListaOfertas(datos) {
             const contenedor = document.getElementById('contenedor-ofertas');
-            const miUserId = localStorage.getItem('userId');
-            const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
-            const esAdmin = (miRol === 'administrador' || miRol === 'admin');
             const maxKm = document.getElementById('range-km').value;
 
-            contenedor.innerHTML = '';
             pintarPaginacion('paginacion-ofertas', datos, 'cargarOfertasDesdeBD');
 
             if (datos.datos.length === 0) {
-                contenedor.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:20px;"><i class="ti ti-info-circle"></i> No hay ofertas disponibles que coincidan con tus filtros dentro de un radio de ${esc(maxKm)}km.</p>`;
+                contenedor.innerHTML = filtroFijo
+                    ? `<p class="vacio-oscuro"><i class="ti ti-info-circle"></i> ${filtroFijo.tipo === 'oferta' ? 'Esa publicación ya no está disponible.' : 'Este proveedor no tiene publicaciones por ahora.'}</p>`
+                    : `<p class="vacio-oscuro"><i class="ti ti-info-circle"></i> No hay ofertas disponibles que coincidan con tus filtros dentro de un radio de ${esc(maxKm)}km.</p>`;
                 return;
             }
+            contenedor.innerHTML = datos.datos.map(tarjetaOferta).join('');
+        }
 
-            datos.datos.forEach(oferta => {
-                const iconoCat = (oferta.NombreCategoria || '').toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
+        // Tarjeta de una publicación (la usan la lista de ofertas y la de favoritos)
+        function tarjetaOferta(oferta) {
+            const miUserId = localStorage.getItem('userId');
+            const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
+            const esAdmin = (miRol === 'administrador' || miRol === 'admin');
+            const iconoCat = (oferta.NombreCategoria || '').toLowerCase().includes('cuero') ? 'ti-cow' : 'ti-shoe';
 
-                const tieneImagen = oferta.Fotos && oferta.Fotos.length > 0;
-                const contenidoAvatar = tieneImagen
-                    ? `<img src="${esc(oferta.Fotos[0])}" alt="${esc(oferta.TituloMaterial)}">`
-                    : `<i class="ti ${iconoCat}"></i>`;
+            const tieneImagen = oferta.Fotos && oferta.Fotos.length > 0;
+            const contenidoAvatar = tieneImagen
+                ? `<img src="${esc(oferta.Fotos[0])}" alt="Foto de ${esc(oferta.TituloMaterial)}" loading="lazy">`
+                : `<i class="ti ${iconoCat}" aria-hidden="true"></i>`;
 
-                const esDueno = parseInt(miUserId) === parseInt(oferta.ProveedorID);
-                const id = Number(oferta.OfertaID);
+            const esDueno = parseInt(miUserId) === parseInt(oferta.ProveedorID);
+            const id = Number(oferta.OfertaID);
 
-                // Editar y eliminar: el dueño de la publicación y el administrador
-                let botonesGestion = '';
-                if (esDueno && (miRol === 'proveedor' || esAdmin)) {
-                    botonesGestion = `
-                        <button class="btn-sm" style="margin-left: auto;" onclick="abrirModalEdicion(${id})"><i class="ti ti-pencil"></i> Editar</button>
-                        <button class="btn-sm" style="background-color: #c92a2a; color: white; border: none;" onclick="eliminarOferta(${id})"><i class="ti ti-trash"></i> Eliminar</button>`;
-                } else if (esAdmin) {
-                    botonesGestion = `
-                        <button class="btn-sm" style="margin-left: auto;" onclick="abrirModalEdicion(${id})"><i class="ti ti-pencil"></i> Admin: Editar</button>
-                        <button class="btn-sm" style="background-color: #d9480f; color: white; border: none;" onclick="eliminarOferta(${id})"><i class="ti ti-shield-x"></i> Admin: Eliminar</button>`;
-                }
-                // "Contactar Proveedor" abre el chat directamente con quien publicó (no con uno mismo)
-                const botonContactar = esDueno ? '<span style="font-size:12px; color:var(--text-muted);"><i class="ti ti-user-check"></i> Tu publicación</span>'
-                    : `<a href="chat.html?contacto=${Number(oferta.ProveedorID)}" class="btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><i class="ti ti-message-circle"></i> Contactar Proveedor</a>`;
+            // Editar y eliminar: el dueño de la publicación y el administrador
+            let botonesGestion = '';
+            if (esDueno && (miRol === 'proveedor' || esAdmin)) {
+                botonesGestion = `
+                    <button class="btn-sm" style="margin-left: auto;" onclick="abrirModalEdicion(${id})"><i class="ti ti-pencil"></i> Editar</button>
+                    <button class="btn-sm" style="background-color: #c92a2a; color: white; border: none;" onclick="eliminarOferta(${id})"><i class="ti ti-trash"></i> Eliminar</button>`;
+            } else if (esAdmin) {
+                botonesGestion = `
+                    <button class="btn-sm" style="margin-left: auto;" onclick="abrirModalEdicion(${id})"><i class="ti ti-pencil"></i> Admin: Editar</button>
+                    <button class="btn-sm" style="background-color: #d9480f; color: white; border: none;" onclick="eliminarOferta(${id})"><i class="ti ti-shield-x"></i> Admin: Eliminar</button>`;
+            }
+            // "Contactar Proveedor" abre el chat directamente con quien publicó (no con uno mismo)
+            const botonContactar = esDueno ? '<span style="font-size:12px; color:var(--text-muted);"><i class="ti ti-user-check"></i> Tu publicación</span>'
+                : `<a href="chat.html?contacto=${Number(oferta.ProveedorID)}" class="btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><i class="ti ti-message-circle"></i> Contactar Proveedor</a>`;
+            // El corazón: no se puede guardar una publicación propia
+            const guardada = favoritosIds.has(id);
+            const botonFavorito = esDueno ? '' : `
+                <button type="button" class="btn-fav" data-fav="${id}" aria-pressed="${guardada}"
+                        aria-label="${guardada ? 'Quitar de favoritos' : 'Guardar en favoritos'}: ${esc(oferta.TituloMaterial)}"
+                        title="${guardada ? 'Quitar de favoritos' : 'Guardar en favoritos'}" onclick="alternarFavorito(${id})">
+                    <i class="ti ${guardada ? 'ti-heart-filled' : 'ti-heart'}" aria-hidden="true"></i>
+                </button>`;
 
-                contenedor.innerHTML += `
-                    <div class="listing-card">
-                        <div class="listing-top">
-                            <div class="listing-avatar">${contenidoAvatar}</div>
-                            <div class="listing-info">
-                                <div class="listing-name">${esc(oferta.TituloMaterial)}</div>
-                                <div class="listing-sub">${esc(oferta.NombreProveedor || 'Proveedor local')} · ${estrellasHTML(oferta.CalificacionProveedor, oferta.TotalCalificaciones)} · Ubicado a ${Number(oferta.DistanciaSimuladaKm) || 0} km</div>
-                                <div class="listing-badges">
-                                    <span class="badge badge-verified"><i class="ti ti-shield-check" style="font-size:10px"></i> Verificado</span>
-                                    <span class="badge badge-mat">${esc(oferta.NombreCategoria)}</span>
-                                    ${tieneImagen ? `<span class="badge badge-mat"><i class="ti ti-photo"></i> ${oferta.Fotos.length} foto(s)</span>` : ''}
-                                </div>
-                            </div>
-                            <div style="text-align:right;">
-                                <div class="listing-price">C$ ${parseFloat(oferta.Precio).toFixed(2)}</div>
-                                <div class="listing-punit">${esc(oferta.UnidadMedida)}</div>
+            return `
+                <article class="listing-card" data-oferta="${id}">
+                    <div class="listing-top">
+                        <div class="listing-avatar">${contenidoAvatar}</div>
+                        <div class="listing-info">
+                            <h3 class="listing-name">${esc(oferta.TituloMaterial)}</h3>
+                            <div class="listing-sub">${esc(oferta.NombreProveedor || 'Proveedor local')} · ${estrellasHTML(oferta.CalificacionProveedor, oferta.TotalCalificaciones)} · Ubicado a ${Number(oferta.DistanciaSimuladaKm) || 0} km</div>
+                            <div class="listing-badges">
+                                <span class="badge badge-verified"><i class="ti ti-shield-check" style="font-size:10px" aria-hidden="true"></i> Verificado</span>
+                                <span class="badge badge-mat">${esc(oferta.NombreCategoria)}</span>
+                                ${tieneImagen ? `<span class="badge badge-mat"><i class="ti ti-photo" aria-hidden="true"></i> ${oferta.Fotos.length} foto(s)</span>` : ''}
                             </div>
                         </div>
-                        <div class="listing-bottom" style="display:flex; align-items:center; gap:10px;">
-                            ${botonContactar}
-                            ${botonesGestion}
+                        <div style="text-align:right;">
+                            <div class="listing-price">C$ ${parseFloat(oferta.Precio).toFixed(2)}</div>
+                            <div class="listing-punit">${esc(oferta.UnidadMedida)}</div>
                         </div>
                     </div>
-                `;
+                    ${oferta.Descripcion ? `<p class="listing-desc">${esc(oferta.Descripcion)}</p>` : ''}
+                    <div class="listing-bottom" style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+                        ${botonFavorito}
+                        ${botonContactar}
+                        ${botonesGestion}
+                    </div>
+                </article>
+            `;
+        }
+
+        // ------------------------------------------------------------ FILTRO FIJO
+        function verPublicacionesDe(proveedorId, nombre) {
+            filtroFijo = { tipo: 'proveedor', id: Number(proveedorId), texto: `Mostrando las publicaciones de ${nombre || 'este proveedor'}.` };
+            if (mapa) mapa.closePopup();
+            switchMarketTab(document.querySelector(".tab[onclick*=\"'listings'\"]"), 'listings', true);
+            cargarOfertasDesdeBD(1, true);
+        }
+
+        function quitarFiltroFijo() {
+            filtroFijo = null;
+            // Se quita ?oferta= o ?proveedor= de la dirección para que al recargar se vean todas
+            const url = new URL(window.location.href);
+            ['oferta', 'proveedor', 'nombre'].forEach(p => url.searchParams.delete(p));
+            history.replaceState(null, '', url.pathname + url.search + url.hash);
+            cargarOfertasDesdeBD(1);
+        }
+
+        // ------------------------------------------------------------ FAVORITOS
+        async function cargarIdsFavoritos() {
+            try {
+                const res = await fetch(`${API_URL}/api/favoritos/ids`);
+                favoritosIds = new Set(res.ok ? await res.json() : []);
+            } catch (e) { favoritosIds = new Set(); }
+        }
+
+        // Guarda o quita una publicación y actualiza todos sus corazones en la página
+        async function alternarFavorito(ofertaId) {
+            const guardada = favoritosIds.has(ofertaId);
+            const botones = document.querySelectorAll(`.btn-fav[data-fav="${ofertaId}"]`);
+            botones.forEach(b => { b.disabled = true; });
+            try {
+                const res = await fetch(`${API_URL}/api/favoritos/${ofertaId}`, { method: guardada ? 'DELETE' : 'POST' });
+                const datos = await res.json().catch(() => ({}));
+                if (!res.ok) { alert(datos.message || 'No se pudo actualizar tus favoritos.'); return; }
+                if (guardada) favoritosIds.delete(ofertaId); else favoritosIds.add(ofertaId);
+                const ahora = !guardada;
+                botones.forEach(b => {
+                    b.setAttribute('aria-pressed', String(ahora));
+                    b.title = ahora ? 'Quitar de favoritos' : 'Guardar en favoritos';
+                    b.setAttribute('aria-label', b.getAttribute('aria-label').replace(/^(Quitar de favoritos|Guardar en favoritos)/, b.title));
+                    b.querySelector('i').className = `ti ${ahora ? 'ti-heart-filled' : 'ti-heart'}`;
+                });
+                // En la pestaña de favoritos, la tarjeta quitada desaparece
+                if (!ahora) {
+                    const tarjeta = document.querySelector(`#contenedor-favoritos [data-oferta="${ofertaId}"]`);
+                    if (tarjeta) { tarjeta.remove(); if (!document.querySelector('#contenedor-favoritos .listing-card')) pintarFavoritosVacio(); }
+                }
+            } catch (e) {
+                alert('Error al conectar con el servidor.');
+            } finally {
+                botones.forEach(b => { b.disabled = false; });
+            }
+        }
+
+        function pintarFavoritosVacio() {
+            document.getElementById('contenedor-favoritos').innerHTML =
+                '<p class="vacio-oscuro"><i class="ti ti-heart"></i> Todavía no guardaste publicaciones. Toca el corazón de una oferta para guardarla aquí.</p>';
+        }
+
+        async function cargarFavoritos() {
+            const contenedor = document.getElementById('contenedor-favoritos');
+            contenedor.innerHTML = '<p class="vacio-oscuro">Cargando tus favoritos…</p>';
+            try {
+                const res = await fetch(`${API_URL}/api/favoritos`);
+                if (!res.ok) throw new Error('sin datos');
+                const lista = await res.json();
+                favoritosIds = new Set(lista.map(o => Number(o.OfertaID)));
+                todasLasOfertas = [...todasLasOfertas.filter(o => !favoritosIds.has(Number(o.OfertaID))), ...lista];
+                if (lista.length === 0) return pintarFavoritosVacio();
+                contenedor.innerHTML = lista.map(tarjetaOferta).join('');
+            } catch (e) {
+                contenedor.innerHTML = '<p class="vacio-oscuro" style="color:#ffb4a8;">No se pudieron cargar tus favoritos.</p>';
+            }
+        }
+
+        // ------------------------------------------------------------ ALERTAS DE BÚSQUEDA
+        async function cargarAlertas() {
+            const caja = document.getElementById('lista-alertas');
+            try {
+                const res = await fetch(`${API_URL}/api/alertas`);
+                const alertas = res.ok ? await res.json() : [];
+                caja.innerHTML = alertas.length
+                    ? alertas.map(a => `
+                        <span class="chip-alerta"><i class="ti ti-bell" aria-hidden="true"></i> ${esc(a.descripcion)}
+                            <button type="button" onclick="borrarAlerta(${Number(a.id)})" aria-label="Borrar la alerta ${esc(a.descripcion)}" title="Borrar alerta">&times;</button>
+                        </span>`).join('')
+                    : '<span class="nota-bloque" style="margin:0;">Todavía no tienes alertas.</span>';
+            } catch (e) {
+                caja.innerHTML = '<span class="nota-bloque" style="margin:0;">No se pudieron cargar tus alertas.</span>';
+            }
+        }
+
+        async function enviarAlerta(datos) {
+            const res = await fetch(`${API_URL}/api/alertas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
             });
+            const r = await res.json().catch(() => ({}));
+            return { ok: res.ok, message: r.message || (res.ok ? 'Alerta creada.' : 'No se pudo crear la alerta.') };
+        }
+
+        async function guardarAlerta(event) {
+            event.preventDefault();
+            const boton = document.getElementById('btnGuardarAlerta');
+            boton.disabled = true;
+            try {
+                const r = await enviarAlerta({
+                    palabraClave: document.getElementById('alertaPalabra').value.trim(),
+                    categoriaId: document.getElementById('alertaCategoria').value || null,
+                    precioMaximo: document.getElementById('alertaPrecio').value || null
+                });
+                alert(r.message);
+                if (r.ok) {
+                    event.target.reset();
+                    cargarAlertas();
+                }
+            } catch (e) {
+                alert('Error al conectar con el servidor.');
+            } finally {
+                boton.disabled = false;
+            }
+        }
+
+        // "Avísame de nuevas": crea una alerta con lo que está escrito en el buscador
+        async function crearAlertaDeBusqueda() {
+            const texto = document.getElementById('searchInput').value.trim();
+            const categoria = document.getElementById('searchCategory').value;
+            if (!texto && (!categoria || categoria === 'todos')) {
+                alert('Escribe qué buscas o elige una categoría en el buscador, o crea la alerta desde "Favoritos y Alertas".');
+                switchMarketTab(document.querySelector(".tab[onclick*=\"'favorites'\"]"), 'favorites');
+                document.getElementById('alertaPalabra').focus();
+                return;
+            }
+            try {
+                const r = await enviarAlerta({ palabraClave: texto, categoriaId: categoria === 'todos' ? null : categoria });
+                alert(r.message);
+            } catch (e) {
+                alert('Error al conectar con el servidor.');
+            }
+        }
+
+        async function borrarAlerta(alertaId) {
+            try {
+                const res = await fetch(`${API_URL}/api/alertas/${alertaId}`, { method: 'DELETE' });
+                if (!res.ok) alert((await res.json().catch(() => ({}))).message || 'No se pudo borrar la alerta.');
+            } catch (e) {
+                alert('Error al conectar con el servidor.');
+            }
+            cargarAlertas();
         }
 
         function actualizarFiltroKilometros(valor) {
@@ -1466,7 +1803,7 @@
                                         <div class="auction-title">${esc(nombreLote)} ${esMiSubasta ? ' <span style="color:var(--color-principal); font-size:12px;">(Tu Lote)</span>' : ''}</div>
                                         <div class="auction-sub">
                                             ${subasta.NombreCategoria ? `<span class="badge badge-mat">${esc(subasta.NombreCategoria)}</span>` : ''}
-                                            <span class="badge badge-mat"><i class="ti ti-hammer" style="font-size:10px"></i> ${pujas} puja${pujas === 1 ? '' : 's'}</span>
+                                            <span class="badge badge-mat" id="subasta-pujas-${subasta.SubastaID}"><i class="ti ti-hammer" style="font-size:10px"></i> ${pujas} puja${pujas === 1 ? '' : 's'}</span>
                                         </div>
                                     </div>
                                     <div class="auction-timer ${tiempo.pronto ? 'pronto' : ''}" title="Cierra el ${esc(new Date(subasta.FechaFin).toLocaleString('es-NI'))}"><i class="ti ti-clock"></i> ${esc(tiempo.texto)}</div>
@@ -1476,7 +1813,7 @@
                                 <div class="bid-track">
                                     <div class="bid-row">
                                         <span class="bid-label">Precio base: C$ ${parseFloat(subasta.PrecioBase).toLocaleString()}</span>
-                                        <div class="bid-amount" id="subasta-val-${subasta.SubastaID}">C$ ${parseFloat(subasta.PrecioActual).toLocaleString()}</div>
+                                        <div class="bid-amount" id="subasta-val-${subasta.SubastaID}" data-precio="${Number(subasta.PrecioActual)}" aria-live="polite">C$ ${parseFloat(subasta.PrecioActual).toLocaleString()}</div>
                                     </div>
                                 </div>
                                 <div class="bid-input-row">
@@ -1511,6 +1848,9 @@
 
         async function ejecutarPujaReal(subastaId, precioActual) {
             const input = document.getElementById(`subasta-input-${subastaId}`);
+            // El precio pudo subir mientras tanto (tiempo real): se usa el que muestra la tarjeta
+            const precioEnPantalla = Number((document.getElementById(`subasta-val-${subastaId}`) || {}).dataset?.precio);
+            if (precioEnPantalla > 0) precioActual = precioEnPantalla;
             const montoPuja = parseFloat(input.value);
             const emprendedorId = localStorage.getItem('userId');
             const miRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
@@ -1561,6 +1901,7 @@
             const editando = ofertaEditando !== null;
             if (editando && fotosQuitar.length) formulario.append('fotosQuitar', JSON.stringify(fotosQuitar));
             formulario.append('titulo', titulo);
+            formulario.append('descripcion', document.getElementById('ofertaDescripcion').value.trim());
             formulario.append('precio', parseFloat(precio));
             formulario.append('unidad', unidad);
             formulario.append('distancia', parseInt(distancia) || 0);
@@ -1651,7 +1992,10 @@
             categoria.value = String(oferta.CategoriaID);
         }
 
-        function abrirModal() { document.getElementById('modalOferta').style.display = 'block'; }
+        function abrirModal() {
+            document.getElementById('modalOferta').style.display = 'block';
+            setTimeout(() => document.getElementById('ofertaTitulo').focus(), 50);
+        }
 
         // EDITAR una publicación: el mismo formulario, con sus datos y fotos actuales
         function abrirModalEdicion(ofertaId) {
@@ -1662,6 +2006,8 @@
             fotosExistentes = Array.isArray(oferta.Fotos) ? [...oferta.Fotos] : [];
             fotosQuitar = [];
             document.getElementById('ofertaTitulo').value = oferta.TituloMaterial;
+            document.getElementById('ofertaDescripcion').value = oferta.Descripcion || '';
+            contarDescripcion();
             document.getElementById('ofertaPrecio').value = parseFloat(oferta.Precio);
             document.getElementById('ofertaUnidad').value = oferta.UnidadMedida;
             document.getElementById('ofertaDistancia').value = Number(oferta.DistanciaSimuladaKm) || 0;
@@ -1675,6 +2021,9 @@
         function cerrarModal() {
             document.getElementById('modalOferta').style.display = 'none';
             document.getElementById('ofertaTitulo').value = '';
+            document.getElementById('ofertaDescripcion').value = '';
+            contarDescripcion();
+            mostrarResultadoIA('');
             document.getElementById('ofertaPrecio').value = '';
             document.getElementById('ofertaUnidad').value = '';
             document.getElementById('ofertaDistancia').value = '';
@@ -1714,10 +2063,12 @@
             document.getElementById('subastaCategoria').selectedIndex = 0;
         }
 
-        function switchMarketTab(el, tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        // sinCargar: quien llama ya pide los datos (p. ej. verPublicacionesDe)
+        function switchMarketTab(el, tab, sinCargar = false) {
+            document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
             el.classList.add('active');
-            ['listings', 'auctions', 'map'].forEach(id => {
+            el.setAttribute('aria-selected', 'true');
+            ['listings', 'auctions', 'map', 'favorites'].forEach(id => {
                 document.getElementById('tab-' + id).style.display = id === tab ? 'block' : 'none';
             });
 
@@ -1730,41 +2081,299 @@
                 if (btnSub) btnSub.style.display = 'inline-flex';
             }
 
+            if (sinCargar) return;
             if (tab === 'listings') cargarOfertasDesdeBD();
             if (tab === 'auctions') cargarSubastasDesdeBD();
+            if (tab === 'favorites') { cargarFavoritos(); cargarAlertas(); }
             if (tab === 'map') {
                 setTimeout(() => {
                     if (!mapa) { inicializarMapa(); }
-                    else { mapa.invalidateSize(); }
+                    else { mapa.invalidateSize(); cargarMapa(); }
                 }, 200);
             }
         }
 
+        const pestanaVisible = (id) => document.getElementById('tab-' + id).style.display !== 'none';
+
+        // ------------------------------------------------------------ MAPA DE PROVEEDORES
+        // Un círculo por departamento (crece con la cantidad de proveedores), con la lista de
+        // sus proveedores. Los datos vienen de /api/mapa/proveedores y respetan la categoría
+        // elegida en el buscador de arriba.
+        const COLOR_MAPA = '#7D381B';
+        const COLOR_MIO = '#2b8a3e';
+        const marcadoresMapa = new Map();
+
         function inicializarMapa() {
-            mapa = L.map('mapa-interactivo').setView([12.1364, -86.2514], 10);
-
+            // Sin zoom con la rueda: así la página se puede desplazar sobre el mapa
+            mapa = L.map('mapa-interactivo', { scrollWheelZoom: false }).setView([12.85, -85.2], 7);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
+                maxZoom: 18,
+                attribution: '&copy; colaboradores de OpenStreetMap'
             }).addTo(mapa);
+            mapa.on('click', () => mapa.scrollWheelZoom.enable());
+            capaMapa = L.layerGroup().addTo(mapa);
+            cargarMapa();
+        }
 
-            const proveedoresNicaragua = [
-                { nombre: "Pieles y Cueros Masaya", lat: 11.9744, lng: -86.0942, mat: "Cuero Natural" },
-                { nombre: "Suelas y Moldes Managua", lat: 12.1364, lng: -86.2514, mat: "Suela TR" },
-                { nombre: "Calzado & Materiales Granada", lat: 11.9299, lng: -85.9560, mat: "Cuero e Insumos" }
-            ];
+        const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
-            proveedoresNicaragua.forEach(p => {
-                L.marker([p.lat, p.lng])
-                    .addTo(mapa)
-                    .bindPopup(`<b>${p.nombre}</b><br>Especialidad: ${p.mat}`);
+        function filaProveedor(p, conBotones = true) {
+            const miId = Number(localStorage.getItem('userId'));
+            const estrellas = p.totalCalificaciones ? ` · ★ ${Number(p.calificacion).toFixed(1)}` : '';
+            const meta = `${plural(p.ofertas, 'publicación', 'publicaciones')}${estrellas}${p.especialidad ? ' · ' + p.especialidad : ''}`;
+            const botones = !conBotones ? '' : `
+                <span style="display:flex; gap:4px;">
+                    ${p.ofertas ? `<button type="button" class="btn-sm" data-ver-proveedor="${Number(p.id)}" data-nombre="${esc(p.nombre)}">Ver</button>` : ''}
+                    ${p.id === miId ? '' : `<a class="btn-sm" style="text-decoration:none;" href="chat.html?contacto=${Number(p.id)}" aria-label="Escribirle a ${esc(p.nombre)}"><i class="ti ti-message-circle" aria-hidden="true"></i></a>`}
+                </span>`;
+            return `<div class="prov-fila"><span><strong>${esc(p.nombre)}</strong><span class="prov-meta">${esc(meta)}</span></span>${botones}</div>`;
+        }
+
+        function popupDepartamento(d) {
+            const miId = Number(localStorage.getItem('userId'));
+            return `<div class="popup-prov">
+                <h4>${esc(d.departamento)} · ${plural(d.proveedores.length, 'proveedor', 'proveedores')}</h4>
+                <ul>${d.proveedores.map(p => `
+                    <li><strong>${esc(p.nombre)}</strong><br>
+                        <span style="color:#666">${esc(plural(p.ofertas, 'publicación', 'publicaciones'))}${p.categorias.length ? ' · ' + esc(p.categorias.slice(0, 3).join(', ')) : ''}</span><br>
+                        ${p.ofertas ? `<button type="button" data-ver-proveedor="${Number(p.id)}" data-nombre="${esc(p.nombre)}">Ver publicaciones</button>` : ''}
+                        ${p.id === miId ? '' : `<button type="button" data-chat-proveedor="${Number(p.id)}">Escribir</button>`}
+                    </li>`).join('')}
+                </ul></div>`;
+        }
+
+        async function cargarMapa() {
+            const resumen = document.getElementById('mapa-resumen');
+            const lista = document.getElementById('lista-mapa');
+            const select = document.getElementById('searchCategory');
+            const categoria = select.value && select.value !== 'todos' ? select.value : '';
+            const leyendaCat = document.getElementById('leyenda-categoria');
+            leyendaCat.style.display = categoria ? '' : 'none';
+            leyendaCat.textContent = categoria ? `Solo quienes venden: ${select.options[select.selectedIndex].text}` : '';
+            resumen.textContent = 'Cargando proveedores…';
+            try {
+                const res = await fetch(`${API_URL}/api/mapa/proveedores${categoria ? '?categoria=' + encodeURIComponent(categoria) : ''}`);
+                if (!res.ok) throw new Error('sin datos');
+                const datos = await res.json();
+                pintarMapa(datos);
+                const enMapa = datos.total - datos.sinUbicacion.length;
+                resumen.textContent = datos.total
+                    ? `${plural(enMapa, 'proveedor', 'proveedores')} en ${plural(datos.departamentos.length, 'departamento', 'departamentos')}`
+                    : 'No hay proveedores que coincidan.';
+                lista.innerHTML = datos.departamentos.map(d => `
+                    <section class="depto-card ${datos.miUbicacion && datos.miUbicacion.nombre === d.departamento ? 'mio' : ''}">
+                        <h4 role="button" tabindex="0" data-depto="${esc(d.departamento)}" title="Ver en el mapa">${esc(d.departamento)} <small>${plural(d.proveedores.length, 'proveedor', 'proveedores')}</small></h4>
+                        ${d.proveedores.map(p => filaProveedor(p)).join('')}
+                    </section>`).join('') + (datos.sinUbicacion.length ? `
+                    <section class="depto-card">
+                        <h4>Sin ubicación en el mapa <small>${datos.sinUbicacion.length}</small></h4>
+                        <p class="nota-bloque" style="margin-bottom:4px;">Escribieron un departamento que no reconocemos.</p>
+                        ${datos.sinUbicacion.map(p => filaProveedor(p)).join('')}
+                    </section>` : '');
+                if (!datos.total) lista.innerHTML = '<p class="vacio-oscuro">No hay proveedores que vendan esa categoría todavía.</p>';
+            } catch (e) {
+                resumen.textContent = 'No se pudo cargar el mapa.';
+                lista.innerHTML = '';
+            }
+        }
+
+        function pintarMapa(datos) {
+            capaMapa.clearLayers();
+            marcadoresMapa.clear();
+            const puntos = [];
+            const mio = datos.miUbicacion ? datos.miUbicacion.nombre : null;
+            for (const d of datos.departamentos) {
+                const esMio = d.departamento === mio;
+                const marcador = L.circleMarker([d.lat, d.lng], {
+                    radius: Math.min(30, 9 + 4 * Math.sqrt(d.proveedores.length)),
+                    color: '#fff', weight: 2,
+                    fillColor: esMio ? COLOR_MIO : COLOR_MAPA, fillOpacity: 0.85
+                }).bindPopup(popupDepartamento(d), { maxWidth: 280, autoPanPadding: [20, 20] })
+                  .bindTooltip(`${d.departamento}: ${plural(d.proveedores.length, 'proveedor', 'proveedores')}`);
+                marcador.addTo(capaMapa);
+                marcadoresMapa.set(d.departamento, marcador);
+                puntos.push([d.lat, d.lng]);
+            }
+            if (datos.miUbicacion && !datos.departamentos.some(d => d.departamento === mio)) {
+                L.circleMarker([datos.miUbicacion.lat, datos.miUbicacion.lng], { radius: 7, color: '#fff', weight: 2, fillColor: COLOR_MIO, fillOpacity: 0.9 })
+                    .bindTooltip(`Tú: ${datos.miUbicacion.nombre}`).addTo(capaMapa);
+                puntos.push([datos.miUbicacion.lat, datos.miUbicacion.lng]);
+            }
+            if (puntos.length > 1) mapa.fitBounds(puntos, { padding: [40, 40], maxZoom: 9 });
+            else if (puntos.length === 1) mapa.setView(puntos[0], 9);
+            else mapa.setView([12.85, -85.2], 7);
+        }
+
+        // Botones de los popups y de la lista (se crean con innerHTML: se escuchan desde el documento)
+        document.addEventListener('click', (e) => {
+            const ver = e.target.closest('[data-ver-proveedor]');
+            if (ver) return verPublicacionesDe(ver.dataset.verProveedor, ver.dataset.nombre);
+            const chat = e.target.closest('[data-chat-proveedor]');
+            if (chat) { window.location.href = `chat.html?contacto=${Number(chat.dataset.chatProveedor)}`; return; }
+            const depto = e.target.closest('[data-depto]');
+            if (depto) enfocarDepartamento(depto.dataset.depto);
+        });
+        document.addEventListener('keydown', (e) => {
+            const depto = e.target.closest && e.target.closest('[data-depto]');
+            if (depto && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); enfocarDepartamento(depto.dataset.depto); }
+        });
+
+        function enfocarDepartamento(nombre) {
+            const marcador = marcadoresMapa.get(nombre);
+            if (!marcador) return;
+            document.getElementById('mapa-interactivo').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Sin animación: así el mapa se puede mover solo para que la ventana del popup quepa entera
+            mapa.setView(marcador.getLatLng(), 9, { animate: false });
+            setTimeout(() => marcador.openPopup(), 350);
+        }
+
+        // ------------------------------------------------------------ ASISTENTE DE IA
+        function contarDescripcion() {
+            const largo = document.getElementById('ofertaDescripcion').value.length;
+            document.getElementById('contadorDescripcion').textContent = `${largo} / 1000`;
+        }
+
+        // html vacío oculta la caja; los textos que vienen del servidor se escapan antes de llegar aquí
+        function mostrarResultadoIA(html, esError = false) {
+            const caja = document.getElementById('resultadoIA');
+            caja.hidden = !html;
+            caja.classList.toggle('error', esError);
+            caja.innerHTML = html;
+        }
+
+        async function conBotonOcupado(idBoton, texto, tarea) {
+            const boton = document.getElementById(idBoton);
+            const original = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = `<i class="ti ti-loader-2" aria-hidden="true"></i> ${texto}`;
+            try { return await tarea(); } finally { boton.disabled = false; boton.innerHTML = original; }
+        }
+
+        // Foto para la IA: la primera que se agregó o, al editar, la primera que ya tenía la publicación
+        async function primeraFotoParaIA() {
+            if (fotosPublicacion.length) return fotosPublicacion[0].blob;
+            const existente = fotosExistentesVisibles()[0];
+            if (!existente) return null;
+            try {
+                const res = await fetch(existente);
+                return res.ok ? await res.blob() : null;
+            } catch (e) { return null; }
+        }
+
+        async function completarConIA() {
+            const titulo = document.getElementById('ofertaTitulo').value.trim();
+            await conBotonOcupado('btnIaDescribir', 'Analizando…', async () => {
+                const foto = await primeraFotoParaIA();
+                if (!foto && !titulo) {
+                    mostrarResultadoIA('Primero sube una foto del material o escribe el título.', true);
+                    return;
+                }
+                const formulario = new FormData();
+                if (foto) formulario.append('fotos', foto, `foto.${foto.type === 'image/webp' ? 'webp' : foto.type === 'image/png' ? 'png' : 'jpg'}`);
+                if (titulo) formulario.append('titulo', titulo);
+                mostrarResultadoIA('<i class="ti ti-sparkles"></i> La IA está mirando tu material…');
+                try {
+                    const res = await fetch(`${API_URL}/api/ia/publicacion`, { method: 'POST', body: formulario });
+                    const r = await res.json().catch(() => ({}));
+                    if (!res.ok) return mostrarResultadoIA(esc(r.message || 'La IA no pudo ayudarte esta vez.'), true);
+                    if (r.titulo) document.getElementById('ofertaTitulo').value = r.titulo;
+                    if (r.descripcion) { document.getElementById('ofertaDescripcion').value = r.descripcion; contarDescripcion(); }
+                    if (r.unidad) document.getElementById('ofertaUnidad').value = r.unidad;
+                    if (r.categoriaId) document.getElementById('ofertaCategoria').value = String(r.categoriaId);
+                    mostrarResultadoIA(`<strong><i class="ti ti-check"></i> Listo.</strong> Llené el título, la descripción, la unidad${r.categoria ? ` y la categoría (${esc(r.categoria)})` : ''}. Revísalos y cambia lo que haga falta antes de publicar.`);
+                } catch (e) {
+                    mostrarResultadoIA('Error al conectar con el servidor.', true);
+                }
             });
+        }
+
+        async function sugerirPrecioIA() {
+            const categoriaId = document.getElementById('ofertaCategoria').value;
+            if (!categoriaId) {
+                mostrarResultadoIA('Elige primero la categoría del material para comparar con publicaciones parecidas.', true);
+                return;
+            }
+            await conBotonOcupado('btnIaPrecio', 'Comparando…', async () => {
+                try {
+                    const res = await fetch(`${API_URL}/api/ia/precio`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            titulo: document.getElementById('ofertaTitulo').value.trim(),
+                            categoriaId: Number(categoriaId),
+                            unidad: document.getElementById('ofertaUnidad').value.trim(),
+                            ofertaId: ofertaEditando
+                        })
+                    });
+                    const r = await res.json().catch(() => ({}));
+                    if (!res.ok) return mostrarResultadoIA(esc(r.message || 'No se pudo calcular un precio.'), true);
+                    if (!r.sugerido) return mostrarResultadoIA(esc(r.explicacion));
+                    const rango = r.rango ? `<br><small>Rango en la plataforma: C$ ${r.rango.minimo.toFixed(2)} – C$ ${r.rango.maximo.toFixed(2)} (${r.muestras} precio${r.muestras === 1 ? '' : 's'})</small>` : '';
+                    mostrarResultadoIA(`
+                        <strong><i class="ti ti-coin"></i> Precio sugerido: C$ ${Number(r.sugerido).toFixed(2)}</strong>
+                        ${r.fuente === 'ia' ? '<span class="badge badge-mat" style="margin-left:4px;">IA</span>' : ''}<br>
+                        ${esc(r.explicacion)}${rango}<br>
+                        <button type="button" class="btn-sm cta" onclick="usarPrecioSugerido(${Number(r.sugerido)})">Usar C$ ${Number(r.sugerido).toFixed(2)}</button>`);
+                } catch (e) {
+                    mostrarResultadoIA('Error al conectar con el servidor.', true);
+                }
+            });
+        }
+
+        function usarPrecioSugerido(precio) {
+            const campo = document.getElementById('ofertaPrecio');
+            campo.value = precio;
+            campo.focus();
         }
 
         async function ejecutarBusqueda(event) {
             event.preventDefault();
             renderizarOfertasFiltradas();
         }
+
+        // ------------------------------------------------------------ TIEMPO REAL
+        // sesion.js reenvía los avisos del servidor. Cuando alguien puja, el precio de la
+        // tarjeta cambia solo; si se crea, cancela o cierra una subasta, la lista se recarga.
+        document.addEventListener('entrelazados:puja:nueva', (evento) => {
+            const { subastaId, precioActual, totalPujas } = evento.detail || {};
+            const valor = document.getElementById(`subasta-val-${subastaId}`);
+            if (!valor) return;
+            valor.dataset.precio = precioActual;
+            valor.textContent = `C$ ${Number(precioActual).toLocaleString()}`;
+            valor.classList.remove('recien-pujado');
+            void valor.offsetWidth;
+            valor.classList.add('recien-pujado');
+            const badge = document.getElementById(`subasta-pujas-${subastaId}`);
+            if (badge) badge.innerHTML = `<i class="ti ti-hammer" style="font-size:10px"></i> ${totalPujas} puja${totalPujas === 1 ? '' : 's'}`;
+        });
+
+        let recargaSubastasPendiente = null;
+        document.addEventListener('entrelazados:subastas:cambio', () => {
+            clearTimeout(recargaSubastasPendiente);
+            recargaSubastasPendiente = setTimeout(function recargar() {
+                // No se recarga mientras alguien escribe su puja (perdería lo escrito)
+                const escribiendo = document.activeElement && document.activeElement.classList.contains('bid-input') && document.activeElement.value;
+                if (escribiendo) { recargaSubastasPendiente = setTimeout(recargar, 3000); return; }
+                cargarSubastasDesdeBD();
+            }, 800);
+        });
+
+        // Las notificaciones de subastas llevan a mercado.html#tab-auctions: se abre esa pestaña
+        // (#tab-favorites abre los favoritos y las alertas)
+        function abrirPestanaDelEnlace() {
+            const pestana = { '#tab-auctions': 'auctions', '#tab-favorites': 'favorites', '#tab-map': 'map' }[window.location.hash];
+            if (!pestana) return;
+            const boton = document.querySelector(`.tab[onclick*="'${pestana}'"]`);
+            if (boton) switchMarketTab(boton, pestana);
+        }
+        document.addEventListener('DOMContentLoaded', abrirPestanaDelEnlace);
+        window.addEventListener('hashchange', abrirPestanaDelEnlace);
+
+        // Indicador "En vivo" junto al título de las subastas
+        document.addEventListener('entrelazados:conexion', (evento) => {
+            const indicador = document.getElementById('indicador-en-vivo');
+            if (indicador) indicador.hidden = !(evento.detail && evento.detail.conectado);
+        });
 
     </script>
 </body>

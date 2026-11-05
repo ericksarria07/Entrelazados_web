@@ -3,6 +3,7 @@
 //   GET  /                   mis tratos
 //   PUT  /:id/estado         { estado: 'EnProceso' | 'Completado' | 'Cancelado', motivo? }
 //   POST /:id/calificacion   { puntuacion: 1..5, comentario? }
+//   GET  /:id/comprobante    datos para imprimir el comprobante (las dos partes o el admin)
 // Las reglas (quién puede, a qué estado se puede pasar) están en servicios/tratos.js.
 // ==========================================================================
 const express = require('express');
@@ -56,6 +57,14 @@ function crearRutasTratos({ db, tratos, verificarToken }) {
             comentario: req.body.comentario
         });
         res.status(201).json({ message: '¡Gracias por calificar! Le avisamos a la otra parte por el chat.', ...resultado });
+    });
+
+    router.get('/:id/comprobante', async (req, res) => {
+        res.json(await tratos.comprobante({
+            tratoId: Number(req.params.id),
+            usuarioId: req.usuario.id,
+            esAdmin: req.usuario.esAdmin
+        }));
     });
 
     return router;

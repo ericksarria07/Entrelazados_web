@@ -13,6 +13,7 @@ const { enteroPositivo } = require('../utilidades');
 const DIAS_SUBASTA = { minimo: 1, maximo: 14, porDefecto: 7 };
 const PRECIO_MAXIMO = 99999999;
 const MOTIVO_MODERACION = 'por moderación del administrador';
+const LARGO_DESCRIPCION = 1000;
 
 // Valida los campos de una publicación (al crearla y al editarla).
 // Devuelve { error } o los datos ya limpios.
@@ -25,8 +26,11 @@ function validarOferta(body) {
     if (titulo.length > 120) return { error: "El título puede tener como máximo 120 caracteres." };
     if (unidad.length > 30) return { error: "La unidad de medida puede tener como máximo 30 caracteres." };
     if (!(precio > 0) || precio > PRECIO_MAXIMO) return { error: "El precio debe ser un número mayor que 0." };
+    // Descripción opcional (la puede redactar el asistente de IA); vacía se guarda como NULL
+    const descripcion = typeof body.descripcion === 'string' ? body.descripcion.trim() : '';
+    if (descripcion.length > LARGO_DESCRIPCION) return { error: `La descripción puede tener como máximo ${LARGO_DESCRIPCION} caracteres.` };
     const distancia = Math.max(0, Math.min(10000, Math.round(Number(body.distancia) || 0)));
-    return { titulo, unidad, precio, categoriaId, distancia };
+    return { titulo, unidad, precio, categoriaId, distancia, descripcion: descripcion || null };
 }
 
 // MySQL rechaza la llave foránea cuando la categoría elegida no existe
@@ -65,7 +69,7 @@ function mensajeOfertaBorrada(resultado, base) {
     return texto;
 }
 
-function crearServicioOfertas({ db, cierreSubastas }) {
+function crearServicioOfertas({ db, cierreSubastas, tiempoReal = { aTodos() { } } }) {
     // Direcciones de las fotos (en disco) de las ofertas indicadas: Map(OfertaID -> [url, ...])
     async function urlsDeFotos(ofertaIds) {
         if (!ofertaIds.length) return new Map();
@@ -140,8 +144,8 @@ function crearServicioOfertas({ db, cierreSubastas }) {
         // Después del COMMIT: borrar los archivos y avisar por correo (sin bloquear la respuesta)
         const { urlsFotos, avisos, ...respuesta } = resultado;
         await fotos.borrarFotos(urlsFotos);
-        cierreSubastas.avisarCancelacionPorCorreo(avisos, MOTIVO_MODERACION)
-            .catch(err => console.error('⚠️ Aviso de subasta cancelada no enviado:', err.message));
+        if (respuesta.subastasCanceladas > 0) tiempoReal.aTodos('subastas:cambio', { motivo: 'cancelada' });
+        await cierreSubastas.avisarCancelacion(avisos, MOTIVO_MODERACION);
         return respuesta;
     }
 
@@ -156,5 +160,6 @@ module.exports = {
     insertarSubasta,
     mensajeOfertaBorrada,
     DIAS_SUBASTA,
-    PRECIO_MAXIMO
+    PRECIO_MAXIMO,
+    LARGO_DESCRIPCION
 };

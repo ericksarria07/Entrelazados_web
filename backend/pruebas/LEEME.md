@@ -2,8 +2,8 @@
 
 | | Carpeta | Qué necesitan | Comando (desde `backend/`) |
 |---|---|---|---|
-| **Unitarias** (58) | `pruebas/unidad/` | Nada (ni MySQL ni `.env`) | `npm run test:unidad` |
-| **De integración** (274) | `pruebas/pruebas_api.js` | La base MySQL de pruebas (paso 1) | `npm run test:api` |
+| **Unitarias** (78) | `pruebas/unidad/` | Nada (ni MySQL ni `.env`) | `npm run test:unidad` |
+| **De integración** (378) | `pruebas/pruebas_api.js` | La base MySQL de pruebas (paso 1) | `npm run test:api` |
 | **Todas** | | La base de pruebas | `npm test` |
 
 En GitHub se corren solas en cada push y pull request (ver `.github/workflows/pruebas.yml`
@@ -21,6 +21,8 @@ solo los archivos que terminan en `.test.js`:
 | `middlewares.test.js` | Sesión (tokens falsos, vencidos, cuenta suspendida), roles y el manejador de errores |
 | `app.test.js` | La aplicación Express completa con una base de datos falsa: 404, 401, JSON mal escrito, Swagger, archivos que no se pueden descargar |
 | `rutas_documentadas.test.js` | Que cada ruta del código esté en `entrelazados-api/docs/openapi.yaml` y viceversa |
+| `favoritos_mapa_ia.test.js` | Alertas de búsqueda (tildes, mayúsculas, precio máximo), los departamentos del mapa escritos de cualquier forma y los cálculos del asistente de precios (unidades, mediana, precios fuera de lugar) |
+| `tiempo_real.test.js` | Notificaciones (agrupar, correo una sola vez, nunca rompen la acción) y un servidor Socket.IO de verdad: tokens, salas privadas, eventos públicos, desconectar a un usuario |
 
 `ayudas.js` no es una prueba: tiene una respuesta de Express falsa y una función para silenciar
 los mensajes del log mientras corre una prueba.
@@ -41,7 +43,8 @@ node --test --test-reporter=spec   # salida con ✔ / ✖ por prueba
 Pruebas de integración que levantan el flujo completo (registro, login, ofertas,
 confirmación del correo, editar y paginar ofertas, fotos, subastas, pujas, cierre de
 subastas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil,
-panel de administrador, restablecer contraseña y límites de intentos) contra una
+panel de administrador, restablecer contraseña, favoritos y alertas, comprobantes, mapa,
+asistente de IA y límites de intentos) contra una
 base MySQL **local** de pruebas. Nunca usan la base de producción.
 
 ## 1. Crear la base de pruebas (una sola vez, como root en MySQL Workbench)
@@ -62,8 +65,8 @@ CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm test             # unitarias + estas
 ```
 
 `pruebas/correr_pruebas.js` hace solo los pasos 2 a 4: vacía `entrelazados_pruebas`, carga el
-esquema, levanta el servidor en el puerto 3055 con las variables de prueba, corre las 274
-pruebas y apaga el servidor. Termina con `RESULTADO: 274 correctas, 0 fallidas` (y código de
+esquema, levanta el servidor en el puerto 3055 con las variables de prueba, corre las 378
+pruebas y apaga el servidor. Termina con `RESULTADO: 378 correctas, 0 fallidas` (y código de
 salida 0). Se puede repetir las veces que quieras.
 
 En PowerShell: `$env:CLAVE_PRUEBAS="UNA_CLAVE_DE_PRUEBA"; npm test`
