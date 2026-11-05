@@ -9,7 +9,7 @@
 openapi: 3.1.0
 info:
   title: API de EntreLazados
-  version: "12.0"
+  version: "13.0"
   description: |
     Mercado de materia prima para calzado y marroquinería: proveedores publican materiales
     (cada publicación abre una subasta), emprendedores pujan, conversan por chat y cierran tratos.
@@ -57,6 +57,12 @@ tags:
     description: Perfil, reputación y dashboard (rutas/usuarios.js, rutas/dashboard.js)
   - name: Notificaciones
     description: La campana del menú (rutas/notificaciones.js). Las nuevas también llegan por tiempo real (notificacion:nueva).
+  - name: Favoritos y alertas
+    description: Publicaciones guardadas y alertas de búsqueda (rutas/favoritos.js). Las alertas avisan por la campana y por correo.
+  - name: Mapa
+    description: Proveedores por departamento para el mapa del Mercado (rutas/mapa.js)
+  - name: Asistente de IA
+    description: Gemini ayuda a redactar una publicación y a ponerle precio (rutas/ia.js). Solo proveedores, 30 consultas por hora.
   - name: Reportes
     description: Ventas, compras y mercado con gráficas, para exportar a Excel o PDF (rutas/reportes.js)
   - name: Administración
@@ -283,10 +289,11 @@ paths:
       summary: Listar publicaciones
       description: De la más reciente a la más antigua. Sin `pagina` devuelve la lista completa; con `pagina` devuelve una página.
       parameters:
-        - { name: q, in: query, description: Texto en el título, schema: { type: string } }
+        - { name: q, in: query, description: Texto en el título o la descripción, schema: { type: string } }
         - { name: categoria, in: query, description: ID de la categoría, schema: { type: integer } }
         - { name: maxKm, in: query, description: Distancia máxima en km, schema: { type: number } }
         - { name: proveedorId, in: query, schema: { type: integer } }
+        - { name: id, in: query, description: "Una sola publicación (p. ej. desde una notificación)", schema: { type: integer } }
         - $ref: "#/components/parameters/Pagina"
         - { name: porPagina, in: query, description: "Máximo 50 (por defecto 12)", schema: { type: integer, maximum: 50 } }
       responses:
@@ -680,6 +687,49 @@ paths:
         "409": { description: El trato no está completado o ya calificaste }
 
   # ------------------------------------------------------------------ PERFIL Y DASHBOARD
+  /api/tratos/{id}/comprobante:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Tratos]
+      summary: Datos del comprobante de un trato
+      description: |
+        Para imprimir o guardar como PDF en `comprobante.html?trato=ID`. Lo pueden ver las dos partes
+        del trato y el administrador. Trae el folio, las dos partes con sus datos de contacto y, si el
+        trato salió de una subasta, el lote, su precio base y cuántas pujas recibió.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Comprobante
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  folio: { type: string, example: EL-000042 }
+                  tratoId: { type: integer }
+                  origen: { type: string, example: Subasta }
+                  concepto: { type: string, example: Cuero vacuno curtido }
+                  monto: { type: number }
+                  moneda: { type: string, example: NIO }
+                  estado: { type: string, enum: [Pendiente, EnProceso, Completado, Cancelado] }
+                  fechaCierre: { type: string, format: date-time }
+                  emitido: { type: string, format: date-time }
+                  proveedor: { $ref: "#/components/schemas/ParteTrato" }
+                  comprador: { $ref: "#/components/schemas/ParteTrato" }
+                  subasta:
+                    type: [object, "null"]
+                    properties:
+                      id: { type: integer }
+                      lote: { type: string }
+                      categoria: { type: [string, "null"] }
+                      precioBase: { type: number }
+                      pujas: { type: integer }
+                      inicio: { type: string, format: date-time }
+                      cierre: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { description: No existe o no participas en él }
+
   /api/perfil/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -811,6 +861,246 @@ paths:
         "200": { $ref: "#/components/responses/Mensaje" }
         "401": { $ref: "#/components/responses/SinSesion" }
         "404": { description: No existe o es de otra persona }
+
+  # ------------------------------------------------------------------ FAVORITOS Y ALERTAS
+  /api/favoritos:
+    get:
+      tags: [Favoritos y alertas]
+      summary: Mis publicaciones guardadas
+      description: Las últimas 100, con los mismos campos que `GET /api/ofertas` más `FechaGuardado`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Lista
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Oferta" } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/favoritos/ids:
+    get:
+      tags: [Favoritos y alertas]
+      summary: Números de mis publicaciones guardadas
+      description: Para pintar el corazón lleno en el Mercado.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Lista de OfertaID
+          content:
+            application/json:
+              schema: { type: array, items: { type: integer } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/favoritos/{ofertaId}:
+    parameters:
+      - { name: ofertaId, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Favoritos y alertas]
+      summary: Guardar una publicación
+      description: No se puede guardar una publicación propia. Si baja de precio, llega una notificación `FavoritoRebajado`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Ya estaba guardada }
+        "201": { description: Guardada }
+        "400": { description: Es tu propia publicación }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+    delete:
+      tags: [Favoritos y alertas]
+      summary: Quitar una publicación de favoritos
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Hecho (quitada dice si estaba guardada)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  quitada: { type: boolean }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  /api/alertas:
+    get:
+      tags: [Favoritos y alertas]
+      summary: Mis alertas de búsqueda
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Lista
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Alerta" } }
+        "401": { $ref: "#/components/responses/SinSesion" }
+    post:
+      tags: [Favoritos y alertas]
+      summary: Crear una alerta
+      description: |
+        Hace falta la palabra clave o la categoría (el precio máximo es opcional). Máximo 10 alertas por persona.
+        Cuando se publica algo que cumple, llega una notificación `AlertaBusqueda` y un correo.
+        La palabra clave no distingue mayúsculas ni tildes, y todas sus palabras deben aparecer en el título o la descripción.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                palabraClave: { type: string, maxLength: 60, example: cuero café }
+                categoriaId: { type: [integer, "null"], example: 1 }
+                precioMaximo: { type: [number, "null"], example: 500 }
+      responses:
+        "201":
+          description: Creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  alerta: { $ref: "#/components/schemas/Alerta" }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "409": { description: Ya tienes 10 alertas o una igual }
+
+  /api/alertas/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      tags: [Favoritos y alertas]
+      summary: Borrar una alerta
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Mensaje" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "404": { description: No existe o es de otra persona }
+
+  # ------------------------------------------------------------------ MAPA
+  /api/mapa/proveedores:
+    get:
+      tags: [Mapa]
+      summary: Proveedores agrupados por departamento
+      description: |
+        Proveedores activos con las coordenadas de la cabecera de su departamento. El departamento se
+        reconoce sin importar mayúsculas ni tildes (también RACCN, RACCS, Bluefields, Bilwi...).
+        Quienes escribieron un departamento que no se reconoce van en `sinUbicacion`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: categoria, in: query, description: Solo proveedores con publicaciones de esta categoría, schema: { type: integer } }
+      responses:
+        "200":
+          description: Proveedores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  departamentos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        departamento: { type: string, example: Masaya }
+                        lat: { type: number }
+                        lng: { type: number }
+                        proveedores: { type: array, items: { $ref: "#/components/schemas/ProveedorMapa" } }
+                  sinUbicacion: { type: array, items: { $ref: "#/components/schemas/ProveedorMapa" } }
+                  miUbicacion:
+                    type: [object, "null"]
+                    properties:
+                      nombre: { type: string }
+                      lat: { type: number }
+                      lng: { type: number }
+        "401": { $ref: "#/components/responses/SinSesion" }
+
+  # ------------------------------------------------------------------ ASISTENTE DE IA
+  /api/ia/publicacion:
+    post:
+      tags: [Asistente de IA]
+      summary: Proponer título, descripción, categoría y unidad
+      description: |
+        A partir de una foto del material y/o del título escrito. Necesita Gemini: si no está configurado
+        o no responde, devuelve 503 y el proveedor llena el formulario a mano. Nada se guarda.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                fotos: { type: string, format: binary, description: Una foto JPG, PNG o WebP }
+                titulo: { type: string }
+      responses:
+        "200":
+          description: Propuesta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  titulo: { type: string }
+                  descripcion: { type: string }
+                  categoriaId: { type: [integer, "null"] }
+                  categoria: { type: [string, "null"] }
+                  unidad: { type: string }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SinPermiso" }
+        "422": { description: La foto no muestra un material para calzado o marroquinería }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
+        "503": { description: El asistente de IA no está disponible }
+
+  /api/ia/precio:
+    post:
+      tags: [Asistente de IA]
+      summary: Sugerir un precio
+      description: |
+        Compara con las publicaciones de la misma categoría (si hay al menos 2, solo las de la misma unidad)
+        y con las subastas cerradas. Gemini propone un precio dentro del rango (`fuente: ia`); si no responde,
+        se sugiere la mediana (`fuente: estadistica`). Sin publicaciones parecidas, `sugerido` es null.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [categoriaId]
+              properties:
+                titulo: { type: string }
+                categoriaId: { type: integer }
+                unidad: { type: string, example: por pie² }
+                ofertaId: { type: integer, description: Al editar, para no compararla consigo misma }
+      responses:
+        "200":
+          description: Sugerencia
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sugerido: { type: [number, "null"] }
+                  fuente: { type: string, enum: [ia, estadistica, sin-datos] }
+                  explicacion: { type: string }
+                  categoria: { type: string }
+                  muestras: { type: integer }
+                  mismaUnidad: { type: boolean }
+                  rango:
+                    type: [object, "null"]
+                    properties:
+                      minimo: { type: number }
+                      maximo: { type: number }
+                      promedio: { type: number }
+                      mediana: { type: number }
+                  ejemplos: { type: array, items: { type: object } }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { $ref: "#/components/responses/SinPermiso" }
+        "429": { $ref: "#/components/responses/DemasiadosIntentos" }
 
   # ------------------------------------------------------------------ REPORTES
   /api/reportes:
@@ -1150,6 +1440,7 @@ components:
       required: [titulo, precio, unidad, categoriaId]
       properties:
         titulo: { type: string, maxLength: 120, example: Cuero vacuno curtido }
+        descripcion: { type: string, maxLength: 1000, description: Opcional. La puede redactar el asistente de IA }
         precio: { type: number, exclusiveMinimum: 0, example: 450 }
         unidad: { type: string, maxLength: 30, example: pie² }
         categoriaId: { type: integer, example: 1 }
@@ -1166,6 +1457,7 @@ components:
         OfertaID: { type: integer }
         ProveedorID: { type: integer }
         TituloMaterial: { type: string }
+        Descripcion: { type: [string, "null"] }
         Precio: { type: number }
         UnidadMedida: { type: string }
         DistanciaSimuladaKm: { type: number }
@@ -1209,13 +1501,50 @@ components:
         miCalificacion: { type: [integer, "null"] }
         suCalificacion: { type: [integer, "null"] }
 
+    ParteTrato:
+      type: object
+      properties:
+        id: { type: integer }
+        rol: { type: string, enum: [Proveedor, Emprendedor] }
+        nombre: { type: string }
+        nombreComercial: { type: [string, "null"], description: Nombre comercial del proveedor o marca del emprendedor }
+        ruc: { type: [string, "null"] }
+        correo: { type: [string, "null"] }
+        telefono: { type: [string, "null"] }
+        departamento: { type: [string, "null"] }
+        direccion: { type: [string, "null"] }
+
+    Alerta:
+      type: object
+      properties:
+        id: { type: integer }
+        palabraClave: { type: [string, "null"] }
+        categoriaId: { type: [integer, "null"] }
+        categoria: { type: [string, "null"] }
+        precioMaximo: { type: [number, "null"] }
+        descripcion: { type: string, example: "«cuero» en Cuero Bovino / Vacuno hasta C$500" }
+        fecha: { type: string, format: date-time }
+
+    ProveedorMapa:
+      type: object
+      properties:
+        id: { type: integer }
+        nombre: { type: string }
+        razonSocial: { type: string }
+        especialidad: { type: [string, "null"] }
+        ofertas: { type: integer }
+        categorias: { type: array, items: { type: string } }
+        calificacion: { type: [number, "null"] }
+        totalCalificaciones: { type: integer }
+        departamentoEscrito: { type: [string, "null"] }
+
     Notificacion:
       type: object
       properties:
         id: { type: integer }
         tipo:
           type: string
-          enum: [PujaSuperada, PujaRecibida, SubastaGanada, SubastaTerminada, SubastaCancelada, TratoActualizado, CalificacionRecibida]
+          enum: [PujaSuperada, PujaRecibida, SubastaGanada, SubastaTerminada, SubastaCancelada, TratoActualizado, CalificacionRecibida, AlertaBusqueda, FavoritoRebajado]
         titulo: { type: string, example: "Te superaron en «Cuero café»" }
         mensaje: { type: string, example: "Alguien ofreció C$540.00. Puja de nuevo antes de que cierre la subasta." }
         enlace: { type: [string, "null"], example: "mercado.html#tab-auctions" }

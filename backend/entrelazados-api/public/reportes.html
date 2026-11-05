@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="tema.js"></script>
     <script src="kan.js" data-contexto="dashboard" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Reportes</title>
@@ -543,9 +544,22 @@
 
         // PDF: se usa la impresión del navegador ("Guardar como PDF"), que deja el texto
         // seleccionable y funciona igual en la computadora y en el celular.
+        // El PDF siempre sale en claro (papel blanco): en modo oscuro las gráficas se vuelven
+        // a dibujar con los colores claros solo para imprimir, y después se regresa al oscuro.
         function exportarPdf() {
             mostrarToast('En la ventana de impresión elige "Guardar como PDF" como destino.');
-            setTimeout(() => window.print(), 300);
+            const raiz = document.documentElement;
+            const oscuro = raiz.getAttribute('data-tema') === 'oscuro';
+            const redibujar = (tema) => {
+                raiz.setAttribute('data-tema', tema);
+                if (window.Chart) Chart.defaults.color = colorVar('--texto-2');
+                if (estado.datos) renderTodo();
+            };
+            if (oscuro) {
+                redibujar('claro');
+                window.addEventListener('afterprint', () => redibujar('oscuro'), { once: true });
+            }
+            setTimeout(() => window.print(), oscuro ? 900 : 300);
         }
 
         function cargarScript(url) {

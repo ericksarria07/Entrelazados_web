@@ -27,8 +27,17 @@
         }
     }
 
+    // Borra la sesión guardada, pero conserva el modo claro/oscuro elegido (tema.js)
+    function borrarSesionGuardada() {
+        try {
+            const tema = localStorage.getItem('entrelazados-tema');
+            localStorage.clear();
+            if (tema) localStorage.setItem('entrelazados-tema', tema);
+        } catch (e) { }
+    }
+
     window.cerrarSesionEntrelazados = function (mensaje) {
-        try { localStorage.clear(); } catch (e) { }
+        borrarSesionGuardada();
         if (mensaje) alert(mensaje);
         window.location.href = 'login.html';
     };
@@ -147,7 +156,7 @@
 
     // Botón "Cerrar sesión" de los menús. En la portada solo se recarga; en las demás, al login.
     window.cerrarSesion = function () {
-        try { localStorage.clear(); } catch (e) { }
+        borrarSesionGuardada();
         const pagina = window.location.pathname.split('/').pop() || 'preview.html';
         if (pagina === 'preview.html') window.location.reload();
         else window.location.href = 'login.html';

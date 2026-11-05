@@ -230,7 +230,77 @@ function crearServicioTratos({ db, correo, urlBase, tiempoReal = tiempoRealNulo,
         };
     }
 
-    return { cambiarEstado, calificar, reputacion };
+    // Datos del comprobante de un trato (para imprimirlo o guardarlo como PDF en comprobante.html).
+    // Lo pueden ver las dos partes y el administrador; a cualquier otra persona se le responde 404.
+    async function comprobante({ tratoId, usuarioId, esAdmin = false }) {
+        if (!Number.isInteger(tratoId) || tratoId <= 0) throw fallo(404, 'Ese trato no existe o no participas en él.');
+        const [[t]] = await db.query(
+            `SELECT TratoID, ProveedorID, EmprendedorID, TipoOrigen, OrigenID, DescripcionResumen, MontoTotal, EstadoTrato, FechaCierre
+             FROM TratosCerrados WHERE TratoID = ?`, [tratoId]);
+        if (!t || (!esAdmin && t.ProveedorID !== usuarioId && t.EmprendedorID !== usuarioId)) {
+            throw fallo(404, 'Ese trato no existe o no participas en él.');
+        }
+        const [partes] = await db.query(
+            `SELECT u.UsuarioID, u.CorreoElectronico, p.NombreRazonSocial, p.TelefonoWhatsApp, p.DireccionExacta,
+                    d.NombreDepartamento, prov.NumeroRUC, prov.NombreComercial, emp.NombreMarca
+             FROM Usuarios u
+             LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = u.UsuarioID
+             LEFT JOIN Departamentos d ON d.DepartamentoID = p.DepartamentoID
+             LEFT JOIN Proveedores prov ON prov.UsuarioID = u.UsuarioID
+             LEFT JOIN Emprendedores emp ON emp.UsuarioID = u.UsuarioID
+             WHERE u.UsuarioID IN (?, ?)`, [t.ProveedorID, t.EmprendedorID]);
+        const parte = (id, rol) => {
+            const f = partes.find(x => x.UsuarioID === id) || {};
+            return {
+                id,
+                rol,
+                nombre: f.NombreRazonSocial || 'Usuario eliminado',
+                nombreComercial: (rol === 'Proveedor' ? f.NombreComercial : f.NombreMarca) || null,
+                ruc: rol === 'Proveedor' ? (f.NumeroRUC || null) : null,
+                correo: f.CorreoElectronico || null,
+                telefono: f.TelefonoWhatsApp || null,
+                departamento: f.NombreDepartamento || null,
+                direccion: f.DireccionExacta || null
+            };
+        };
+
+        let subasta = null;
+        if (t.TipoOrigen === 'Subasta' && t.OrigenID) {
+            const [[s]] = await db.query(
+                `SELECT s.SubastaID, s.TituloLote, s.PrecioBase, s.FechaInicio, s.FechaFin, c.NombreCategoria,
+                        (SELECT COUNT(*) FROM Pujas p WHERE p.SubastaID = s.SubastaID) AS pujas
+                 FROM Subastas s LEFT JOIN CategoriasMateriales c ON c.CategoriaID = s.CategoriaID
+                 WHERE s.SubastaID = ?`, [t.OrigenID]);
+            if (s) {
+                subasta = {
+                    id: s.SubastaID,
+                    lote: nombreLote(s.TituloLote),
+                    categoria: s.NombreCategoria || null,
+                    precioBase: Number(s.PrecioBase),
+                    pujas: Number(s.pujas),
+                    inicio: s.FechaInicio,
+                    cierre: s.FechaFin
+                };
+            }
+        }
+
+        return {
+            folio: `EL-${String(t.TratoID).padStart(6, '0')}`,
+            tratoId: t.TratoID,
+            origen: t.TipoOrigen,
+            concepto: subasta ? subasta.lote : loteDelTrato(t.DescripcionResumen),
+            monto: Number(t.MontoTotal),
+            moneda: 'NIO',
+            estado: t.EstadoTrato,
+            fechaCierre: t.FechaCierre,
+            emitido: new Date(),
+            proveedor: parte(t.ProveedorID, 'Proveedor'),
+            comprador: parte(t.EmprendedorID, 'Emprendedor'),
+            subasta
+        };
+    }
+
+    return { cambiarEstado, calificar, reputacion, comprobante };
 }
 
 module.exports = { crearServicioTratos, ESTADOS_ORIGEN, loteDelTrato };

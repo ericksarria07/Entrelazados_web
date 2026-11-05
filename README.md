@@ -11,19 +11,23 @@ Los proveedores publican sus materiales, y cada publicación abre una subasta. L
 ## Funcionalidades
 
 ### Proveedor
-- Publica materiales con título, precio, unidad, categoría y **hasta 5 fotos**. Las fotos se reducen en el navegador antes de subirlas (una foto de celular de 5 MB queda en unos 400 KB).
+- Publica materiales con título, **descripción**, precio, unidad, categoría y **hasta 5 fotos**. Las fotos se reducen en el navegador antes de subirlas (una foto de celular de 5 MB queda en unos 400 KB).
 - Cada publicación crea automáticamente una **subasta** de 7 días con el mismo precio base, que muestra sus fotos.
 - **Crear subastas** desde el Mercado: de una de sus publicaciones o de un lote nuevo, de 3 a 14 días.
 - **Edita** sus publicaciones (título, precio, unidad, categoría y fotos): si tienen una subasta abierta, esta toma el título y la categoría nuevos.
 - Elimina sus publicaciones: si su subasta sigue abierta y sin pujas, se **cancela** con ella. Si ya tiene pujas, hay que esperar a que cierre (el administrador sí puede retirarla y se avisa por el chat a quienes pujaron).
 - Las **categorías** de los formularios y del buscador salen de la base de datos: una categoría nueva del administrador aparece sola.
 - Ve su actividad en el dashboard: ofertas, subastas, pujas recibidas y **subastas vendidas**.
+- **Asistente de IA al publicar** (Gemini): a partir de una foto del material (o del título) propone el título, la descripción, la categoría y la unidad. **Sugerir precio** compara con las publicaciones parecidas de la misma categoría y unidad y con las subastas cerradas: Gemini propone un precio dentro de ese rango y explica por qué; si Gemini no responde, sugiere la mediana. La IA solo propone: nada se guarda hasta que el proveedor publica.
 
 ### Emprendedor
 - **Mercado** con búsqueda, filtros por categoría y radio de cercanía (km), **páginas** de 10 ofertas y mapa interactivo. Cada oferta muestra al proveedor y su **calificación**.
 - **Contactar Proveedor** abre directamente el chat con quien publicó.
 - **Subastas**: puja por encima del precio actual. La validación es atómica: dos pujas simultáneas nunca dejan un precio menor.
 - **Subastas ganadas** en el dashboard, con un botón para coordinar la entrega por chat.
+- **Favoritos**: guarda publicaciones con el corazón y las ve en la pestaña *Favoritos y Alertas*. Si una publicación guardada **baja de precio**, llega una notificación.
+- **Alertas de búsqueda**: "avísame cuando publiquen *cuero café* en *Cuero vacuno* por menos de C$500" (palabra clave, categoría y precio máximo; hasta 10). Cuando alguien publica algo que cumple, llega a la campana y por correo. El botón **Avísame de nuevas** crea la alerta con lo que está escrito en el buscador.
+- **Mapa de proveedores**: un círculo por departamento (crece con la cantidad de proveedores) con la lista de quién vende ahí, sus publicaciones y su calificación; respeta la categoría elegida en el buscador. *Ver publicaciones* filtra el Mercado por ese proveedor.
 
 ### Seguimiento de tratos
 Cada subasta ganada es un trato que proveedor y comprador avanzan desde el dashboard:
@@ -31,6 +35,8 @@ Cada subasta ganada es un trato que proveedor y comprador avanzan desde el dashb
 `Pendiente` → `En proceso` (pago y entrega acordados) → `Completado`, o `Cancelado` (con motivo opcional) mientras no esté completado.
 
 Cualquiera de los dos puede cambiarlo; la otra parte recibe un aviso automático en el chat y un correo. Los tratos cancelados no cuentan en "subastas ganadas / vendidas".
+
+**Comprobante**: cada trato tiene un botón *Comprobante* (`comprobante.html?trato=ID`) con folio (`EL-000042`), los datos de las dos partes, el lote, el precio base, las pujas, el monto en número y en letras y el estado (si se cancela queda "ANULADO"). Se guarda como **PDF** con la impresión del navegador. Aclara que no es una factura fiscal.
 
 ### Calificaciones
 Al completar un trato, cada parte califica a la otra **una vez** (1 a 5 estrellas y un comentario opcional). El promedio aparece junto al proveedor en el Mercado y como "Mi calificación" en el dashboard.
@@ -58,7 +64,9 @@ Una **campana** en el menú de todas las páginas, con el número sin leer. Avis
 - tu subasta recibe una puja nueva,
 - **ganas** una subasta, o termina o se cancela una en la que pujaste,
 - termina tu subasta (con o sin ganador),
-- la otra parte cambia el estado de un trato o te **califica**.
+- la otra parte cambia el estado de un trato o te **califica**,
+- se publica algo que cumple una de tus **alertas de búsqueda** (también por correo),
+- una publicación que guardaste en **favoritos baja de precio**.
 
 Las nuevas aparecen al instante con un aviso flotante. Si ya tienes un aviso sin leer de la misma subasta, se actualiza en vez de repetirse (una "guerra de pujas" no llena la campana). Al hacer clic se marca como leída y lleva a la página correspondiente.
 
@@ -75,6 +83,8 @@ Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegid
 - **Confirmación del correo al registrarse**: enlace de 24 horas; sin confirmarlo no se puede entrar (se puede pedir otro enlace desde el login).
 - **Recuperación de contraseña por correo**: enlace de un solo uso que vence en 1 hora.
 - Diseño adaptado a celular.
+- **Modo oscuro**: la primera vez sigue el modo del sistema; el botón redondo de abajo a la izquierda lo cambia y la elección se recuerda en el navegador (también al cerrar sesión). Al imprimir o guardar un PDF siempre se usa el modo claro.
+- **Accesibilidad**: foco visible al navegar con el teclado, enlace "Saltar al contenido", etiquetas en los campos y en los botones que solo tienen un ícono, ventanas con `role="dialog"`, pestañas con `role="tab"`, imágenes con texto alternativo y menos animaciones si el sistema lo pide.
 
 ---
 
@@ -114,7 +124,7 @@ Entrelazados_web/
     │   │   ├── limites.js        # límites de intentos (login, registro, Kan...)
     │   │   └── errores.js        # 404 de la API y manejador central de errores
     │   ├── docs/
-    │   │   └── openapi.yaml      # especificación OpenAPI de las 41 rutas (se ve en /api/docs)
+    │   │   └── openapi.yaml      # especificación OpenAPI de las 52 rutas (se ve en /api/docs)
     │   ├── rutas/                # una por tema, cada una con sus URLs al principio
     │   │   ├── cuentas.js        # registro, login, recuperación y confirmación del correo
     │   │   ├── ofertas.js, subastas.js, chat.js, kan.js, tratos.js
@@ -123,6 +133,9 @@ Entrelazados_web/
     │   │   ├── dashboard.js
     │   │   ├── reportes.js       # ventas, compras y mercado (GET /api/reportes)
     │   │   ├── notificaciones.js # la campana: ver y marcar como leídas
+    │   │   ├── favoritos.js      # favoritos y alertas de búsqueda
+    │   │   ├── mapa.js           # proveedores por departamento (mapa del Mercado)
+    │   │   ├── ia.js             # asistente de IA para publicar (descripción y precio)
     │   │   ├── admin.js          # panel de administrador
     │   │   └── documentacion.js  # Swagger UI en /api/docs
     │   ├── servicios/            # lógica que no depende de HTTP
@@ -133,6 +146,9 @@ Entrelazados_web/
     │   │   ├── tratos.js         # estados de los tratos y calificaciones
     │   │   ├── notificaciones.js # guardar avisos, empujarlos en tiempo real y por correo
     │   │   ├── tiempoReal.js     # Socket.IO: quién está conectado y a quién avisar
+    │   │   ├── favoritos.js      # favoritos, alertas y sus avisos (nueva publicación, rebaja)
+    │   │   ├── departamentos.js  # los 17 departamentos de Nicaragua con sus coordenadas
+    │   │   ├── asistenteIA.js    # Gemini: describir una publicación y sugerir su precio
     │   │   └── kan.js            # respuestas fijas de Kan + Gemini
     │   ├── uploads/              # fotos subidas (NO se sube a git; va en los respaldos)
     │   ├── .env.example          # plantilla de variables de entorno
@@ -143,6 +159,8 @@ Entrelazados_web/
     │       ├── index.html        # inicio con sesión
     │       ├── mercado.html, chat.html, perfil.html
     │       ├── dashboard.html, reportes.html, admin.html
+    │       ├── comprobante.html  # comprobante de un trato, para imprimir o guardar como PDF
+    │       ├── tema.js, tema.css # modo oscuro y accesibilidad (todas las páginas)
     │       ├── panel.css         # estilos del dashboard y de los reportes
     │       ├── sesion.js         # token en cada /api, tiempo real, mensajes no leídos, esc(), cerrarSesion()
     │       ├── notificaciones.js # la campana del menú (se carga sola en las páginas con sesión)
@@ -156,7 +174,8 @@ Entrelazados_web/
     │   ├── migracion_v8.sql      # fotos en disco y cierre de subastas
     │   ├── migracion_v9.sql      # subastas ligadas a su publicación, estado Cancelada
     │   ├── migracion_v10.sql     # confirmar correo, calificaciones, mensajes no leídos
-    │   └── migracion_v12.sql     # notificaciones
+    │   ├── migracion_v12.sql     # notificaciones
+    │   └── migracion_v13.sql     # favoritos, alertas de búsqueda y descripción de las publicaciones
     ├── scripts/
     │   ├── LEEME.md              # respaldos, correo y clave de Gemini en la VM
     │   ├── respaldo.sh           # respaldo de MySQL + fotos (rota a los 7 días)
@@ -166,9 +185,9 @@ Entrelazados_web/
     │   └── probar_gemini.js      # comprueba la clave de Gemini (Kan)
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
-        ├── unidad/               # 68 pruebas unitarias (node:test, sin base de datos)
+        ├── unidad/               # 78 pruebas unitarias (node:test, sin base de datos)
         ├── correr_pruebas.js     # npm run test:api: prepara la base de pruebas, levanta el servidor y corre todo
-        ├── pruebas_api.js        # 311 pruebas de integración (incluye tiempo real con Socket.IO)
+        ├── pruebas_api.js        # 378 pruebas de integración (incluye tiempo real con Socket.IO)
         ├── cargar_esquema.js
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
@@ -225,7 +244,7 @@ Después carga las tablas y las 15 categorías de materiales (los departamentos 
 mysql -u entrelazados_app -p entrelazadosdb < sql/esquema_mysql.sql
 ```
 
-Si ya tienes una base de una versión anterior, en lugar del esquema completo aplica las migraciones que te falten, en orden: `sql/migracion_v7.sql`, `sql/migracion_v8.sql`, `sql/migracion_v9.sql`, `sql/migracion_v10.sql` y `sql/migracion_v12.sql` (no hay v11).
+Si ya tienes una base de una versión anterior, en lugar del esquema completo aplica las migraciones que te falten, en orden: `sql/migracion_v7.sql`, `sql/migracion_v8.sql`, `sql/migracion_v9.sql`, `sql/migracion_v10.sql`, `sql/migracion_v12.sql` y `sql/migracion_v13.sql` (no hay v11).
 
 ### 3. Configurar el `.env`
 
@@ -287,8 +306,8 @@ Hay dos tipos de pruebas:
 
 | | Cuántas | Qué necesitan | Comando (desde `backend/`) |
 |---|---|---|---|
-| **Unitarias** (`pruebas/unidad/`) | 68 | Nada: ni MySQL ni `.env`. Tardan ~1 s | `npm run test:unidad` |
-| **De integración** (`pruebas/pruebas_api.js`) | 311 | La base MySQL de pruebas | `CLAVE_PRUEBAS=... npm run test:api` |
+| **Unitarias** (`pruebas/unidad/`) | 78 | Nada: ni MySQL ni `.env`. Tardan ~1 s | `npm run test:unidad` |
+| **De integración** (`pruebas/pruebas_api.js`) | 378 | La base MySQL de pruebas | `CLAVE_PRUEBAS=... npm run test:api` |
 
 `npm test` corre las dos, una detrás de otra. `npm run test:cobertura` muestra qué porcentaje del código recorren las unitarias.
 
@@ -300,8 +319,9 @@ Las **unitarias** usan el corredor de pruebas que trae Node (`node:test`) y prue
 - la aplicación Express completa sin MySQL: 404, 401, JSON mal escrito y que el `.env` no se pueda descargar
 - que **cada ruta del código esté documentada** en `openapi.yaml` (y que no sobre ninguna)
 - las notificaciones (agrupar avisos, correo una sola vez) y un servidor **Socket.IO** de verdad: quién puede conectarse y a quién le llega cada evento
+- las alertas de búsqueda (sin importar tildes ni mayúsculas), los departamentos del mapa y los cálculos del asistente de precios
 
-Las **de integración** recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+Las **de integración** recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña, favoritos y alertas (a quién le llega cada aviso), comprobantes, el mapa de proveedores, el asistente de IA (con y sin Gemini) y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
 
 Una vez creada la base de pruebas (paso 1 de [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md)), se corren todas con un solo comando desde `backend/`:
 
@@ -311,7 +331,7 @@ CLAVE_PRUEBAS=la_clave_de_la_base_de_pruebas npm test
 
 ### En GitHub (integración continua)
 
-En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 20 y 22, y las 311 de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
+En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 20 y 22, y las 378 de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
@@ -347,7 +367,7 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | POST | `/api/solicitar-recuperacion` | Enviar el enlace para restablecer la contraseña |
 | GET | `/api/validar-token-recuperacion` | Comprobar si un enlace sigue vigente |
 | POST | `/api/restablecer-password` | Guardar la nueva contraseña |
-| GET | `/api/ofertas`, `/api/subastas`, `/api/categorias`, `/api/estadisticas` | Datos públicos del mercado. Filtros `q`, `categoria` (y en ofertas `maxKm`, `proveedorId`). Con `?pagina=N&porPagina=M` responden `{ datos, total, pagina, porPagina, paginas }` |
+| GET | `/api/ofertas`, `/api/subastas`, `/api/categorias`, `/api/estadisticas` | Datos públicos del mercado. Filtros `q`, `categoria` (y en ofertas `maxKm`, `proveedorId`, `id`; `q` también busca en la descripción). Con `?pagina=N&porPagina=M` responden `{ datos, total, pagina, porPagina, paginas }` |
 | POST | `/api/ofertas` 🔒 | Publicar material (proveedor). JSON, o `multipart/form-data` con hasta 5 archivos en `fotos` |
 | PUT | `/api/ofertas/:id` 🔒 | Editar una publicación propia (o cualquiera si eres admin). Mismos campos que al publicar, más `fotosQuitar` y fotos nuevas |
 | DELETE | `/api/ofertas/:id` 🔒 | Eliminar una publicación propia (cancela su subasta abierta; 409 si ya tiene pujas) |
@@ -360,6 +380,12 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas (primero las abiertas) |
 | PUT | `/api/tratos/:id/estado` 🔒 | `{ estado: 'EnProceso' \| 'Completado' \| 'Cancelado', motivo? }` (solo las dos partes del trato) |
 | POST | `/api/tratos/:id/calificacion` 🔒 | `{ puntuacion: 1-5, comentario? }` una vez por persona, solo tratos completados |
+| GET | `/api/tratos/:id/comprobante` 🔒 | Datos del comprobante (las dos partes del trato o el admin) |
+| GET/POST/DELETE | `/api/favoritos`, `/api/favoritos/ids`, `/api/favoritos/:ofertaId` 🔒 | Publicaciones guardadas |
+| GET/POST/DELETE | `/api/alertas`, `/api/alertas/:id` 🔒 | Alertas de búsqueda `{ palabraClave?, categoriaId?, precioMaximo? }` (máximo 10) |
+| GET | `/api/mapa/proveedores?categoria=` 🔒 | Proveedores agrupados por departamento, con coordenadas |
+| POST | `/api/ia/publicacion` 🔒 | Proponer título, descripción, categoría y unidad desde una foto (`multipart`, campo `fotos`) y/o `titulo` (proveedor; 503 si Gemini no está disponible) |
+| POST | `/api/ia/precio` 🔒 | Sugerir un precio `{ titulo?, categoriaId, unidad?, ofertaId? }` (proveedor) |
 | GET | `/api/usuarios/:id/reputacion` 🔒 | Promedio, total y últimas calificaciones recibidas |
 | GET | `/api/perfil/:id` 🔒 | Perfil propio (o cualquiera si eres admin) |
 | GET | `/api/dashboard` 🔒 | Datos del dashboard según el rol |

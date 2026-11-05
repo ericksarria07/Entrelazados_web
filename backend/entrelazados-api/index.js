@@ -12,7 +12,8 @@
 //   middlewares/      sesión y permisos, límites de intentos, errores
 //   rutas/            una por tema: cuentas, ofertas, subastas, chat, tratos, admin...
 //   servicios/        lógica que no depende de HTTP: correo, fotos, cierre de
-//                     subastas, tratos, ofertas, Kan, notificaciones y tiempo real
+//                     subastas, tratos, ofertas, Kan, notificaciones, tiempo real,
+//                     favoritos y alertas, asistente de IA y departamentos (mapa)
 //   utilidades.js     paginación, validaciones y el error ErrorHttp
 //   public/           las páginas que ve el navegador
 // ==========================================================================
@@ -27,6 +28,8 @@ const { crearServicioOfertas } = require('./servicios/ofertas');
 const { crearKan } = require('./servicios/kan');
 const { crearTiempoReal } = require('./servicios/tiempoReal');
 const { crearServicioNotificaciones } = require('./servicios/notificaciones');
+const { crearServicioFavoritos } = require('./servicios/favoritos');
+const { crearAsistenteIA } = require('./servicios/asistenteIA');
 
 // Un error inesperado se registra en el log, pero no tumba el servidor
 process.on('uncaughtException', (err) => console.error('❌ Excepción no capturada:', err.stack || err.message));
@@ -61,13 +64,16 @@ const urlBase = config.urlPublica || null;
 const tiempoReal = crearTiempoReal({ db, jwtSecreto: config.jwtSecreto });
 const notificaciones = crearServicioNotificaciones({ db, tiempoReal, correo, urlBase });
 const cierreSubastas = crearCierreSubastas({ db, correo, urlBase, tiempoReal, notificaciones });
+const ofertas = crearServicioOfertas({ db, cierreSubastas, tiempoReal });
 const servicios = {
     cierreSubastas,
     tiempoReal,
     notificaciones,
     tratos: crearServicioTratos({ db, correo, urlBase, tiempoReal, notificaciones }),
-    ofertas: crearServicioOfertas({ db, cierreSubastas, tiempoReal }),
-    kan: crearKan({ db, clave: config.gemini.clave, modelo: config.gemini.modelo })
+    ofertas,
+    favoritos: crearServicioFavoritos({ db, notificaciones, ofertas }),
+    kan: crearKan({ db, clave: config.gemini.clave, modelo: config.gemini.modelo }),
+    asistenteIA: crearAsistenteIA({ db, clave: config.gemini.clave, modelo: config.gemini.modelo })
 };
 
 // APLICACIÓN. Express y Socket.IO comparten el mismo servidor HTTP (y el mismo puerto).

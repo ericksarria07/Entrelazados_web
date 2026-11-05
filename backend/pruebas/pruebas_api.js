@@ -835,6 +835,190 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     r = await api('GET', '/api/reportes?meses=7', { token: admin.token });
     check('Un periodo no permitido usa 6 meses', r.data.periodoMeses === 6);
 
+    // ---------------------------------------------------------------- FAVORITOS, ALERTAS, COMPROBANTE, MAPA E IA (v13)
+    seccion('27. Favoritos y alertas de búsqueda');
+    const pausa = (ms) => new Promise(res => setTimeout(res, ms));
+    const avisos = async (usuario, tipo, refId) => (await q(
+        'SELECT Titulo, Mensaje, Enlace FROM Notificaciones WHERE UsuarioID = ? AND Tipo = ? AND ReferenciaID = ? ORDER BY NotificacionID', [usuario.id, tipo, refId]));
+
+    r = await api('GET', '/api/favoritos');
+    check('Favoritos sin sesión → 401', r.status === 401);
+    r = await api('GET', '/api/alertas');
+    check('Alertas sin sesión → 401', r.status === 401);
+
+    // Alertas: e1 busca cuero café de la categoría 1 hasta C$500; e3 cualquier "cuero"; perdedor... (e2) solo hasta C$100
+    r = await api('POST', '/api/alertas', { token: e1.token, body: { palabraClave: '  Café  ', categoriaId: 1, precioMaximo: 500 } });
+    const alertaE1 = r.data && r.data.alerta;
+    check('Crear una alerta (palabra, categoría y precio máximo)', r.status === 201 && alertaE1.palabraClave === 'Café' && alertaE1.categoriaId === 1 && alertaE1.precioMaximo === 500 && /«Café» en .+ hasta C\$500/.test(alertaE1.descripcion), JSON.stringify(r));
+    r = await api('POST', '/api/alertas', { token: e1.token, body: { palabraClave: 'Café', categoriaId: 1, precioMaximo: 500 } });
+    check('Una alerta igual otra vez → 409', r.status === 409, JSON.stringify(r));
+    r = await api('POST', '/api/alertas', { token: e1.token, body: {} });
+    check('Alerta sin palabra ni categoría → 400', r.status === 400);
+    r = await api('POST', '/api/alertas', { token: e1.token, body: { palabraClave: 'suela', precioMaximo: -3 } });
+    check('Alerta con precio negativo → 400', r.status === 400);
+    r = await api('POST', '/api/alertas', { token: e1.token, body: { categoriaId: 99999 } });
+    check('Alerta con una categoría que no existe → 400', r.status === 400, JSON.stringify(r));
+    r = await api('POST', '/api/alertas', { token: e3.token, body: { palabraClave: 'cuero' } });
+    check('Otra persona crea su alerta "cuero"', r.status === 201);
+    r = await api('POST', '/api/alertas', { token: e2.token, body: { palabraClave: 'cuero', precioMaximo: 100 } });
+    const alertaE2 = r.data && r.data.alerta;
+    check('…y otra con precio máximo C$100', r.status === 201);
+    r = await api('POST', '/api/alertas', { token: p3.token, body: { palabraClave: 'cuero' } });
+    check('Un proveedor también puede tener alertas', r.status === 201);
+    const extras = [];
+    for (let i = 1; i <= 9; i++) extras.push(await api('POST', '/api/alertas', { token: e1.token, body: { palabraClave: `palabra${i}` } }));
+    check('Se pueden tener hasta 10 alertas', extras.every(x => x.status === 201), JSON.stringify(extras.map(x => x.status)));
+    r = await api('POST', '/api/alertas', { token: e1.token, body: { palabraClave: 'once' } });
+    check('…la número 11 → 409', r.status === 409 && /10 alertas/.test(r.data.message), JSON.stringify(r));
+    r = await api('DELETE', `/api/alertas/${extras[0].data.alerta.id}`, { token: e3.token });
+    check('Borrar la alerta de otra persona → 404', r.status === 404);
+    for (const x of extras) await api('DELETE', `/api/alertas/${x.data.alerta.id}`, { token: e1.token });
+    r = await api('GET', '/api/alertas', { token: e1.token });
+    check('Borrar mis alertas: queda solo la primera', r.status === 200 && r.data.length === 1 && r.data[0].id === alertaE1.id, JSON.stringify(r.data));
+
+    // Publicar algo que cumple: avisa a quien corresponde
+    r = await api('POST', '/api/ofertas', { token: p3.token, body: { titulo: 'Cuero vacuno CAFE curtido', descripcion: '  Ideal para botas y cinturones.  ', precio: 450, unidad: 'por pie²', categoriaId: 1, distancia: 5 } });
+    const ofCafe = r.data && r.data.ofertaId;
+    check('Publicar con descripción', r.status === 200 && ofCafe > 0, JSON.stringify(r));
+    check('…la descripción se guarda limpia', (await q('SELECT Descripcion FROM Ofertas WHERE OfertaID = ?', [ofCafe]))[0].Descripcion === 'Ideal para botas y cinturones.');
+    await pausa(500);
+    const alertaRecibidaE1 = await avisos(e1, 'AlertaBusqueda', ofCafe);
+    check('La alerta de "Café" (sin tilde en el título) avisa con enlace a la publicación', alertaRecibidaE1.length === 1 && alertaRecibidaE1[0].Enlace === `mercado.html?oferta=${ofCafe}` && /Cuero vacuno CAFE/.test(alertaRecibidaE1[0].Titulo), JSON.stringify(alertaRecibidaE1));
+    check('…también a quien buscaba "cuero"', (await avisos(e3, 'AlertaBusqueda', ofCafe)).length === 1);
+    check('…pero no a quien solo quería hasta C$100', (await avisos(e2, 'AlertaBusqueda', ofCafe)).length === 0);
+    check('…ni al proveedor que publicó (aunque tenga una alerta que cumple)', (await avisos(p3, 'AlertaBusqueda', ofCafe)).length === 0);
+    r = await api('POST', '/api/ofertas', { token: p3.token, body: { titulo: 'Cuero café premium', precio: 650, unidad: 'por pie²', categoriaId: 1 } });
+    const ofCara = r.data.ofertaId;
+    await pausa(500);
+    check('Una publicación más cara que el precio máximo no avisa', (await avisos(e1, 'AlertaBusqueda', ofCara)).length === 0 && (await avisos(e3, 'AlertaBusqueda', ofCara)).length === 1);
+
+    r = await api('GET', `/api/ofertas?id=${ofCafe}`);
+    check('GET /api/ofertas?id= trae solo esa publicación, con su descripción', r.status === 200 && r.data.length === 1 && r.data[0].Descripcion === 'Ideal para botas y cinturones.', JSON.stringify(r.data));
+    r = await api('GET', '/api/ofertas?q=cinturones');
+    check('La búsqueda también encuentra palabras de la descripción', r.data.some(o => o.OfertaID === ofCafe));
+
+    // Favoritos
+    r = await api('POST', `/api/favoritos/${ofCafe}`, { token: e1.token });
+    check('Guardar una publicación en favoritos → 201', r.status === 201, JSON.stringify(r));
+    r = await api('POST', `/api/favoritos/${ofCafe}`, { token: e1.token });
+    check('…guardarla otra vez → 200 (no se duplica)', r.status === 200 && (await q('SELECT COUNT(*) n FROM Favoritos WHERE UsuarioID = ?', [e1.id]))[0].n === 1);
+    r = await api('POST', `/api/favoritos/${ofCafe}`, { token: p3.token });
+    check('No puedo guardar mi propia publicación → 400', r.status === 400);
+    r = await api('POST', '/api/favoritos/999999', { token: e1.token });
+    check('Guardar una publicación que no existe → 404', r.status === 404);
+    r = await api('POST', '/api/favoritos/abc', { token: e1.token });
+    check('…o con un número inválido → 404', r.status === 404);
+    r = await api('GET', '/api/favoritos/ids', { token: e1.token });
+    check('/api/favoritos/ids', r.status === 200 && JSON.stringify(r.data) === JSON.stringify([ofCafe]), JSON.stringify(r.data));
+    r = await api('GET', '/api/favoritos', { token: e1.token });
+    check('/api/favoritos trae la publicación completa', r.status === 200 && r.data.length === 1 && r.data[0].TituloMaterial === 'Cuero vacuno CAFE curtido' && r.data[0].NombreProveedor === 'Curtiembre Tres' && Array.isArray(r.data[0].Fotos), JSON.stringify(r.data));
+    await api('POST', `/api/favoritos/${ofCara}`, { token: e3.token });
+
+    // Bajar el precio avisa a quien la guardó; subirlo no
+    r = await formulario('PUT', `/api/ofertas/${ofCafe}`, p3.token, { titulo: 'Cuero vacuno CAFE curtido', precio: 400, unidad: 'por pie²', categoriaId: 1, descripcion: 'Ideal para botas.' });
+    check('El proveedor baja el precio', r.status === 200, JSON.stringify(r));
+    await pausa(500);
+    const rebaja = await avisos(e1, 'FavoritoRebajado', ofCafe);
+    check('…y quien la guardó recibe "Bajó de precio" (C$450 → C$400)', rebaja.length === 1 && /450\.00/.test(rebaja[0].Mensaje) && /400\.00/.test(rebaja[0].Mensaje), JSON.stringify(rebaja));
+    await formulario('PUT', `/api/ofertas/${ofCafe}`, p3.token, { titulo: 'Cuero vacuno CAFE curtido', precio: 420, unidad: 'por pie²', categoriaId: 1 });
+    await pausa(400);
+    check('Subir el precio no avisa', (await avisos(e1, 'FavoritoRebajado', ofCafe)).length === 1);
+    check('Editar sin descripción la deja vacía (NULL)', (await q('SELECT Descripcion FROM Ofertas WHERE OfertaID = ?', [ofCafe]))[0].Descripcion === null);
+
+    r = await api('DELETE', `/api/ofertas/${ofCara}`, { token: p3.token });
+    check('Borrar una publicación guardada también borra el favorito', r.status === 200 && (await q('SELECT COUNT(*) n FROM Favoritos WHERE OfertaID = ?', [ofCara]))[0].n === 0, JSON.stringify(r));
+    r = await api('DELETE', `/api/favoritos/${ofCafe}`, { token: e1.token });
+    check('Quitar de favoritos', r.status === 200 && r.data.quitada === true);
+    r = await api('DELETE', `/api/favoritos/${ofCafe}`, { token: e1.token });
+    check('…quitarla otra vez responde quitada: false', r.status === 200 && r.data.quitada === false);
+    await api('POST', `/api/favoritos/${ofCafe}`, { token: e1.token });
+    await api('DELETE', `/api/alertas/${alertaE2.id}`, { token: e2.token });
+
+    seccion('28. Comprobante de un trato');
+    const tratoComprobante = (await q("SELECT TratoID FROM TratosCerrados WHERE TipoOrigen = 'Subasta' AND OrigenID = ?", [subRT]))[0].TratoID;
+    r = await api('GET', `/api/tratos/${tratoComprobante}/comprobante`);
+    check('Sin sesión → 401', r.status === 401);
+    r = await api('GET', `/api/tratos/${tratoComprobante}/comprobante`, { token: e3.token });
+    const comp = r.data;
+    check('El comprador ve el comprobante con su folio', r.status === 200 && comp.folio === `EL-${String(tratoComprobante).padStart(6, '0')}` && comp.monto === 350 && comp.moneda === 'NIO', JSON.stringify(comp));
+    check('…con las dos partes y sus datos de contacto', comp.proveedor.nombre === 'Curtiembre Dos' && comp.proveedor.correo === 'prov2@prueba.com' && comp.comprador.nombre === 'Zapatería Tres' && comp.comprador.departamento === 'Managua', JSON.stringify([comp.proveedor, comp.comprador]));
+    check('…y los datos de la subasta (lote, precio base, 5 pujas)', comp.subasta && comp.subasta.lote === 'Hilo encerado tiempo real' && comp.subasta.precioBase === 100 && comp.subasta.pujas === 5 && comp.concepto === 'Hilo encerado tiempo real', JSON.stringify(comp.subasta));
+    r = await api('GET', `/api/tratos/${tratoComprobante}/comprobante`, { token: p2.token });
+    check('El proveedor también lo ve', r.status === 200 && r.data.folio === comp.folio);
+    r = await api('GET', `/api/tratos/${tratoComprobante}/comprobante`, { token: admin.token });
+    check('El administrador también', r.status === 200);
+    r = await api('GET', `/api/tratos/${tratoComprobante}/comprobante`, { token: e1.token });
+    check('Alguien que no es parte del trato → 404', r.status === 404);
+    r = await api('GET', '/api/tratos/abc/comprobante', { token: e3.token });
+    check('Número de trato inválido → 404', r.status === 404);
+    r = await fetch(B + '/comprobante.html');
+    check('La página comprobante.html existe', r.status === 200 && /Comprobante de trato/.test(await r.text()));
+
+    seccion('29. Mapa de proveedores');
+    r = await api('GET', '/api/mapa/proveedores');
+    check('Sin sesión → 401', r.status === 401);
+    // p3 escribió " leon " y p1 un lugar que no está en Nicaragua
+    const deptoNuevo = async (nombre) => {
+        await q('INSERT IGNORE INTO Departamentos (NombreDepartamento) VALUES (?)', [nombre]);
+        return (await q('SELECT DepartamentoID FROM Departamentos WHERE NombreDepartamento = ?', [nombre]))[0].DepartamentoID;
+    };
+    await q('UPDATE PerfilesUsuarios SET DepartamentoID = ? WHERE UsuarioID = ?', [await deptoNuevo(' leon '), p3.id]);
+    await q('UPDATE PerfilesUsuarios SET DepartamentoID = ? WHERE UsuarioID = ?', [await deptoNuevo('Tegucigalpa'), p1.id]);
+    r = await api('GET', '/api/mapa/proveedores', { token: e1.token });
+    const mapaTodo = r.data;
+    const deptoDe = (id) => (mapaTodo.departamentos.find(d => d.proveedores.some(p => p.id === id)) || {}).departamento;
+    check('Agrupa a los proveedores por departamento, con coordenadas', r.status === 200 && mapaTodo.departamentos.every(d => typeof d.lat === 'number' && typeof d.lng === 'number'), JSON.stringify(mapaTodo).slice(0, 300));
+    check('…reconoce " leon " como León y pone a p2 en Managua', deptoDe(p3.id) === 'León' && deptoDe(p2.id) === 'Managua', JSON.stringify(mapaTodo.departamentos.map(d => [d.departamento, d.proveedores.map(p => p.id)])));
+    check('…y quien escribió un lugar desconocido va en sinUbicacion', mapaTodo.sinUbicacion.some(p => p.id === p1.id && p.departamentoEscrito === 'Tegucigalpa'), JSON.stringify(mapaTodo.sinUbicacion));
+    check('…sin emprendedores', !JSON.stringify(mapaTodo).includes(`"id":${e1.id},`));
+    const provP3 = mapaTodo.departamentos.flatMap(d => d.proveedores).find(p => p.id === p3.id);
+    check('…cuenta sus publicaciones y categorías, sin correo ni teléfono', provP3 && provP3.ofertas >= 1 && provP3.categorias.length >= 1 && !('correo' in provP3) && !('telefono' in provP3), JSON.stringify(provP3));
+    check('…y dice dónde está quien mira (Managua)', mapaTodo.miUbicacion && mapaTodo.miUbicacion.nombre === 'Managua');
+    r = await api('GET', '/api/mapa/proveedores?categoria=1', { token: e1.token });
+    const enCat1 = r.data.departamentos.flatMap(d => d.proveedores).concat(r.data.sinUbicacion);
+    check('Con ?categoria= solo salen quienes venden esa categoría', r.status === 200 && enCat1.some(p => p.id === p3.id) && enCat1.every(p => p.ofertas > 0 && p.categorias.length === 1), JSON.stringify(enCat1));
+
+    seccion('30. Asistente de IA para publicar');
+    r = await api('POST', '/api/ia/precio', { body: { categoriaId: 1 } });
+    check('Sin sesión → 401', r.status === 401);
+    r = await api('POST', '/api/ia/precio', { token: e1.token, body: { categoriaId: 1 } });
+    check('Un emprendedor no puede usarlo → 403', r.status === 403);
+    r = await api('POST', '/api/ia/precio', { token: p3.token, body: { titulo: 'Cuero' } });
+    check('Sugerir precio sin categoría → 400', r.status === 400);
+    r = await api('POST', '/api/ia/precio', { token: p3.token, body: { categoriaId: 99999 } });
+    check('…con una categoría que no existe → 400', r.status === 400);
+    // Para comparar: otro precio de cuero por pie² (de p2) además de los que ya hay en la categoría 1
+    await api('POST', '/api/ofertas', { token: p2.token, body: { titulo: 'Cuero vacuno negro', precio: 500, unidad: 'pie2', categoriaId: 1 } });
+    const { normalizarUnidad, estadisticas, redondearPrecio } = require(backend + '/entrelazados-api/servicios/asistenteIA');
+    const preciosPie2 = [
+        ...(await q('SELECT Precio AS p, UnidadMedida AS u FROM Ofertas WHERE CategoriaID = 1')),
+        ...(await q(`SELECT t.MontoTotal AS p, o.UnidadMedida AS u FROM TratosCerrados t
+                     JOIN Subastas s ON t.TipoOrigen = 'Subasta' AND s.SubastaID = t.OrigenID
+                     JOIN Ofertas o ON o.OfertaID = s.OfertaID
+                     WHERE s.CategoriaID = 1 AND t.EstadoTrato <> 'Cancelado'`))
+    ].filter(x => normalizarUnidad(x.u) === 'pie2').map(x => Number(x.p));
+    const esperado = estadisticas(preciosPie2);
+    r = await api('POST', '/api/ia/precio', { token: p3.token, body: { titulo: 'Cuero vacuno', categoriaId: 1, unidad: 'por pie²' } });
+    const sug = r.data;
+    check('Sugiere un precio comparando la misma unidad (sin Gemini: la mediana)', r.status === 200 && sug.fuente === 'estadistica' && sug.mismaUnidad === true
+        && sug.muestras === esperado.muestras && sug.sugerido === redondearPrecio(esperado.mediana) && sug.rango.minimo === esperado.minimo && sug.rango.maximo === esperado.maximo,
+        JSON.stringify([sug, esperado]));
+    check('…con una explicación y ejemplos', /mediana/.test(sug.explicacion) && sug.ejemplos.length >= 2 && sug.ejemplos.length <= 5, JSON.stringify(sug.ejemplos));
+    r = await api('POST', '/api/ia/precio', { token: p3.token, body: { categoriaId: 1, unidad: 'por pie²', ofertaId: ofCafe } });
+    check('Al editar no se compara consigo misma', r.status === 200 && r.data.muestras === sug.muestras - 1, JSON.stringify(r.data));
+    r = await api('POST', '/api/ia/precio', { token: p3.token, body: { categoriaId: 14 } });
+    check('Sin publicaciones parecidas no inventa un precio', r.status === 200 && r.data.sugerido === null && r.data.fuente === 'sin-datos', JSON.stringify(r.data));
+    r = await formulario('POST', '/api/ia/publicacion', p3.token, {});
+    check('Describir sin foto ni título → 400', r.status === 400, JSON.stringify(r));
+    r = await formulario('POST', '/api/ia/publicacion', p3.token, {}, [{ datos: PNG, tipo: 'image/png', nombre: 'a.png' }, { datos: PNG, tipo: 'image/png', nombre: 'b.png' }]);
+    check('…con dos fotos → 400', r.status === 400 && /una sola foto/.test(r.data.message), JSON.stringify(r));
+    r = await formulario('POST', '/api/ia/publicacion', p3.token, {}, [{ datos: Buffer.from('no soy imagen'), tipo: 'image/png', nombre: 'falsa.png' }]);
+    check('…con un archivo que no es imagen → 400', r.status === 400, JSON.stringify(r));
+    r = await formulario('POST', '/api/ia/publicacion', e1.token, { titulo: 'Cuero' });
+    check('…un emprendedor → 403', r.status === 403);
+    r = await formulario('POST', '/api/ia/publicacion', p3.token, { titulo: 'Cuero vacuno café' }, [{ datos: PNG, tipo: 'image/png', nombre: 'a.png' }]);
+    check('Sin Gemini disponible responde 503 con un mensaje claro', r.status === 503 && /no está disponible/.test(r.data.message), JSON.stringify(r));
+
     seccion('12. Eliminar usuarios (admin)');
     r = await api('DELETE', `/api/admin/usuarios/${admin.id}`, { token: admin.token });
     check('Admin no puede eliminarse a sí mismo → 400', r.status === 400);

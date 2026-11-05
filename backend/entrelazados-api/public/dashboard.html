@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="logo.png">
     <script src="sesion.js"></script>
+    <script src="tema.js"></script>
     <script src="kan.js" data-contexto="dashboard" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EntreLazados - Dashboard de Control</title>
@@ -595,6 +596,7 @@
                         </div>
                         <div class="trato-acciones">
                             <a href="chat.html?contacto=${Number(t.contraparteId)}"><i class="ti ti-message-circle"></i> ${acciones.length ? 'Coordinar' : 'Chat'}</a>
+                            <a href="comprobante.html?trato=${id}" target="_blank" rel="noopener" title="Abrir el comprobante para imprimirlo o guardarlo como PDF"><i class="ti ti-file-invoice"></i> Comprobante</a>
                             ${acciones.map(a => `<button type="button" class="${a.principal ? 'principal' : ''}" onclick="cambiarEstadoTrato(${id}, '${a.estado}', this)"><i class="ti ${a.icono}"></i> ${a.texto}</button>`).join('')}
                             ${calificacion}
                         </div>

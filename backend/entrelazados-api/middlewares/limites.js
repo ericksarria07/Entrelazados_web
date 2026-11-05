@@ -13,6 +13,7 @@
 //   LIMITE_KAN_DIA        preguntas a Kan por usuario cada día         (150)
 //   LIMITE_API            peticiones a /api por IP cada minuto         (300)
 //   LIMITE_FOTOS          publicaciones con fotos por usuario cada hora (20)
+//   LIMITE_IA             consultas al asistente de IA por usuario cada hora (30)
 //
 // Los contadores viven en la memoria del proceso: si PM2 reinicia el
 // servidor, vuelven a cero (suficiente para un solo servidor).
@@ -79,6 +80,10 @@ const limites = {
     fotos: crearLimite({
         nombre: 'fotos', ventanaMs: 60 * MINUTO, limite: numeroEnv('LIMITE_FOTOS', 20), porUsuario: true,
         mensaje: 'Publicaste demasiadas ofertas en poco tiempo.'
+    }),
+    ia: crearLimite({
+        nombre: 'ia', ventanaMs: 60 * MINUTO, limite: numeroEnv('LIMITE_IA', 30), porUsuario: true,
+        mensaje: 'Usaste mucho el asistente de IA en poco tiempo.'
     })
 };
 

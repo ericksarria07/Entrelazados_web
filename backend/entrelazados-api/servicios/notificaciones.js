@@ -28,7 +28,9 @@ const TIPOS = {
     SubastaTerminada: 'Una subasta terminó',
     SubastaCancelada: 'Una subasta fue cancelada',
     TratoActualizado: 'Un trato cambió de estado',
-    CalificacionRecibida: 'Recibiste una calificación'
+    CalificacionRecibida: 'Recibiste una calificación',
+    AlertaBusqueda: 'Se publicó algo que buscabas',
+    FavoritoRebajado: 'Un favorito bajó de precio'
 };
 
 const recortar = (texto, largo) => String(texto || '').slice(0, largo);

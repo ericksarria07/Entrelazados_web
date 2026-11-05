@@ -20,7 +20,9 @@
         SubastaTerminada: 'ti-flag-check',
         SubastaCancelada: 'ti-ban',
         TratoActualizado: 'ti-truck-delivery',
-        CalificacionRecibida: 'ti-star'
+        CalificacionRecibida: 'ti-star',
+        AlertaBusqueda: 'ti-bell-ringing',
+        FavoritoRebajado: 'ti-heart'
     };
     const esc = window.esc || ((v) => String(v ?? ''));
     const estado = { lista: [], noLeidas: 0, abierto: false, cargado: false };

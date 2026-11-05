@@ -12,6 +12,36 @@ Los scripts leen el `.env` de `entrelazados-api`. Las contraseñas nunca aparece
 
 ---
 
+## Actualizar a la versión 13 (favoritos, alertas, comprobantes, mapa, IA y modo oscuro)
+
+Trae dos tablas nuevas (`Favoritos` y `AlertasBusqueda`) y una columna nueva (`Ofertas.Descripcion`):
+hay que aplicar la migración. **No** hay dependencias nuevas ni cambios en el `.env` (el asistente de IA
+usa la misma `GEMINI_API_KEY` de Kan).
+
+```bash
+cd ~/entrelazados
+bash backend/scripts/respaldo.sh                       # respaldo antes de tocar la base
+git pull origin main
+sudo mysql entrelazadosdb < backend/sql/migracion_v13.sql
+pm2 restart 0 --update-env
+pm2 logs 0 --lines 20 --nostream
+```
+
+La migración debe responder `Migración v13 aplicada: Favoritos, AlertasBusqueda y Ofertas.Descripcion listos.`
+(se puede repetir sin daño). Si `node backend/scripts/probar_gemini.js` dice que la clave funciona, el botón
+**Completar con IA** del formulario de publicar también funciona; sin clave, **Sugerir precio** sigue
+funcionando (sugiere la mediana de las publicaciones parecidas).
+
+Para comprobarlo (con **dos navegadores distintos**, o uno en ventana de incógnito: dos pestañas del mismo
+navegador comparten la sesión):
+1. Como emprendedor, en el Mercado → **Favoritos y Alertas**, crea una alerta (p. ej. "cuero").
+2. Como proveedor, publica algo con "cuero" en el título: al emprendedor le llega el aviso a la campana.
+3. El **Mapa de Proveedores** muestra un círculo por departamento.
+4. En el Dashboard, cada trato tiene el botón **Comprobante** (se guarda como PDF).
+5. El botón redondo de abajo a la izquierda cambia entre modo claro y oscuro.
+
+---
+
 ## Actualizar a la versión 12 (parte 2: tiempo real, notificaciones y reportes)
 
 Trae una tabla nueva (`Notificaciones`) y una dependencia nueva (`socket.io`): esta vez hay que
@@ -31,7 +61,7 @@ pm2 logs 0 --lines 20 --nostream
 En el log debe aparecer `Servidor Backend ejecutándose en el puerto 3000 (con tiempo real en /socket.io)`
 y la migración debe responder `Migración v12 aplicada: tabla Notificaciones lista.` (se puede repetir sin daño).
 
-Para comprobarlo: abre el Mercado en dos navegadores con dos cuentas distintas, ve a **Subastas** y puja
+Para comprobarlo: abre el Mercado en dos navegadores distintos (o uno en incógnito; no en dos pestañas) con dos cuentas distintas, ve a **Subastas** y puja
 desde uno; en el otro el precio debe cambiar solo y, si ibas ganando, aparecer el aviso "Te superaron"
 en la campana. La página **Reportes** está en el menú del Dashboard.
 
