@@ -21,7 +21,7 @@ function crearRutasSubastas({ db, ofertas, tiempoReal, notificaciones, verificar
     // Solo las que siguen abiertas: una vencida desaparece de la lista aunque el
     // cierre automático todavía no haya pasado por ella.
     // Cada una trae la foto principal y la categoría de su publicación. Primero las que cierran antes.
-    // Filtros opcionales: ?q=texto&categoria=ID. Con ?pagina=N&porPagina=M responde paginado.
+    // Filtros opcionales: ?q=texto&categoria=ID&proveedorId=ID. Con ?pagina=N&porPagina=M responde paginado.
     router.get('/subastas', conRespaldo([], async (req, res) => {
         const pag = leerPaginacion(req.query, 10);
         const condiciones = ["s.Estado = 'Activa'", 's.FechaFin > NOW()'];
@@ -32,6 +32,8 @@ function crearRutasSubastas({ db, ofertas, tiempoReal, notificaciones, verificar
         }
         const categoria = enteroPositivo(req.query.categoria);
         if (categoria) { condiciones.push('s.CategoriaID = ?'); params.push(categoria); }
+        const proveedor = enteroPositivo(req.query.proveedorId);
+        if (proveedor) { condiciones.push('s.ProveedorID = ?'); params.push(proveedor); }
         const where = 'WHERE ' + condiciones.join(' AND ');
 
         const [subastas] = await db.query(`

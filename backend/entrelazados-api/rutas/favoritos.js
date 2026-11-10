@@ -1,6 +1,6 @@
 // ==========================================================================
 // FAVORITOS Y ALERTAS DE BÚSQUEDA (todas piden sesión). Se monta en /api
-//   GET    /api/favoritos              publicaciones que guardé
+//   GET    /api/favoritos              publicaciones que guardé (?pagina=&porPagina= para paginar)
 //   GET    /api/favoritos/ids          solo sus números (para pintar los corazones)
 //   POST   /api/favoritos/:ofertaId    guardar una publicación
 //   DELETE /api/favoritos/:ofertaId    quitarla
@@ -10,13 +10,14 @@
 // Las reglas y los avisos están en servicios/favoritos.js.
 // ==========================================================================
 const express = require('express');
-const { ErrorHttp } = require('../utilidades');
+const { ErrorHttp, leerPaginacion } = require('../utilidades');
 
 function crearRutasFavoritos({ favoritos, verificarToken }) {
     const router = express.Router();
 
     router.get('/favoritos', verificarToken, async (req, res) => {
-        res.json(await favoritos.listarFavoritos(req.usuario.id));
+        // Sin ?pagina: la lista (hasta 100) como antes; con ?pagina=N: { datos, total, pagina, porPagina, paginas }
+        res.json(await favoritos.listarFavoritos(req.usuario.id, leerPaginacion(req.query, 10)));
     });
 
     router.get('/favoritos/ids', verificarToken, async (req, res) => {

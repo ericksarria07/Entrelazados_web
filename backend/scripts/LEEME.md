@@ -12,6 +12,28 @@ Los scripts leen el `.env` de `entrelazados-api`. Las contraseñas nunca aparece
 
 ---
 
+## Actualizar a la versión 14 (perfil público, paginación y Mercado dividido en archivos)
+
+**No** hay migración, ni dependencias nuevas, ni cambios en el `.env`: basta con traer el código y reiniciar.
+
+```bash
+cd ~/entrelazados
+git pull origin main
+pm2 restart 0 --update-env
+pm2 logs 0 --lines 20 --nostream
+```
+
+Para comprobarlo:
+1. En el Mercado, el nombre de un proveedor (en una oferta o en el mapa) abre su **perfil público**.
+2. Ese enlace se abre también en una ventana de incógnito (sin sesión) y no muestra correo ni teléfono.
+3. En *Mi perfil* aparece **Ver mi perfil público**.
+4. En el Dashboard, los tratos se ven de a 5 con *Anterior / Siguiente* (si hay más de 5).
+
+Si el Mercado se ve sin estilos o sin funcionar después de actualizar, recarga con **Ctrl + F5**: el navegador
+puede tener guardado el `mercado.html` viejo (ahora sus estilos y su código están en `mercado.css` y `mercado*.js`).
+
+---
+
 ## Actualizar a la versión 13 (favoritos, alertas, comprobantes, mapa, IA y modo oscuro)
 
 Trae dos tablas nuevas (`Favoritos` y `AlertasBusqueda`) y una columna nueva (`Ofertas.Descripcion`):

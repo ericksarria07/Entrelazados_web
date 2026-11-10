@@ -24,9 +24,10 @@ Los proveedores publican sus materiales, y cada publicación abre una subasta. L
 - **Mercado** con búsqueda, filtros por categoría y radio de cercanía (km), **páginas** de 10 ofertas y mapa interactivo. Cada oferta muestra al proveedor y su **calificación**.
 - **Contactar Proveedor** abre directamente el chat con quien publicó.
 - **Subastas**: puja por encima del precio actual. La validación es atómica: dos pujas simultáneas nunca dejan un precio menor.
-- **Subastas ganadas** en el dashboard, con un botón para coordinar la entrega por chat.
+- **Subastas ganadas** en el dashboard, con un botón para coordinar la entrega por chat (de a 5, con *Anterior / Siguiente*).
 - **Favoritos**: guarda publicaciones con el corazón y las ve en la pestaña *Favoritos y Alertas*. Si una publicación guardada **baja de precio**, llega una notificación.
 - **Alertas de búsqueda**: "avísame cuando publiquen *cuero café* en *Cuero vacuno* por menos de C$500" (palabra clave, categoría y precio máximo; hasta 10). Cuando alguien publica algo que cumple, llega a la campana y por correo. El botón **Avísame de nuevas** crea la alerta con lo que está escrito en el buscador.
+- **Perfil público** (`perfil-publico.html?id=N`): el nombre de cada proveedor en el Mercado, en el mapa y en los tratos lleva a su página, con sus publicaciones, subastas activas, tratos completados, calificación (con cuántas de cada estrella) y reseñas. Se puede **compartir** y se ve sin iniciar sesión; nunca muestra correo, teléfono, dirección ni RUC. Desde *Mi perfil* cada uno ve el suyo.
 - **Mapa de proveedores**: un círculo por departamento (crece con la cantidad de proveedores) con la lista de quién vende ahí, sus publicaciones y su calificación; respeta la categoría elegida en el buscador. *Ver publicaciones* filtra el Mercado por ese proveedor.
 
 ### Seguimiento de tratos
@@ -124,7 +125,7 @@ Entrelazados_web/
     │   │   ├── limites.js        # límites de intentos (login, registro, Kan...)
     │   │   └── errores.js        # 404 de la API y manejador central de errores
     │   ├── docs/
-    │   │   └── openapi.yaml      # especificación OpenAPI de las 52 rutas (se ve en /api/docs)
+    │   │   └── openapi.yaml      # especificación OpenAPI de las 54 rutas (se ve en /api/docs)
     │   ├── rutas/                # una por tema, cada una con sus URLs al principio
     │   │   ├── cuentas.js        # registro, login, recuperación y confirmación del correo
     │   │   ├── ofertas.js, subastas.js, chat.js, kan.js, tratos.js
@@ -157,7 +158,14 @@ Entrelazados_web/
     │       ├── preview.html      # portada pública (página de inicio)
     │       ├── login.html, unirse.html, restablecer.html, verificar.html
     │       ├── index.html        # inicio con sesión
-    │       ├── mercado.html, chat.html, perfil.html
+    │       ├── mercado.html      # el Mercado: solo el HTML; sus estilos y su código están en:
+    │       ├── mercado.css       #   estilos del Mercado (también los usa el perfil público)
+    │       ├── mercado.js        #   núcleo: inicio, ofertas, subastas y pujas, pestañas, tiempo real
+    │       ├── mercado-publicar.js  # fotos, publicar/editar, crear subasta y asistente de IA
+    │       ├── mercado-favoritos.js # favoritos (paginados) y alertas de búsqueda
+    │       ├── mercado-mapa.js   #   mapa de proveedores (Leaflet)
+    │       ├── perfil-publico.html  # perfil que se comparte (?id=N), se ve sin sesión
+    │       ├── chat.html, perfil.html
     │       ├── dashboard.html, reportes.html, admin.html
     │       ├── comprobante.html  # comprobante de un trato, para imprimir o guardar como PDF
     │       ├── tema.js, tema.css # modo oscuro y accesibilidad (todas las páginas)
@@ -187,7 +195,7 @@ Entrelazados_web/
         ├── LEEME.md              # cómo correr las pruebas
         ├── unidad/               # 78 pruebas unitarias (node:test, sin base de datos)
         ├── correr_pruebas.js     # npm run test:api: prepara la base de pruebas, levanta el servidor y corre todo
-        ├── pruebas_api.js        # 378 pruebas de integración (incluye tiempo real con Socket.IO)
+        ├── pruebas_api.js        # 402 pruebas de integración (incluye tiempo real con Socket.IO)
         ├── cargar_esquema.js
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
@@ -307,7 +315,7 @@ Hay dos tipos de pruebas:
 | | Cuántas | Qué necesitan | Comando (desde `backend/`) |
 |---|---|---|---|
 | **Unitarias** (`pruebas/unidad/`) | 78 | Nada: ni MySQL ni `.env`. Tardan ~1 s | `npm run test:unidad` |
-| **De integración** (`pruebas/pruebas_api.js`) | 378 | La base MySQL de pruebas | `CLAVE_PRUEBAS=... npm run test:api` |
+| **De integración** (`pruebas/pruebas_api.js`) | 402 | La base MySQL de pruebas | `CLAVE_PRUEBAS=... npm run test:api` |
 
 `npm test` corre las dos, una detrás de otra. `npm run test:cobertura` muestra qué porcentaje del código recorren las unitarias.
 
@@ -321,7 +329,7 @@ Las **unitarias** usan el corredor de pruebas que trae Node (`node:test`) y prue
 - las notificaciones (agrupar avisos, correo una sola vez) y un servidor **Socket.IO** de verdad: quién puede conectarse y a quién le llega cada evento
 - las alertas de búsqueda (sin importar tildes ni mayúsculas), los departamentos del mapa y los cálculos del asistente de precios
 
-Las **de integración** recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña, favoritos y alertas (a quién le llega cada aviso), comprobantes, el mapa de proveedores, el asistente de IA (con y sin Gemini) y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
+Las **de integración** recorren registro y confirmación del correo, login, ofertas (publicar, editar, paginar y filtrar), fotos, subastas (crear, cancelar y cerrar, con aviso a quienes pujaron), pujas, seguimiento y calificación de tratos, chat y mensajes no leídos, perfil, panel de administrador (incluida la corrección de correos), recuperación de contraseña, favoritos y alertas (a quién le llega cada aviso), comprobantes, el mapa de proveedores, el asistente de IA (con y sin Gemini), el perfil público (qué datos muestra y a quién no), la paginación de favoritos, tratos y reseñas, y límites de intentos. Usan una base MySQL **aparte** (`entrelazados_pruebas`) y nunca tocan la real.
 
 Una vez creada la base de pruebas (paso 1 de [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md)), se corren todas con un solo comando desde `backend/`:
 
@@ -331,7 +339,7 @@ CLAVE_PRUEBAS=la_clave_de_la_base_de_pruebas npm test
 
 ### En GitHub (integración continua)
 
-En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 20 y 22, y las 378 de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
+En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 20 y 22, y las 402 de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
@@ -367,7 +375,7 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | POST | `/api/solicitar-recuperacion` | Enviar el enlace para restablecer la contraseña |
 | GET | `/api/validar-token-recuperacion` | Comprobar si un enlace sigue vigente |
 | POST | `/api/restablecer-password` | Guardar la nueva contraseña |
-| GET | `/api/ofertas`, `/api/subastas`, `/api/categorias`, `/api/estadisticas` | Datos públicos del mercado. Filtros `q`, `categoria` (y en ofertas `maxKm`, `proveedorId`, `id`; `q` también busca en la descripción). Con `?pagina=N&porPagina=M` responden `{ datos, total, pagina, porPagina, paginas }` |
+| GET | `/api/ofertas`, `/api/subastas`, `/api/categorias`, `/api/estadisticas` | Datos públicos del mercado. Filtros `q`, `categoria` (en ofertas también `maxKm`, `proveedorId`, `id`, y en subastas `proveedorId`; `q` también busca en la descripción). Con `?pagina=N&porPagina=M` responden `{ datos, total, pagina, porPagina, paginas }` |
 | POST | `/api/ofertas` 🔒 | Publicar material (proveedor). JSON, o `multipart/form-data` con hasta 5 archivos en `fotos` |
 | PUT | `/api/ofertas/:id` 🔒 | Editar una publicación propia (o cualquiera si eres admin). Mismos campos que al publicar, más `fotosQuitar` y fotos nuevas |
 | DELETE | `/api/ofertas/:id` 🔒 | Eliminar una publicación propia (cancela su subasta abierta; 409 si ya tiene pujas) |
@@ -377,16 +385,18 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | GET | `/api/chat/no-leidos` 🔒 | `{ total, porContacto }` mensajes sin leer |
 | POST | `/api/chat/enviar` 🔒 | Enviar un mensaje |
 | POST | `/api/chat/ia` 🔒 | Preguntar a Kan |
-| GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas (primero las abiertas) |
+| GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas (primero las abiertas). `?origen=Subasta`, `?pagina=&porPagina=` |
 | PUT | `/api/tratos/:id/estado` 🔒 | `{ estado: 'EnProceso' \| 'Completado' \| 'Cancelado', motivo? }` (solo las dos partes del trato) |
 | POST | `/api/tratos/:id/calificacion` 🔒 | `{ puntuacion: 1-5, comentario? }` una vez por persona, solo tratos completados |
 | GET | `/api/tratos/:id/comprobante` 🔒 | Datos del comprobante (las dos partes del trato o el admin) |
-| GET/POST/DELETE | `/api/favoritos`, `/api/favoritos/ids`, `/api/favoritos/:ofertaId` 🔒 | Publicaciones guardadas |
+| GET/POST/DELETE | `/api/favoritos`, `/api/favoritos/ids`, `/api/favoritos/:ofertaId` 🔒 | Publicaciones guardadas (`?pagina=&porPagina=`) |
 | GET/POST/DELETE | `/api/alertas`, `/api/alertas/:id` 🔒 | Alertas de búsqueda `{ palabraClave?, categoriaId?, precioMaximo? }` (máximo 10) |
 | GET | `/api/mapa/proveedores?categoria=` 🔒 | Proveedores agrupados por departamento, con coordenadas |
 | POST | `/api/ia/publicacion` 🔒 | Proponer título, descripción, categoría y unidad desde una foto (`multipart`, campo `fotos`) y/o `titulo` (proveedor; 503 si Gemini no está disponible) |
 | POST | `/api/ia/precio` 🔒 | Sugerir un precio `{ titulo?, categoriaId, unidad?, ofertaId? }` (proveedor) |
 | GET | `/api/usuarios/:id/reputacion` 🔒 | Promedio, total y últimas calificaciones recibidas |
+| GET | `/api/usuarios/:id/publico` | Perfil público de un proveedor o emprendedor activo, sin datos de contacto (sin sesión; 404 para admin o cuentas suspendidas) |
+| GET | `/api/usuarios/:id/resenas?pagina=` | Reseñas recibidas, de a 5 (sin sesión) |
 | GET | `/api/perfil/:id` 🔒 | Perfil propio (o cualquiera si eres admin) |
 | GET | `/api/dashboard` 🔒 | Datos del dashboard según el rol |
 | GET | `/api/reportes?meses=3\|6\|12` 🔒 | Reporte de ventas (proveedor), compras (emprendedor) o de la plataforma (admin) |

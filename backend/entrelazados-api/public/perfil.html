@@ -439,7 +439,11 @@
                 margin: 0 auto;
             }
         }
-    </style>
+        /* Enlace "Ver mi perfil público" junto al rol */
+    .enlace-publico { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; font-size: 13px; font-weight: 700; color: var(--color-principal); text-decoration: none; }
+    .enlace-publico:hover { text-decoration: underline; }
+    .enlace-publico[hidden] { display: none; }
+</style>
 </head>
 <body>
     <div id="app" style="display: flex; flex-direction: column; min-height: 100vh;">
@@ -511,6 +515,7 @@
                     <div class="profile-header-info">
                         <h2 id="profile-nombre">Cargando información...</h2>
                         <span class="role-badge" id="profile-rol-badge">...</span>
+                        <a href="#" id="enlace-perfil-publico" class="enlace-publico" hidden><i class="ti ti-eye"></i> Ver mi perfil público</a>
                     </div>
                 </div>
 
@@ -685,6 +690,13 @@
 
                 const badgeElem = document.getElementById('profile-rol-badge');
                 badgeElem.textContent = (data.TipoRol || 'Miembro').toUpperCase();
+
+                // Proveedores y emprendedores tienen un perfil público que se puede compartir
+                if (!esAdmin) {
+                    const enlacePublico = document.getElementById('enlace-perfil-publico');
+                    enlacePublico.href = `perfil-publico.html?id=${Number(userId)}`;
+                    enlacePublico.hidden = false;
+                }
 
                 // Cambiar icono y distintivo según el rol
                 if (esAdmin) {

@@ -110,6 +110,7 @@
                     <h3><i class="ti ti-gavel"></i> <span id="tituloMisTratos">Mis subastas cerradas</span></h3>
                     <p class="nota-tratos" style="font-size:12px; color:#e3cfc4; margin:-4px 0 8px;">Marca cómo va cada trato: la otra parte recibe un aviso en el chat.</p>
                     <div id="listaMisTratos"></div>
+                    <div class="paginacion-tratos" id="paginacionMisTratos"></div>
                 </div>
             </section>
 
@@ -557,16 +558,22 @@
             ]
         };
         let rolMisTratos = null;
+        let paginaMisTratos = 1;
+        const POR_PAGINA_TRATOS = 5;
 
-        async function cargarMisTratos(rol) {
+        // Se piden de a POR_PAGINA_TRATOS (el servidor pagina); llegan primero los abiertos
+        async function cargarMisTratos(rol = rolMisTratos, pagina = paginaMisTratos) {
             rolMisTratos = rol;
+            paginaMisTratos = pagina;
             const caja = document.getElementById('misTratos');
             try {
-                const res = await fetch(`${API_URL}/api/tratos`);
+                const res = await fetch(`${API_URL}/api/tratos?origen=Subasta&pagina=${pagina}&porPagina=${POR_PAGINA_TRATOS}`);
                 if (!res.ok) throw new Error('sin datos');
-                // Llegan primero los abiertos (pendiente / en proceso)
-                const tratos = (await res.json()).filter(t => t.origen === 'Subasta').slice(0, 6);
+                const datos = await res.json();
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarMisTratos(rol, datos.paginas);
+                const tratos = datos.datos;
                 if (tratos.length === 0) { caja.hidden = true; return; }
+                pintarPaginacionTratos(datos);
                 document.getElementById('tituloMisTratos').textContent = rol === 'proveedor' ? 'Mis subastas vendidas' : 'Mis subastas ganadas';
                 document.getElementById('listaMisTratos').innerHTML = tratos.map(t => {
                     const estado = ESTADOS_TRATO[t.estado] || { texto: t.estado, icono: 'ti-info-circle', clase: 'pendiente' };
@@ -588,7 +595,7 @@
                     <div class="trato ${acciones.length ? '' : 'cerrado'}" data-trato="${id}">
                         <div class="trato-info">
                             <strong>${esc(t.descripcion.replace(/^Subasta ganada:\s*(Lote Subasta:\s*)?/i, ''))}</strong>
-                            <span>${t.soyProveedor ? 'Comprador' : 'Proveedor'}: ${esc(t.contraparte)} · ${esc(haceCuanto(t.fecha))}</span>
+                            <span>${t.soyProveedor ? 'Comprador' : 'Proveedor'}: <a class="enlace-perfil" href="perfil-publico.html?id=${Number(t.contraparteId)}" title="Ver su perfil público">${esc(t.contraparte)}</a> · ${esc(haceCuanto(t.fecha))}</span>
                         </div>
                         <div class="trato-lado">
                             <span class="estado-trato ${estado.clase}"><i class="ti ${estado.icono}"></i> ${esc(estado.texto)}</span>
@@ -606,6 +613,16 @@
             } catch (e) {
                 caja.hidden = true;
             }
+        }
+
+        // "Anterior / 1 de 3 / Siguiente" bajo la lista de tratos
+        function pintarPaginacionTratos(datos) {
+            const caja = document.getElementById('paginacionMisTratos');
+            if (datos.paginas <= 1) { caja.innerHTML = ''; return; }
+            caja.innerHTML = `
+                <button type="button" ${datos.pagina <= 1 ? 'disabled' : ''} onclick="cargarMisTratos(undefined, ${datos.pagina - 1})" aria-label="Tratos anteriores"><i class="ti ti-chevron-left"></i> Anterior</button>
+                <span>${datos.pagina} de ${datos.paginas} · ${datos.total} trato${datos.total === 1 ? '' : 's'}</span>
+                <button type="button" ${datos.pagina >= datos.paginas ? 'disabled' : ''} onclick="cargarMisTratos(undefined, ${datos.pagina + 1})" aria-label="Tratos siguientes">Siguiente <i class="ti ti-chevron-right"></i></button>`;
         }
 
         async function calificarTrato(tratoId, puntuacion, boton) {

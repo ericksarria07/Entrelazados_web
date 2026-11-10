@@ -3,7 +3,7 @@
 | | Carpeta | Qué necesitan | Comando (desde `backend/`) |
 |---|---|---|---|
 | **Unitarias** (78) | `pruebas/unidad/` | Nada (ni MySQL ni `.env`) | `npm run test:unidad` |
-| **De integración** (378) | `pruebas/pruebas_api.js` | La base MySQL de pruebas (paso 1) | `npm run test:api` |
+| **De integración** (402) | `pruebas/pruebas_api.js` | La base MySQL de pruebas (paso 1) | `npm run test:api` |
 | **Todas** | | La base de pruebas | `npm test` |
 
 En GitHub se corren solas en cada push y pull request (ver `.github/workflows/pruebas.yml`
@@ -65,8 +65,8 @@ CLAVE_PRUEBAS=UNA_CLAVE_DE_PRUEBA npm test             # unitarias + estas
 ```
 
 `pruebas/correr_pruebas.js` hace solo los pasos 2 a 4: vacía `entrelazados_pruebas`, carga el
-esquema, levanta el servidor en el puerto 3055 con las variables de prueba, corre las 378
-pruebas y apaga el servidor. Termina con `RESULTADO: 378 correctas, 0 fallidas` (y código de
+esquema, levanta el servidor en el puerto 3055 con las variables de prueba, corre las 402
+pruebas y apaga el servidor. Termina con `RESULTADO: 402 correctas, 0 fallidas` (y código de
 salida 0). Se puede repetir las veces que quieras.
 
 En PowerShell: `$env:CLAVE_PRUEBAS="UNA_CLAVE_DE_PRUEBA"; npm test`

@@ -55,8 +55,8 @@ test('openapi.yaml no documenta rutas que ya no existen', () => {
     assert.deepEqual(sobran, [], 'Estas rutas están en openapi.yaml pero no en el código');
 });
 
-test('la API tiene 52 rutas documentadas', () => {
-    assert.equal(rutasDocumentadas(especificacion).size, 52);
+test('la API tiene 54 rutas documentadas', () => {
+    assert.equal(rutasDocumentadas(especificacion).size, 54);
 });
 
 test('cada ruta documentada tiene resumen, grupo y respuestas', () => {
@@ -99,7 +99,8 @@ test('todas las referencias ($ref) apuntan a algo que existe', () => {
 test('las rutas que piden sesión indican que usan el token (bearerAuth)', () => {
     const publicas = new Set(['/registro', '/api/login', '/api/verificar-correo', '/api/reenviar-verificacion',
         '/api/solicitar-recuperacion', '/api/validar-token-recuperacion', '/api/restablecer-password',
-        '/api/ping', '/api/categorias', '/api/estadisticas']);
+        '/api/ping', '/api/categorias', '/api/estadisticas',
+        '/api/usuarios/{id}/publico', '/api/usuarios/{id}/resenas']);
     for (const [ruta, item] of Object.entries(especificacion.paths)) {
         for (const metodo of METODOS) {
             const op = item[metodo];

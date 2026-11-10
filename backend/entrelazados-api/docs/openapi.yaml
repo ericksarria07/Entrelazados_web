@@ -9,7 +9,7 @@
 openapi: 3.1.0
 info:
   title: API de EntreLazados
-  version: "13.0"
+  version: "14.0"
   description: |
     Mercado de materia prima para calzado y marroquinería: proveedores publican materiales
     (cada publicación abre una subasta), emprendedores pujan, conversan por chat y cierran tratos.
@@ -391,6 +391,7 @@ paths:
       parameters:
         - { name: q, in: query, schema: { type: string } }
         - { name: categoria, in: query, schema: { type: integer } }
+        - { name: proveedorId, in: query, description: Solo las subastas de este proveedor, schema: { type: integer } }
         - $ref: "#/components/parameters/Pagina"
         - { name: porPagina, in: query, description: "Máximo 50 (por defecto 10)", schema: { type: integer, maximum: 50 } }
       responses:
@@ -603,16 +604,24 @@ paths:
     get:
       tags: [Tratos]
       summary: Mis tratos
-      description: Subastas ganadas o vendidas, primero las abiertas. Máximo 50.
+      description: Subastas ganadas o vendidas, primero las abiertas. Sin `pagina`, los últimos 50; con `pagina`, una página.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: origen, in: query, description: "`Subasta` deja solo los tratos que salieron de una subasta", schema: { type: string, enum: [Subasta] } }
+        - $ref: "#/components/parameters/Pagina"
+        - { name: porPagina, in: query, description: "Máximo 20 (por defecto 6)", schema: { type: integer, maximum: 20 } }
       responses:
         "200":
-          description: Tratos
+          description: Lista, o página si se pidió `pagina`
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "#/components/schemas/Trato" }
+                oneOf:
+                  - type: array
+                    items: { $ref: "#/components/schemas/Trato" }
+                  - allOf:
+                      - $ref: "#/components/schemas/Pagina"
+                      - properties: { datos: { type: array, items: { $ref: "#/components/schemas/Trato" } } }
         "401": { $ref: "#/components/responses/SinSesion" }
 
   /api/tratos/{id}/estado:
@@ -788,6 +797,78 @@ paths:
         "401": { $ref: "#/components/responses/SinSesion" }
         "404": { $ref: "#/components/responses/NoEncontrado" }
 
+  /api/usuarios/{id}/publico:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Perfil y dashboard]
+      summary: Perfil público de un proveedor o emprendedor
+      description: >-
+        No pide sesión: es la página que se puede compartir (`perfil-publico.html?id=`). Nunca trae correo,
+        teléfono, dirección ni RUC. Administradores, cuentas suspendidas o inexistentes → 404.
+      responses:
+        "200":
+          description: Perfil público
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  rol: { type: string, enum: [Proveedor, Emprendedor] }
+                  nombre: { type: string }
+                  departamento: { type: [string, "null"] }
+                  miembroDesde: { type: string, format: date-time }
+                  nombreComercial: { type: [string, "null"], description: Solo proveedores }
+                  materiaPrincipal: { type: [string, "null"], description: Solo proveedores }
+                  descripcion: { type: [string, "null"], description: Solo proveedores }
+                  marca: { type: [string, "null"], description: Solo emprendedores }
+                  especialidad: { type: [string, "null"], description: Solo emprendedores }
+                  estadisticas:
+                    type: object
+                    properties:
+                      publicaciones: { type: integer }
+                      subastasActivas: { type: integer }
+                      tratosCompletados: { type: integer }
+                  reputacion:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      promedio: { type: [number, "null"], example: 4.5 }
+                      distribucion: { type: object, description: "Cuántas calificaciones de cada estrella", example: { "5": 3, "4": 1, "3": 0, "2": 0, "1": 0 } }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/usuarios/{id}/resenas:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Perfil y dashboard]
+      summary: Reseñas que recibió (paginadas)
+      description: No pide sesión. Siempre responde paginado (por defecto la página 1 con 5 reseñas).
+      parameters:
+        - $ref: "#/components/parameters/Pagina"
+        - { name: porPagina, in: query, description: "Máximo 20 (por defecto 5)", schema: { type: integer, maximum: 20 } }
+      responses:
+        "200":
+          description: Página de reseñas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Pagina"
+                  - properties:
+                      datos:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            puntuacion: { type: integer }
+                            comentario: { type: [string, "null"] }
+                            fecha: { type: string, format: date-time }
+                            autor: { type: string }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
   /api/dashboard:
     get:
       tags: [Perfil y dashboard]
@@ -867,14 +948,23 @@ paths:
     get:
       tags: [Favoritos y alertas]
       summary: Mis publicaciones guardadas
-      description: Las últimas 100, con los mismos campos que `GET /api/ofertas` más `FechaGuardado`.
+      description: Con los mismos campos que `GET /api/ofertas` más `FechaGuardado`. Sin `pagina`, las últimas 100; con `pagina`, una página.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Pagina"
+        - { name: porPagina, in: query, description: "Máximo 50 (por defecto 10)", schema: { type: integer, maximum: 50 } }
       responses:
         "200":
-          description: Lista
+          description: Lista, o página si se pidió `pagina`
           content:
             application/json:
-              schema: { type: array, items: { $ref: "#/components/schemas/Oferta" } }
+              schema:
+                oneOf:
+                  - type: array
+                    items: { $ref: "#/components/schemas/Oferta" }
+                  - allOf:
+                      - $ref: "#/components/schemas/Pagina"
+                      - properties: { datos: { type: array, items: { $ref: "#/components/schemas/Oferta" } } }
         "401": { $ref: "#/components/responses/SinSesion" }
 
   /api/favoritos/ids:

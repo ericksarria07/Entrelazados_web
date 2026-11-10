@@ -451,6 +451,17 @@ h1, h2, h3, .logo, .hero-title, .shelf-title {
     padding: 6px 10px; border-radius: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
 }
 .trato a:hover { background: #fff; }
+/* Nombre de la otra parte: enlace a su perfil público (no es un botón) */
+.trato a.enlace-perfil { background: none; color: inherit; padding: 0; font-size: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; display: inline; }
+.trato a.enlace-perfil:hover { background: none; color: #fff; }
+.paginacion-tratos { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; font-size: 12px; color: #e3cfc4; flex-wrap: wrap; }
+.paginacion-tratos:empty { display: none; }
+.paginacion-tratos button {
+    font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; padding: 5px 10px; border-radius: 6px;
+    color: #f6e3d8; background: transparent; border: 1px solid rgba(246, 227, 216, 0.55); display: inline-flex; align-items: center; gap: 4px;
+}
+.paginacion-tratos button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.paginacion-tratos button:disabled { opacity: .4; cursor: not-allowed; }
 .trato { flex-wrap: wrap; }
 .trato-acciones { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
 .trato-acciones button {
