@@ -484,7 +484,13 @@ Los pasos exactos para pasar a cada versión están en [`backend/scripts/LEEME.m
 
 ## Flujo de trabajo con git
 
-- Se trabaja en la rama **`main`** y se pasa a **`master`** (rama principal) con un *pull request*.
+- **`master`** es la rama principal, con la app actual (Express + MySQL). Solo recibe correcciones urgentes, siempre por *pull request*.
+- **`migracion-nextjs`** es la rama de larga duración donde se convierte la app a Next.js (ver [ROADMAP](ROADMAP.md)). Se cierra cuando todo esté convertido.
+  - Nadie hace *push* directo: cada pieza se trabaja en una rama corta **`nextjs/<tema>`** (por ejemplo `nextjs/proyecto-base`, `nextjs/pagina-login`) que sale de `migracion-nextjs` y vuelve por *pull request* con **squash** (un commit por pieza).
+  - Cuando algo entra a `master`, se abre un *pull request* `master → migracion-nextjs` para mantenerlas sincronizadas.
+  - Para cerrarla: *pull request* `migracion-nextjs → master` con **merge commit** (conserva la historia), etiqueta `v2.0` y se borra la rama. La lista de lo que debe estar terminado está en el ROADMAP.
+- `master` y `migracion-nextjs` están protegidas: exigen *pull request* y las pruebas en verde.
+- La rama `main` ya no se usa (la versión 14 se mezcló a `master` en el PR #14).
 - Antes de subir cambios, corre las pruebas (`backend/pruebas/LEEME.md`). Al subirlos, GitHub Actions las vuelve a correr; revisa que el *pull request* tenga ✅ antes de mezclarlo.
 - Si agregas o cambias una ruta, actualiza `docs/openapi.yaml`: la prueba `rutas_documentadas` falla si una ruta no está documentada.
 

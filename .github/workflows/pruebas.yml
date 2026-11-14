@@ -1,7 +1,8 @@
 # ==========================================================================
 # PRUEBAS AUTOMÁTICAS EN GITHUB (GitHub Actions)
 #
-# En cada push y en cada Pull Request a main o master, GitHub prepara una
+# En cada push y en cada Pull Request a master o a la rama larga
+# migracion-nextjs (conversión a Next.js), GitHub prepara una
 # máquina Ubuntu nueva y corre:
 #   1. Las pruebas unitarias (sin base de datos) con Node 20 y Node 22.
 #   2. Las 274 pruebas de integración de la API contra un MySQL 8.0 nuevo y
@@ -14,9 +15,9 @@ name: Pruebas
 
 on:
   push:
-    branches: [main, master]
+    branches: [master, migracion-nextjs]
   pull_request:
-    branches: [main, master]
+    branches: [master, migracion-nextjs]
   workflow_dispatch:   # botón "Run workflow" para correrlas a mano
 
 defaults:

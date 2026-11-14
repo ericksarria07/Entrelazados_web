@@ -316,3 +316,20 @@ Hay **CI** (`.github/workflows/pruebas.yml`: unitarias en Node 20 y 22, e integr
 - [ ] Endpoint `/api/salud` y prueba de humo después del despliegue
 - [ ] Variables de entorno separadas por entorno en Vercel
 - [ ] Documentar en el README cómo hacer rollback
+
+---
+
+## 12. Rama de la migración
+
+Todo el trabajo de las Fases 1 y 2 se hace en la rama de larga duración **`migracion-nextjs`**, que sale de `master` y se cierra cuando la app entera esté en Next.js. El detalle del flujo (ramas cortas `nextjs/<tema>`, squash, sincronización con `master`) está en el README, sección "Flujo de trabajo con git".
+
+Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.ericksv.com` (*Production Branch*), y cada *pull request* tiene su vista previa.
+
+### Criterios para cerrar la rama
+- [ ] Las 14 páginas (incluida `perfil-publico`, de la versión 14) en React
+- [ ] Toda la API en Route Handlers, sobre Neon; MySQL y Socket.IO retirados
+- [ ] Pruebas adaptadas y en verde en el CI
+- [ ] Sitio funcionando en `entrelazados.ericksv.com` desde la rama larga
+- [ ] Carpeta Express (`backend/entrelazados-api`) eliminada o archivada
+
+**Cierre:** *pull request* `migracion-nextjs → master` con merge commit, cambiar en Vercel la *Production Branch* a `master`, etiqueta `v2.0` y borrar la rama.
