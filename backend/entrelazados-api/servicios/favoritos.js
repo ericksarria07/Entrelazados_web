@@ -13,7 +13,7 @@
 // Los avisos salen DESPUÉS de guardar la publicación y nunca la hacen fallar
 // (notificaciones.enviar no lanza errores).
 // ==========================================================================
-const { ErrorHttp, enteroPositivo, textoLimpio, redondearCalificacion } = require('../utilidades');
+const { ErrorHttp, enteroPositivo, textoLimpio, redondearCalificacion, respuestaPaginada } = require('../utilidades');
 const { PRECIO_MAXIMO } = require('./ofertas');
 const { notificacionesNulas } = require('./notificaciones');
 
@@ -70,8 +70,9 @@ function crearServicioFavoritos({ db, notificaciones = notificacionesNulas, ofer
         return filas.map(f => f.OfertaID);
     }
 
-    // Publicaciones guardadas, con los mismos campos que GET /api/ofertas
-    async function listarFavoritos(usuarioId) {
+    // Publicaciones guardadas, con los mismos campos que GET /api/ofertas.
+    // pag = { pagina, porPagina, offset } (de leerPaginacion) responde paginado; sin pag, hasta 100.
+    async function listarFavoritos(usuarioId, pag = null) {
         const [filas] = await db.query(`
             SELECT o.OfertaID, o.ProveedorID, o.TituloMaterial, o.Descripcion, o.Precio, o.UnidadMedida,
                    o.DistanciaSimuladaKm, o.CategoriaID, c.NombreCategoria, o.FechaPublicacion, f.FechaGuardado,
@@ -85,14 +86,17 @@ function crearServicioFavoritos({ db, notificaciones = notificacionesNulas, ofer
                        FROM Calificaciones GROUP BY CalificadoID) cal ON cal.CalificadoID = o.ProveedorID
             WHERE f.UsuarioID = ?
             ORDER BY f.FechaGuardado DESC, o.OfertaID DESC
-            LIMIT 100`, [usuarioId]);
+            LIMIT ? OFFSET ?`, [usuarioId, pag ? pag.porPagina : 100, pag ? pag.offset : 0]);
         const fotos = ofertas ? await ofertas.urlsDeFotos(filas.map(o => o.OfertaID)) : new Map();
-        return filas.map(o => ({
+        const lista = filas.map(o => ({
             ...o,
             Fotos: fotos.get(o.OfertaID) || [],
             CalificacionProveedor: redondearCalificacion(o.CalificacionProveedor),
             TotalCalificaciones: Number(o.TotalCalificaciones)
         }));
+        if (!pag) return lista;
+        const [[{ total }]] = await db.query('SELECT COUNT(*) AS total FROM Favoritos WHERE UsuarioID = ?', [usuarioId]);
+        return respuestaPaginada(lista, Number(total), pag);
     }
 
     async function agregarFavorito(usuarioId, ofertaId) {
@@ -235,7 +239,7 @@ function crearServicioFavoritos({ db, notificaciones = notificacionesNulas, ofer
 // Versión que no hace nada (pruebas sin base de datos)
 const favoritosNulos = {
     idsFavoritos: async () => [],
-    listarFavoritos: async () => [],
+    listarFavoritos: async (usuarioId, pag = null) => (pag ? respuestaPaginada([], 0, pag) : []),
     agregarFavorito: async () => { throw new ErrorHttp(503, 'Favoritos no disponibles.'); },
     quitarFavorito: async () => false,
     listarAlertas: async () => [],

@@ -1,12 +1,13 @@
 // ==========================================================================
 // TRATOS (subastas ganadas o vendidas). Todas piden sesión. Se monta en /api/tratos
-//   GET  /                   mis tratos
+//   GET  /                   mis tratos (?origen=Subasta, ?pagina=&porPagina= para paginar)
 //   PUT  /:id/estado         { estado: 'EnProceso' | 'Completado' | 'Cancelado', motivo? }
 //   POST /:id/calificacion   { puntuacion: 1..5, comentario? }
 //   GET  /:id/comprobante    datos para imprimir el comprobante (las dos partes o el admin)
 // Las reglas (quién puede, a qué estado se puede pasar) están en servicios/tratos.js.
 // ==========================================================================
 const express = require('express');
+const { leerPaginacion, respuestaPaginada } = require('../utilidades');
 
 const MENSAJES_ESTADO = {
     EnProceso: 'Trato marcado como en proceso.',
@@ -20,7 +21,13 @@ function crearRutasTratos({ db, tratos, verificarToken }) {
 
     // Subastas que gané (emprendedor) o que vendí (proveedor).
     // Primero los que siguen abiertos (pendiente / en proceso), luego los más recientes.
+    // Sin ?pagina responde la lista (hasta 50) como antes; con ?pagina=N responde
+    // { datos, total, pagina, porPagina, paginas }. ?origen=Subasta deja solo los de subastas.
     router.get('/', async (req, res) => {
+        const pag = leerPaginacion(req.query, 6, 20);
+        const yo = req.usuario.id;
+        const soloSubastas = req.query.origen === 'Subasta';
+        const where = `WHERE (t.ProveedorID = ? OR t.EmprendedorID = ?)${soloSubastas ? " AND t.TipoOrigen = 'Subasta'" : ''}`;
         const [filas] = await db.query(`
             SELECT t.TratoID AS id, t.TipoOrigen AS origen, t.OrigenID AS origenId,
                    t.DescripcionResumen AS descripcion, t.MontoTotal AS monto,
@@ -32,11 +39,14 @@ function crearRutasTratos({ db, tratos, verificarToken }) {
                    (SELECT c.Puntuacion FROM Calificaciones c WHERE c.TratoID = t.TratoID AND c.AutorID <> ?) AS suCalificacion
             FROM TratosCerrados t
             LEFT JOIN PerfilesUsuarios p ON p.UsuarioID = IF(t.ProveedorID = ?, t.EmprendedorID, t.ProveedorID)
-            WHERE t.ProveedorID = ? OR t.EmprendedorID = ?
+            ${where}
             ORDER BY (t.EstadoTrato IN ('Pendiente', 'EnProceso')) DESC, t.FechaCierre DESC, t.TratoID DESC
-            LIMIT 50
-        `, Array(7).fill(req.usuario.id));
-        res.json(filas.map(t => ({ ...t, monto: Number(t.monto), soyProveedor: !!t.soyProveedor })));
+            LIMIT ? OFFSET ?
+        `, [...Array(7).fill(yo), pag ? pag.porPagina : 50, pag ? pag.offset : 0]);
+        const lista = filas.map(t => ({ ...t, monto: Number(t.monto), soyProveedor: !!t.soyProveedor }));
+        if (!pag) return res.json(lista);
+        const [[{ total }]] = await db.query(`SELECT COUNT(*) AS total FROM TratosCerrados t ${where}`, [yo, yo]);
+        res.json(respuestaPaginada(lista, Number(total), pag));
     });
 
     router.put('/:id/estado', async (req, res) => {

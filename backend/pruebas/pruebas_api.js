@@ -1019,6 +1019,83 @@ async function api(metodo, ruta, { token, body, headers = {} } = {}) {
     r = await formulario('POST', '/api/ia/publicacion', p3.token, { titulo: 'Cuero vacuno café' }, [{ datos: PNG, tipo: 'image/png', nombre: 'a.png' }]);
     check('Sin Gemini disponible responde 503 con un mensaje claro', r.status === 503 && /no está disponible/.test(r.data.message), JSON.stringify(r));
 
+    seccion('31. Perfil público y paginación');
+    // Perfil público: sin sesión, sin datos de contacto
+    r = await api('GET', `/api/usuarios/${p3.id}/publico`);
+    const pub = r.data;
+    const cuentaP3 = (await q(`SELECT (SELECT COUNT(*) FROM Ofertas WHERE ProveedorID = ?) o,
+        (SELECT COUNT(*) FROM Subastas WHERE ProveedorID = ? AND Estado = 'Activa' AND FechaFin > NOW()) s`, [p3.id, p3.id]))[0];
+    check('Perfil público de un proveedor sin iniciar sesión', r.status === 200 && pub.id === p3.id && pub.rol === 'Proveedor' && pub.nombre === 'Curtiembre Tres', JSON.stringify(pub));
+    check('…cuenta sus publicaciones y subastas activas', pub.estadisticas.publicaciones === cuentaP3.o && pub.estadisticas.subastasActivas === cuentaP3.s, JSON.stringify([pub.estadisticas, cuentaP3]));
+    check('…y nunca trae correo, teléfono, dirección ni RUC', !/@prueba\.com/.test(JSON.stringify(pub)) && !['correo', 'telefono', 'TelefonoWhatsApp', 'NumeroRUC', 'DireccionExacta', 'CorreoElectronico'].some(k => k in pub), JSON.stringify(pub));
+    check('…ni datos de emprendedor (marca, especialidad)', pub.marca === null && pub.especialidad === null);
+
+    // El usuario con más calificaciones: su reputación y sus reseñas paginadas
+    const masCalificado = (await q(`SELECT c.CalificadoID id, COUNT(*) n, AVG(c.Puntuacion) prom FROM Calificaciones c
+        JOIN Usuarios u ON u.UsuarioID = c.CalificadoID AND u.EstadoCuenta = 'Activo' AND LOWER(u.TipoRol) IN ('proveedor', 'emprendedor')
+        GROUP BY c.CalificadoID ORDER BY n DESC, c.CalificadoID LIMIT 1`))[0];
+    check('(hay calificaciones para probar)', !!masCalificado, 'sin calificaciones en la base');
+    if (masCalificado) {
+        r = await api('GET', `/api/usuarios/${masCalificado.id}/publico`);
+        const rep = r.data.reputacion;
+        const sumaDistribucion = Object.values(rep.distribucion).reduce((a, b) => a + b, 0);
+        check('La reputación pública: total, promedio y cuántas de cada estrella', r.status === 200 && rep.total === masCalificado.n && sumaDistribucion === masCalificado.n
+            && rep.promedio === Math.round(Number(masCalificado.prom) * 10) / 10 && Object.keys(rep.distribucion).length === 5, JSON.stringify([rep, masCalificado]));
+        r = await api('GET', `/api/usuarios/${masCalificado.id}/resenas`);
+        check('Reseñas sin ?pagina: la página 1, de a 5', r.status === 200 && r.data.pagina === 1 && r.data.porPagina === 5 && r.data.total === masCalificado.n && r.data.datos.length === Math.min(5, masCalificado.n), JSON.stringify(r.data));
+        check('…con autor, estrellas y fecha', r.data.datos.every(c => c.autor && c.puntuacion >= 1 && c.puntuacion <= 5 && c.fecha));
+        r = await api('GET', `/api/usuarios/${masCalificado.id}/resenas?pagina=1&porPagina=1`);
+        check('Reseñas de a una: tantas páginas como reseñas', r.data.datos.length === 1 && r.data.paginas === masCalificado.n, JSON.stringify(r.data));
+        r = await api('GET', `/api/usuarios/${masCalificado.id}/resenas?porPagina=999`);
+        check('…porPagina se limita a 20', r.data.porPagina === 20);
+    }
+
+    r = await api('GET', `/api/usuarios/${e1.id}/publico`);
+    check('Un emprendedor también tiene perfil público (sin publicaciones)', r.status === 200 && r.data.rol === 'Emprendedor' && r.data.estadisticas.publicaciones === 0 && r.data.nombreComercial === null, JSON.stringify(r.data));
+    r = await api('GET', `/api/usuarios/${admin.id}/publico`);
+    check('El administrador no tiene perfil público → 404', r.status === 404);
+    r = await api('GET', '/api/usuarios/999999/publico');
+    check('Un usuario que no existe → 404', r.status === 404);
+    r = await api('GET', '/api/usuarios/abc/resenas');
+    check('…o un número inválido → 404', r.status === 404);
+    await q("UPDATE Usuarios SET EstadoCuenta = 'Suspendido' WHERE UsuarioID = ?", [e2.id]);
+    r = await api('GET', `/api/usuarios/${e2.id}/publico`);
+    const resenasSuspendido = await api('GET', `/api/usuarios/${e2.id}/resenas`);
+    await q("UPDATE Usuarios SET EstadoCuenta = 'Activo' WHERE UsuarioID = ?", [e2.id]);
+    check('Una cuenta suspendida no muestra perfil ni reseñas → 404', r.status === 404 && resenasSuspendido.status === 404);
+    r = await fetch(B + '/perfil-publico.html');
+    check('La página perfil-publico.html existe', r.status === 200 && /api\/usuarios\/\$\{perfilId\}\/publico/.test(await r.text()));
+
+    // Subastas de un proveedor
+    r = await api('GET', `/api/subastas?proveedorId=${p3.id}&pagina=1&porPagina=50`);
+    check('GET /api/subastas?proveedorId= trae solo las de ese proveedor', r.status === 200 && r.data.total === cuentaP3.s && r.data.datos.every(x => x.ProveedorID === p3.id), JSON.stringify(r.data).slice(0, 300));
+
+    // Tratos paginados
+    const tratosE3 = (await q('SELECT COUNT(*) n FROM TratosCerrados WHERE ProveedorID = ? OR EmprendedorID = ?', [e3.id, e3.id]))[0].n;
+    r = await api('GET', '/api/tratos?pagina=1&porPagina=1', { token: e3.token });
+    check('/api/tratos?pagina= responde paginado', r.status === 200 && r.data.total === tratosE3 && r.data.datos.length === Math.min(1, tratosE3) && r.data.paginas === Math.max(1, tratosE3), JSON.stringify(r.data));
+    r = await api('GET', '/api/tratos?origen=Subasta&pagina=1&porPagina=20', { token: e3.token });
+    check('…?origen=Subasta deja solo los de subastas', r.status === 200 && r.data.datos.every(t => t.origen === 'Subasta'));
+    r = await api('GET', '/api/tratos', { token: e3.token });
+    check('…y sin ?pagina sigue respondiendo la lista', Array.isArray(r.data) && r.data.length === tratosE3);
+
+    // Favoritos paginados: e1 guarda una segunda publicación (la más reciente va primero)
+    const otraOferta = (await q('SELECT OfertaID FROM Ofertas WHERE ProveedorID <> ? AND OfertaID <> ? ORDER BY OfertaID DESC LIMIT 1', [e1.id, ofCafe]))[0].OfertaID;
+    await q('UPDATE Favoritos SET FechaGuardado = NOW() - INTERVAL 1 MINUTE WHERE UsuarioID = ?', [e1.id]);
+    await api('POST', `/api/favoritos/${otraOferta}`, { token: e1.token });
+    r = await api('GET', '/api/favoritos?pagina=1&porPagina=1', { token: e1.token });
+    check('/api/favoritos?pagina= responde paginado, la más reciente primero', r.status === 200 && r.data.total === 2 && r.data.paginas === 2 && r.data.datos.length === 1 && r.data.datos[0].OfertaID === otraOferta, JSON.stringify(r.data).slice(0, 300));
+    r = await api('GET', '/api/favoritos?pagina=2&porPagina=1', { token: e1.token });
+    check('…la página 2 trae la otra', r.data.datos.length === 1 && r.data.datos[0].OfertaID === ofCafe);
+    r = await api('GET', '/api/favoritos', { token: e1.token });
+    check('…y sin ?pagina sigue respondiendo la lista', Array.isArray(r.data) && r.data.length === 2);
+
+    // mercado.html quedó dividido en archivos
+    const htmlMercado = await (await fetch(B + '/mercado.html')).text();
+    const archivosMercado = ['mercado.css', 'mercado.js', 'mercado-publicar.js', 'mercado-favoritos.js', 'mercado-mapa.js'];
+    const servidos = await Promise.all(archivosMercado.map(a => fetch(B + '/' + a).then(x => x.status)));
+    check('mercado.html carga su CSS y sus 4 scripts, y el servidor los entrega', archivosMercado.every(a => htmlMercado.includes(`"${a}"`)) && servidos.every(st => st === 200), JSON.stringify(servidos));
+
     seccion('12. Eliminar usuarios (admin)');
     r = await api('DELETE', `/api/admin/usuarios/${admin.id}`, { token: admin.token });
     check('Admin no puede eliminarse a sí mismo → 400', r.status === 400);
