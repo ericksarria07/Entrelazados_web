@@ -7,8 +7,28 @@
 | `instalar_cron.sh` | Programa `respaldo.sh` todos los días a las 3:00 a. m. de Nicaragua. Se puede ejecutar varias veces. |
 | `configurar_correo.sh` | Guarda `EMAIL_USER`, `EMAIL_PASS` y `APP_URL` en el `.env` y envía un correo de prueba. |
 | `probar_gemini.js` | Comprueba que la clave de Gemini (Kan) funciona, sin mostrarla. |
+| `cargar_esquema_neon.js` | Carga `sql/esquema_postgres.sql` en Neon (`npm run db:esquema:neon`). Si ya está cargado, no hace nada. |
+| `probar_neon.js` | Prueba Neon de punta a punta (`npm run probar:neon`): conexión, esquema, `RETURNING`, pujas simultáneas con `FOR UPDATE`, búsqueda sin acentos, `COUNT` y trigger. Borra sus datos de prueba. |
 
 Los scripts leen el `.env` de `entrelazados-api`. Las contraseñas nunca aparecen en la línea de comandos.
+
+---
+
+## Neon (Postgres): primer paso de la migración
+
+La aplicación **sigue usando MySQL**. Neon tiene el esquema traducido a Postgres
+(`sql/esquema_postgres.sql`, nombres en snake_case) para empezar la migración del ROADMAP.
+
+Las variables vienen de Neon, no se escriben a mano. Desde `backend/`:
+
+```bash
+neon login                 # una vez, abre el navegador
+neon env pull              # escribe DATABASE_URL y DATABASE_URL_UNPOOLED en backend/.env.local (ignorado por git)
+npm run db:esquema:neon    # carga el esquema por la conexión directa
+npm run probar:neon        # prueba por la conexión con pooler (la que usará la app)
+```
+
+Driver: `pg` (node-postgres), el que recomienda Neon para Node y para Vercel.
 
 ---
 
