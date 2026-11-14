@@ -109,10 +109,12 @@ Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegid
 ```text
 Entrelazados_web/
 ├── README.md
+├── ROADMAP.md                    # plan de migración a Next.js + Vercel + Neon
 ├── .github/workflows/
 │   └── pruebas.yml               # GitHub Actions: corre todas las pruebas en cada push y PR
 └── backend/
     ├── package.json              # dependencias y comandos: npm install, npm start, npm test
+    ├── neon.ts                   # configuración de Neon (Postgres); ver la sección Neon
     ├── entrelazados-api/
     │   ├── index.js              # arranque: crea la base de datos, los servicios y la app, y escucha
     │   ├── app.js                # Express: middlewares, rutas, archivos estáticos y errores
@@ -170,6 +172,7 @@ Entrelazados_web/
     │       └── *.webp, logo.png  # imágenes
     ├── sql/
     │   ├── esquema_mysql.sql     # crea la base completa desde cero
+    │   ├── esquema_postgres.sql  # el mismo esquema traducido a Postgres (Neon), en snake_case
     │   ├── migracion_v7.sql      # rol Administrador
     │   ├── migracion_v8.sql      # fotos en disco y cierre de subastas
     │   ├── migracion_v9.sql      # subastas ligadas a su publicación, estado Cancelada
@@ -182,7 +185,10 @@ Entrelazados_web/
     │   ├── restaurar.sh          # restaurar un respaldo
     │   ├── instalar_cron.sh      # programa el respaldo diario
     │   ├── configurar_correo.sh  # guarda EMAIL_USER / EMAIL_PASS / APP_URL y manda una prueba
-    │   └── probar_gemini.js      # comprueba la clave de Gemini (Kan)
+    │   ├── probar_gemini.js      # comprueba la clave de Gemini (Kan)
+    │   ├── neon_comun.js         # conexión a Neon para los scripts (lee backend/.env.local)
+    │   ├── cargar_esquema_neon.js # npm run db:esquema:neon
+    │   └── probar_neon.js        # npm run probar:neon
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
         ├── unidad/               # 78 pruebas unitarias (node:test, sin base de datos)
@@ -396,6 +402,36 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | PUT | `/api/admin/usuarios/:id/correo` 🔒 | Corregir el correo de una cuenta `{ correo }` (solo admin) |
 | PUT | `/api/admin/usuarios/:id/verificar` 🔒 | Dar por confirmado el correo de una cuenta (solo admin) |
 | POST | `/api/admin/subastas/cerrar-vencidas` 🔒 | Cerrar ya las subastas vencidas, sin esperar al minuto (solo admin) |
+
+---
+
+## Neon (Postgres): migración en curso
+
+La aplicación **sigue usando MySQL**. Como primer paso del [ROADMAP](ROADMAP.md), Neon ya tiene el esquema
+traducido a Postgres (`backend/sql/esquema_postgres.sql`) y una prueba de punta a punta.
+
+| | |
+|---|---|
+| Proyecto | Neon, rama `production` (vinculada en `backend/.neon`, ignorado por git) |
+| Variables | `DATABASE_URL` (con pooler, para la app) y `DATABASE_URL_UNPOOLED` (directa, para el esquema y migraciones), en `backend/.env.local` (ignorado por git) |
+| Driver | `pg` (node-postgres), el que recomienda Neon para Node y para Vercel |
+
+Las variables vienen de Neon, no se escriben a mano. Desde `backend/`:
+
+```bash
+npm i -g neon              # CLI de Neon (una vez)
+neon login                 # abre el navegador (una vez)
+neon env pull              # escribe DATABASE_URL y DATABASE_URL_UNPOOLED en .env.local
+npm run db:esquema:neon    # carga el esquema por la conexión directa; si ya existe, no hace nada
+npm run probar:neon        # prueba por la conexión con pooler (la que usará la app)
+```
+
+`probar:neon` comprueba la conexión, las 18 tablas, `INSERT ... RETURNING`, dos pujas simultáneas con
+`SELECT ... FOR UPDATE` (la segunda espera y se rechaza si ya no supera el precio), la búsqueda sin acentos
+(`unaccent` + `ILIKE`), que `COUNT(*)` llega como texto y el trigger de `fecha_actualizacion`. Borra sus datos de prueba.
+
+Diferencias con MySQL que tendrán en cuenta las consultas migradas: nombres en snake_case, `timestamptz`,
+`boolean`, `RETURNING` en lugar de `insertId`, y `numeric` y `COUNT(*)` llegan como texto.
 
 ---
 
