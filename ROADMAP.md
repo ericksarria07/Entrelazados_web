@@ -65,7 +65,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Framework | **Next.js** (App Router) | Une frontend y API en un proyecto, SSR para el Mercado, despliegue nativo en Vercel | Seguir con Express en funciones serverless (no aprovecha la migración del frontend) |
 | Hosting | **Vercel** | `git push` = despliegue, URLs de vista previa por PR, HTTPS automático | Cloudflare Workers: exige reescribir mucho más (Hono, Durable Objects, `bcryptjs`, sin Nodemailer) |
 | Base de datos | **Neon** (Postgres serverless) | Plan gratis, ramas de BD para probar migraciones, integración con Vercel | D1 (SQLite): sin transacciones interactivas ni `FOR UPDATE`, que son clave para las pujas |
-| Acceso a datos | **Drizzle ORM** + `@neondatabase/serverless` (Pool por WebSocket) | Mapea snake_case ↔ camelCase y da tipos. El Pool permite transacciones interactivas con `FOR UPDATE` | Driver HTTP de Neon solo (sin transacciones interactivas) |
+| Acceso a datos | **Drizzle ORM** + **`pg`** (node-postgres) con `attachDatabasePool` de `@vercel/functions` | Mapea snake_case ↔ camelCase y da tipos. `pg` es el driver que recomienda Neon para Vercel (Fluid compute reutiliza el pool entre peticiones) y permite transacciones interactivas con `FOR UPDATE` (probado con `npm run probar:neon`) | `@neondatabase/serverless`: Neon lo recomienda para entornos edge; su driver HTTP no tiene transacciones interactivas |
 | Tiempo real | **Ably** (Pusher como equivalente) | Socket.IO no funciona en Vercel. Ably tiene buen plan gratis, SDK para React y canales privados | SSE desde Route Handlers (las funciones tienen duración máxima); Supabase Realtime (otra plataforma más) |
 | Cierre de subastas | **QStash** (mensaje programado por subasta) + **cierre perezoso** + **Vercel Cron diario** | Cierra a la hora exacta y **no mantiene Neon despierto** | Cron cada minuto: gasta las horas de cómputo gratis de Neon y en Vercel Hobby el cron es diario |
 | Fotos | **Cloudinary** | Miniaturas y WebP/AVIF automáticos, subida firmada directa desde el navegador (esquiva el límite de 4,5 MB de Vercel) | Google Cloud Storage (solo almacenamiento, más configuración); Vercel Blob o Cloudflare R2 (opciones válidas si se quiere solo almacenamiento) |
@@ -110,7 +110,7 @@ Se reutiliza la lógica actual de `crearCierreSubastas` (`servicios/subastas.js`
 | `GROUP_CONCAT` | `string_agg` | 1 |
 | `TINYINT(1)` / `AUTO_INCREMENT` / `ON UPDATE` | `boolean` / `identity` / trigger | 10 / 17 / 1 |
 
-5. **Transacciones con `FOR UPDATE`** (12 usos, incluida la validación atómica de pujas): deben ir por el **Pool por WebSocket** de Neon, no por el driver HTTP.
+5. **Transacciones con `FOR UPDATE`** (12 usos, incluida la validación atómica de pujas): funcionan con `pg` por la conexión con pooler (`DATABASE_URL`). Probado con `npm run probar:neon`: dos pujas simultáneas, la segunda espera el bloqueo y se rechaza.
 
 ---
 
@@ -124,7 +124,8 @@ Estimaciones en días de trabajo de una persona que conoce el código y sabe Rea
 - [x] Instalar el plugin de Cloudflare para Claude Code (skills + MCP)
 - [x] Crear la cuenta de Vercel, instalar Vercel CLI e iniciar sesión
 - [ ] Activar 2FA en Vercel y en Cloudflare
-- [ ] Crear cuentas en Neon, Ably, Upstash (QStash + Redis) y Cloudinary
+- [x] Crear la cuenta y el proyecto de Neon, con el esquema cargado (PR #13)
+- [ ] Crear cuentas en Ably, Upstash (QStash + Redis) y Cloudinary
 - [ ] Buscar un respaldo de la BD y de las fotos de la VM vencida (si existe)
 
 ### Fase 1: Backend moderno, mismas páginas (≈ 26–37 días)
@@ -133,7 +134,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | # | Trabajo | Días |
 |---|---|---|
 | 1.1 | Crear el proyecto Next.js, copiar `public/`, configurar variables de entorno | 1 |
-| 1.2 | Esquema Postgres en Neon (18 tablas, snake_case, Drizzle) | 1–1.5 |
+| 1.2 | Esquema Postgres en Neon (18 tablas, snake_case, Drizzle). ✅ Esquema SQL cargado y probado (`sql/esquema_postgres.sql`); falta pasarlo a Drizzle | 1–1.5 |
 | 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT` | 5–8 |
 | 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación | 1.5–2 |
 | 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan) | 4–6 |

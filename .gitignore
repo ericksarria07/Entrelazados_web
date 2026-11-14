@@ -363,6 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 # Variables de entorno (contraseñas y claves)
 .env
+.env.local
+.env.*.local
 
 # Archivos comprimidos (copias del proyecto, node_modules)
 *.zip
