@@ -54,7 +54,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
             │ Postgres │ │ tiempo  │ │ cierre  │ │ fotos + CDN  │
             │          │ │ real    │ │ subasta │ │ de imágenes  │
             └──────────┘ └─────────┘ └─────────┘ └──────────────┘
-                   Upstash Redis (límites de peticiones) · Gemini · Correo (SMTP / Resend)
+                   Gemini · Correo (SMTP / Resend)
 ```
 
 ### Decisiones por componente
@@ -65,12 +65,12 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Framework | **Next.js** (App Router) | Une frontend y API en un proyecto, SSR para el Mercado, despliegue nativo en Vercel | Seguir con Express en funciones serverless (no aprovecha la migración del frontend) |
 | Hosting | **Vercel** | `git push` = despliegue, URLs de vista previa por PR, HTTPS automático | Cloudflare Workers: exige reescribir mucho más (Hono, Durable Objects, `bcryptjs`, sin Nodemailer) |
 | Base de datos | **Neon** (Postgres serverless) | Plan gratis, ramas de BD para probar migraciones, integración con Vercel | D1 (SQLite): sin transacciones interactivas ni `FOR UPDATE`, que son clave para las pujas |
-| Acceso a datos | **Drizzle ORM** + **`pg`** (node-postgres) con `attachDatabasePool` de `@vercel/functions` | Mapea snake_case ↔ camelCase y da tipos. `pg` es el driver que recomienda Neon para Vercel (Fluid compute reutiliza el pool entre peticiones) y permite transacciones interactivas con `FOR UPDATE` (probado con `npm run probar:neon` en `web/`) | `@neondatabase/serverless`: Neon lo recomienda para entornos edge; su driver HTTP no tiene transacciones interactivas |
+| Acceso a datos | **Drizzle ORM** (esquema y migraciones) + **`pg`** (node-postgres; las rutas escriben su SQL a mano con `$1, $2…`) con `attachDatabasePool` de `@vercel/functions` | Mapea snake_case ↔ camelCase y da tipos. `pg` es el driver que recomienda Neon para Vercel (Fluid compute reutiliza el pool entre peticiones) y permite transacciones interactivas con `FOR UPDATE` (probado con `npm run probar:neon` en `web/`) | `@neondatabase/serverless`: Neon lo recomienda para entornos edge; su driver HTTP no tiene transacciones interactivas |
 | Tiempo real | **Ably** (Pusher como equivalente) | Socket.IO no funciona en Vercel. Ably tiene buen plan gratis, SDK para React y canales privados | SSE desde Route Handlers (las funciones tienen duración máxima); Supabase Realtime (otra plataforma más) |
 | Cierre de subastas | **QStash** (mensaje programado por subasta) + **cierre perezoso** + **Vercel Cron diario** | Cierra a la hora exacta y **no mantiene Neon despierto** | Cron cada minuto: gasta las horas de cómputo gratis de Neon y en Vercel Hobby el cron es diario |
 | Fotos | **Cloudinary** | Miniaturas y WebP/AVIF automáticos, subida firmada directa desde el navegador (esquiva el límite de 4,5 MB de Vercel) | Google Cloud Storage (solo almacenamiento, más configuración); Vercel Blob o Cloudflare R2 (opciones válidas si se quiere solo almacenamiento) |
 | Sesión | **Cookie httpOnly** con `jose` (o Auth.js) | El token no se puede robar con un XSS | JWT en `localStorage` (actual) |
-| Límites de peticiones | **Upstash Redis** | En serverless la memoria no se comparte entre instancias | `express-rate-limit` en memoria (actual) |
+| Límites de peticiones | **En memoria** (`web/lib/limites.ts`, sin `express-rate-limit`) | Sin servicio ni paquete nuevo. En Vercel cada instancia cuenta por su lado y empieza de cero al arrancar: el límite es aproximado, y se aceptó así | Upstash Redis (otra cuenta y otra dependencia solo para esto); tabla en Postgres (límite exacto, una consulta más por intento) |
 | Tareas después de responder | **`after()`** de Next.js | Las 14 tareas que hoy se lanzan sin esperar (correos, alertas) se cortarían al congelarse la función | Lanzar sin esperar (actual) |
 
 ### Detalle: tiempo real con Ably
@@ -125,7 +125,7 @@ Estimaciones en días de trabajo de una persona que conoce el código y sabe Rea
 - [x] Crear la cuenta de Vercel, instalar Vercel CLI e iniciar sesión
 - [ ] Activar 2FA en Vercel y en Cloudflare
 - [x] Crear la cuenta y el proyecto de Neon, con el esquema cargado (PR #13)
-- [ ] Crear cuentas en Ably, Upstash (QStash + Redis) y Cloudinary
+- [ ] Crear cuentas en Ably, Upstash (QStash) y Cloudinary
 - [ ] Buscar un respaldo de la BD y de las fotos de la VM vencida (si existe)
 
 ### Fase 1: Backend moderno, mismas páginas (≈ 26–37 días)
@@ -135,13 +135,13 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 |---|---|---|
 | 1.1 | Crear el proyecto Next.js, copiar `public/`, configurar variables de entorno. ✅ `web/` con Next.js 16, páginas copiadas, `/api/salud` contra Neon, proyecto en Vercel | 1 |
 | 1.2 | Esquema Postgres en Neon (18 tablas, snake_case, Drizzle). ✅ `web/db/esquema.ts` + migraciones de Drizzle aplicadas en Neon y probadas (`npm run probar:neon` en `web/`) | 1–1.5 |
-| 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT` | 5–8 |
-| 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación | 1.5–2 |
-| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan) | 4–6 |
+| 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT`. SQL a mano con `pg`. Avance: grupo cuentas ✅ | 5–8 |
+| 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación. ✅ `web/lib/` (`http`, `sesion`, `limites`, `correo`, `config`, `utilidades`) | 1.5–2 |
+| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅, secciones 01–04 y 11 activas | 4–6 |
 | 1.6 | Tiempo real con Ably (`tiempoReal.js` + `sesion.js`) | 2–3 |
 | 1.7 | Cierre de subastas: QStash + cierre perezoso + Cron diario | 1.5–2.5 |
 | 1.8 | Fotos en Cloudinary con subida firmada | 1.5–2.5 |
-| 1.9 | Límites de peticiones con Upstash, `after()` para correos y avisos, Swagger | 1.5–2 |
+| 1.9 | Límites de peticiones en memoria (login, registro y recuperación ya están; faltan Kan, fotos e IA), `after()` para correos y avisos, Swagger | 1–1.5 |
 | 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions. ✅ Suite portada a `web/pruebas/api/` (32 secciones, SQL en Postgres), job "API en Next.js (Postgres)" en el CI; cada rama de rutas (1.3/1.5) activa sus secciones, en el orden de la suite | 3–5 |
 | 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio agregado en Vercel (rama `migracion-nextjs`) | 1–2 |
 | 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11) | 1–2 |
@@ -197,7 +197,7 @@ La raíz `ericksv.com` queda libre para un portafolio u otros proyectos.
 | Vercel | Hobby (gratis) | **Solo uso no comercial**. Si EntreLazados se vuelve negocio: Pro, US$20/mes. Duración máxima de las funciones (Kan / Gemini) |
 | Neon | Free | ~0,5 GB de almacenamiento, suspensión tras minutos sin uso, horas de cómputo limitadas |
 | Ably | Free | Conexiones simultáneas y mensajes por mes |
-| Upstash | Free (QStash + Redis) | Mensajes por día / comandos por día |
+| Upstash | Free (QStash) | Mensajes por día |
 | Cloudinary | Free | Créditos mensuales (almacenamiento + descargas + transformaciones) |
 
 Los planes gratuitos cambian seguido: revisar las páginas de precios antes de empezar cada fase.
@@ -259,7 +259,7 @@ Estas salieron del análisis del código actual:
 ### Puntos a cuidar
 - **`useChat` es de React**, así que conviene hacerlo en la **Fase 2**, junto con el widget de Kan (2.1) y la página de chat (2.6). En la Fase 1, `@google/genai` funciona tal cual en el runtime de Node de Vercel y no hace falta tocarlo.
 - **Mantener el respaldo** de `respuestaFija` cuando Gemini falla (manejo de errores del stream).
-- **Los límites de Kan** (por minuto y por día) siguen aplicando: pasan a Upstash como el resto.
+- **Los límites de Kan** (por minuto y por día) siguen aplicando: se quedan en memoria como el resto.
 - **El historial cuesta tokens:** limitar cuántos mensajes previos se envían.
 - **El SDK cambia rápido** entre versiones mayores: fijar la versión.
 - El SDK es open source y gratis. El costo sigue siendo el uso de Gemini (o del modelo que se elija).

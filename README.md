@@ -469,13 +469,14 @@ Diferencias con MySQL que tendrán en cuenta las consultas migradas: nombres en 
 
 La carpeta `web/` es la app en **Next.js 16** que reemplazará a Express (ver [ROADMAP](ROADMAP.md)).
 Vive en la rama `migracion-nextjs`. Por ahora sirve las mismas páginas de siempre, copiadas tal cual a `web/public/`.
-Lo que llama a `/api/...` o a Socket.IO **todavía no funciona**. Esas rutas se van pasando a Next.js en las ramas `nextjs/<tema>`.
+Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya funcionan registro, login, confirmación del correo y recuperación de contraseña. Lo demás de `/api/...` responde 404 y Socket.IO **todavía no funciona**.
 
 | | |
 |---|---|
 | Sitio | https://entrelazados.ericksv.com (CNAME en Cloudflare con nube gris, hacia Vercel) |
 | Vercel | proyecto `entrelazados`, *Root Directory* `web`, Node 22, rama de producción `migracion-nextjs` |
-| Variables | `DATABASE_URL` (Neon con pooler) en Vercel: production, preview y development |
+| Variables | `DATABASE_URL` (Neon con pooler) y `JWT_SECRET` en Vercel. Opcionales: `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_HOST`, `EMAIL_PORT`, `APP_URL`, `VERIFICAR_CORREO` y `LIMITE_*`, con el mismo significado que en Express. Sin correo configurado, las cuentas se crean ya confirmadas |
+| Código | Rutas en `web/app/**/route.ts`, con SQL a mano (`pg`). Ayudas en `web/lib/`: `http.ts` (`ruta()`, `ErrorHttp`), `sesion.ts` (`exigirSesion`, `exigirAdmin`), `limites.ts` (en memoria), `correo.ts` (nodemailer + `after()`) |
 | Salud | `GET /api/salud` → `{"estado":"ok","bd":"ok"}` (503 si Neon no contesta) |
 
 Correrla en tu máquina:
@@ -534,7 +535,7 @@ Estas secciones se reescriben cuando cambie su tecnología:
 | 13 Fotos (disco, `/uploads`) | 1.8 Cloudinary |
 | 15 Cierre automático de subastas | 1.7 QStash / cierre perezoso |
 | 23 Tiempo real (Socket.IO) | 1.6 Ably |
-| 32 Límites de intentos | 1.9 Upstash |
+| 32 Límites de intentos | Se activa cuando estén Kan y su límite (en memoria, `web/lib/limites.ts`) |
 
 ---
 

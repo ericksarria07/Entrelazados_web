@@ -10,17 +10,17 @@
 // así que conviene activarlas en orden.
 // ==========================================================================
 export const SECCIONES = [
-    { archivo: "01-registro.mjs", titulo: "1. Registro", activa: false },
-    { archivo: "02-confirmar-el-correo.mjs", titulo: "1b. Confirmar el correo (VERIFICAR_CORREO=1)", activa: false },
-    { archivo: "03-inicio-de-sesion.mjs", titulo: "2. Inicio de sesión", activa: false, requiere: ["02-confirmar-el-correo.mjs"] },
-    { archivo: "04-tokens.mjs", titulo: "3. Tokens", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
+    { archivo: "01-registro.mjs", titulo: "1. Registro", activa: true },
+    { archivo: "02-confirmar-el-correo.mjs", titulo: "1b. Confirmar el correo (VERIFICAR_CORREO=1)", activa: true },
+    { archivo: "03-inicio-de-sesion.mjs", titulo: "2. Inicio de sesión", activa: true, requiere: ["02-confirmar-el-correo.mjs"] },
+    { archivo: "04-tokens.mjs", titulo: "3. Tokens", activa: true, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "05-ofertas.mjs", titulo: "4. Ofertas", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "06-subastas-y-pujas.mjs", titulo: "5. Subastas y pujas", activa: false, requiere: ["03-inicio-de-sesion.mjs","05-ofertas.mjs"] },
     { archivo: "07-borrar-ofertas.mjs", titulo: "6. Borrar ofertas", activa: false, requiere: ["03-inicio-de-sesion.mjs","05-ofertas.mjs","06-subastas-y-pujas.mjs"] },
     { archivo: "08-chat.mjs", titulo: "7. Chat", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "09-perfil.mjs", titulo: "8. Perfil", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "10-panel-de-administrador.mjs", titulo: "9. Panel de administrador", activa: false, requiere: ["02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
-    { archivo: "11-restablecer-contrasena.mjs", titulo: "10. Restablecer contraseña", activa: false, requiere: ["02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
+    { archivo: "11-restablecer-contrasena.mjs", titulo: "10. Restablecer contraseña", activa: true, requiere: ["02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
     { archivo: "12-rutas-publicas-y-errores.mjs", titulo: "11. Rutas públicas y errores", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "13-fotos-de-las-ofertas.mjs", titulo: "13. Fotos de las ofertas", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "14-crear-subastas-desde-el.mjs", titulo: "16. Crear subastas desde el Mercado", activa: false, requiere: ["03-inicio-de-sesion.mjs","05-ofertas.mjs","13-fotos-de-las-ofertas.mjs"] },
