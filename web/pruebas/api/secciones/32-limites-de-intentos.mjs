@@ -1,5 +1,5 @@
 // 15. Límites de intentos
-// Se revisa en la 1.9 (límites con Upstash): hoy prueba express-rate-limit.
+// Límites en memoria (web/lib/limites.ts). Se activa cuando estén Kan y su límite.
 // Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
 import { api, check, seccion } from '../contexto.mjs';
