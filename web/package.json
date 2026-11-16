@@ -6,20 +6,29 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generar": "drizzle-kit generate",
+    "db:migrar": "drizzle-kit migrate",
+    "db:estudio": "drizzle-kit studio",
+    "db:revisar": "drizzle-kit check",
+    "probar:neon": "node --env-file=.env.local scripts/probar-neon.ts"
   },
   "dependencies": {
     "@vercel/functions": "^3.11.3",
+    "drizzle-orm": "^0.45.4",
     "next": "16.4.6",
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@neon/config": "^1.14.0",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "typescript": "^5"
