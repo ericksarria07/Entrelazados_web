@@ -1,0 +1,236 @@
+/* ==========================================================================
+   MODO OSCURO Y ACCESIBILIDAD (lo agrega tema.js al final del <head>)
+
+   1. Accesibilidad (siempre): foco visible, "Saltar al contenido", botón del tema
+      y menos animaciones si la persona lo pidió en su sistema.
+   2. Modo oscuro: html[data-tema="oscuro"]. Primero se cambian las variables de
+      color que usan las páginas; después, los colores que estaban escritos fijos.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 1. ACCESIBILIDAD */
+:focus-visible {
+    outline: 3px solid #f59f00 !important;
+    outline-offset: 2px;
+}
+[tabindex="-1"]:focus { outline: none !important; }
+
+.saltar-contenido {
+    position: fixed; top: -60px; left: 12px; z-index: 10000;
+    background: #3D170A; color: #fff; padding: 10px 16px; border-radius: 0 0 6px 6px;
+    font-weight: 700; text-decoration: none; transition: top .15s ease;
+}
+.saltar-contenido:focus { top: 0; }
+
+.tema-boton {
+    position: fixed; left: 20px; bottom: 20px; z-index: 1500;
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.85); background: #3D170A; color: #fff;
+    font-size: 21px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); transition: transform .15s ease, background .2s ease;
+}
+.tema-boton:hover { transform: scale(1.06); background: #7D381B; }
+@media (max-width: 600px) { .tema-boton { width: 38px; height: 38px; font-size: 17px; left: 12px; bottom: 14px; opacity: .92; } }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+@media print { .tema-boton, .saltar-contenido { display: none !important; } }
+
+/* ---------------------------------------------------------------- 2. MODO OSCURO */
+html[data-tema="oscuro"] {
+    --bg-main: #2a201b;
+    --bg-card: #211915;
+    --text-dark: #f1e8e3;
+    --text-muted: #c4b5ab;
+    --border-color: #4a3a31;
+    --color-secundario: #f0d5c4;   /* en las tarjetas se usa como color de texto */
+    --color-principal: #b5562f;
+    --color-terciario: #e08a62;
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --color-bg: #17110e;
+    --borde: #4a3a31;
+    --texto-suave: #c4b5ab;
+    color-scheme: dark;
+}
+
+html[data-tema="oscuro"] body {
+    background-color: #17110e;
+    color: var(--text-dark);
+}
+
+/* Cabecera, sub-barra y pie: siempre oscuros (antes usaban --color-secundario de fondo) */
+html[data-tema="oscuro"] .amazon-header,
+html[data-tema="oscuro"] header.amazon-header,
+html[data-tema="oscuro"] footer { background-color: #1f1410 !important; color: #f1e8e3; }
+html[data-tema="oscuro"] .sub-bar { background-color: #140c09 !important; }
+html[data-tema="oscuro"] footer { border-top-color: #b5562f; }
+
+/* Campos de formulario */
+html[data-tema="oscuro"] input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html[data-tema="oscuro"] select,
+html[data-tema="oscuro"] textarea {
+    background-color: #1a1310 !important;
+    color: #f1e8e3 !important;
+    border-color: #4a3a31 !important;
+}
+html[data-tema="oscuro"] input::placeholder,
+html[data-tema="oscuro"] textarea::placeholder { color: #8f8078 !important; }
+html[data-tema="oscuro"] input:disabled { background-color: #2a201b !important; color: #8f8078 !important; }
+html[data-tema="oscuro"] .search-category { border-right-color: #4a3a31 !important; }
+
+/* Tarjetas, paneles y menús con fondo blanco fijo */
+html[data-tema="oscuro"] .dropdown-menu-nav,
+html[data-tema="oscuro"] .modal-content,
+html[data-tema="oscuro"] .amazon-card,
+html[data-tema="oscuro"] .products-shelf,
+html[data-tema="oscuro"] .distance-filter-card,
+html[data-tema="oscuro"] .profile-card,
+html[data-tema="oscuro"] .info-box,
+html[data-tema="oscuro"] .metric-card,
+html[data-tema="oscuro"] .panel-section,
+html[data-tema="oscuro"] .barra-filtros,
+html[data-tema="oscuro"] .chat-layout,
+html[data-tema="oscuro"] .chat-sidebar,
+html[data-tema="oscuro"] .contact-list,
+html[data-tema="oscuro"] .chat-header,
+html[data-tema="oscuro"] .chat-input-bar,
+html[data-tema="oscuro"] .panel-notif,
+html[data-tema="oscuro"] .kan-body,
+html[data-tema="oscuro"] .kan-footer,
+html[data-tema="oscuro"] .kan-window {
+    background-color: #211915 !important;
+    color: #f1e8e3;
+    border-color: #4a3a31 !important;
+}
+html[data-tema="oscuro"] .dropdown-item-nav { color: #f0d5c4; }
+html[data-tema="oscuro"] .dropdown-item-nav:hover,
+html[data-tema="oscuro"] .contact-item:hover { background-color: #2e231d !important; }
+html[data-tema="oscuro"] .dropdown-item-nav.logout-item { color: #ff8f8f; }
+html[data-tema="oscuro"] .dropdown-item-nav.logout-item:hover { background-color: #3a1f1f !important; }
+
+/* Tablas */
+html[data-tema="oscuro"] table th { color: #c4b5ab; border-color: #4a3a31; }
+html[data-tema="oscuro"] table td { border-color: #4a3a31; }
+
+/* Avisos de colores claros */
+html[data-tema="oscuro"] .aviso-filtro { background: #3a2e12; color: #f5dd9b; border-color: #6b5520; }
+html[data-tema="oscuro"] .caja-ia { background: #2b2414; border-color: #8a6d1f; }
+html[data-tema="oscuro"] .caja-ia .titulo-ia { color: #f2cf6b; }
+html[data-tema="oscuro"] .caja-ia p { color: #d9c79a; }
+html[data-tema="oscuro"] .resultado-ia.error { background: #3a1f1f; color: #ffb3b3; border-color: #7a3434; }
+html[data-tema="oscuro"] .badge-verified { background: #12324a; color: #9fd3ff; }
+html[data-tema="oscuro"] .auction-timer { background: #3a2219; border-color: #6b3a2a; color: #f2a98a; }
+html[data-tema="oscuro"] .auction-timer.pronto { background: #b5562f; color: #fff; }
+html[data-tema="oscuro"] .btn-fav[aria-pressed="true"] { background: #4a2219; border-color: #8a3d2d; }
+html[data-tema="oscuro"] .chip-alerta button:hover { background: #4a2219; color: #ff9b9b; }
+html[data-tema="oscuro"] .upload-box:hover { background-color: #2e231d; }
+html[data-tema="oscuro"] .estrellas { color: #ffc547; }
+html[data-tema="oscuro"] .en-vivo { color: #69db7c; }
+
+/* Mapa: teselas oscurecidas (los círculos y popups conservan sus colores) */
+html[data-tema="oscuro"] .leaflet-tile-pane { filter: brightness(0.75) invert(1) contrast(0.9) hue-rotate(200deg) saturate(0.6); }
+html[data-tema="oscuro"] .leaflet-popup-content-wrapper,
+html[data-tema="oscuro"] .leaflet-popup-tip { background: #211915; color: #f1e8e3; }
+html[data-tema="oscuro"] .popup-prov li { border-top-color: #4a3a31; }
+html[data-tema="oscuro"] .popup-prov li span { color: #c4b5ab !important; }
+html[data-tema="oscuro"] .popup-prov li button { background: #2e231d; color: #f1e8e3; border-color: #4a3a31; }
+html[data-tema="oscuro"] .leaflet-control-attribution { background: rgba(33, 25, 21, 0.85) !important; color: #c4b5ab; }
+html[data-tema="oscuro"] .leaflet-control-attribution a { color: #e08a62; }
+
+/* Botón del tema en modo oscuro */
+html[data-tema="oscuro"] .tema-boton { background: #f0d5c4; color: #3D170A; border-color: #3D170A; }
+html[data-tema="oscuro"] .tema-boton:hover { background: #fff; }
+
+/* Textos con color fijo escrito en el HTML (style="color: #555") y en las páginas */
+html[data-tema="oscuro"] [style*="color: #555"], html[data-tema="oscuro"] [style*="color:#555"],
+html[data-tema="oscuro"] [style*="color: #666"], html[data-tema="oscuro"] [style*="color:#666"],
+html[data-tema="oscuro"] [style*="color: #444"], html[data-tema="oscuro"] [style*="color: #777"],
+html[data-tema="oscuro"] [style*="color: #888"] { color: #c4b5ab !important; }
+html[data-tema="oscuro"] [style*="color: #333"], html[data-tema="oscuro"] [style*="color:#333"],
+html[data-tema="oscuro"] [style*="color: #1a1a1a"], html[data-tema="oscuro"] [style*="color: #3D170A"],
+html[data-tema="oscuro"] [style*="color:#3D170A"], html[data-tema="oscuro"] [style*="color: var(--color-secundario)"] { color: #f1e8e3 !important; }
+html[data-tema="oscuro"] [style*="background: #fff;"], html[data-tema="oscuro"] [style*="background:#fff;"],
+html[data-tema="oscuro"] [style*="background-color: #fff;"], html[data-tema="oscuro"] [style*="background: white"],
+html[data-tema="oscuro"] [style*="background-color: white"], html[data-tema="oscuro"] [style*="background: #ffffff"],
+html[data-tema="oscuro"] [style*="background:#f4f1ea"], html[data-tema="oscuro"] [style*="background: #f4f1ea"] { background-color: #211915 !important; }
+
+/* Portada (index.html) */
+html[data-tema="oscuro"] .distance-badge { background-color: #2a201b; border-color: #4a3a31; color: #f0d5c4; }
+html[data-tema="oscuro"] .sub-grid-item span { color: #c4b5ab; }
+
+/* Dashboard y reportes (panel.css): sus colores salen de variables en .dash,
+   y las gráficas las leen al dibujarse (por eso esas páginas se recargan al cambiar de tema) */
+html[data-tema="oscuro"] .dash {
+    --surface: #211915;
+    --surface-2: #2a201b;
+    --borde: #4a3a31;
+    --grid: #3a2e27;
+    --texto: #f1e8e3;
+    --texto-2: #c4b5ab;
+    --texto-3: #a39389;
+    --serie-1: #e0764f;
+    --serie-2: #2fc79c;
+    --serie-3: #f2b233;
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+html[data-tema="oscuro"] .toolbar select,
+html[data-tema="oscuro"] .btn-ghost,
+html[data-tema="oscuro"] .form-control { background: #1a1310 !important; color: #f1e8e3 !important; border-color: #4a3a31 !important; }
+html[data-tema="oscuro"] .alerta { background: #3a1f1f; color: #ffc9c9; }
+html[data-tema="oscuro"] .kpi-icono { background: #3a2a22; }
+html[data-tema="oscuro"] .tabla tbody tr:hover td { background: #2a201b; }
+html[data-tema="oscuro"] .chip-pronto { background: #3d3214; color: #f5d27a; }
+html[data-tema="oscuro"] .chip-normal { background: #2e231d; color: #c4b5ab; }
+html[data-tema="oscuro"] .chip-mia { background: #3a2219; color: #f2a98a; }
+html[data-tema="oscuro"] .acceso-admin { background: #2b2414; border-color: #6b5520; }
+html[data-tema="oscuro"] .estado-trato.pendiente { background: #3d3214; color: #f5d27a; }
+
+/* Lugares donde --color-secundario era FONDO (en oscuro esa variable es un color de texto claro) */
+html[data-tema="oscuro"] .login-header,
+html[data-tema="oscuro"] .sidebar-header,
+html[data-tema="oscuro"] .toast { background-color: #1f1410 !important; color: #f1e8e3; }
+html[data-tema="oscuro"] .mi-actividad { background: linear-gradient(135deg, #3D170A, #5a2512) !important; }
+html[data-tema="oscuro"] .profile-header-banner { background: linear-gradient(135deg, #3D170A 0%, #7D381B 100%) !important; }
+html[data-tema="oscuro"] .kan-header { background: linear-gradient(135deg, #3D170A, #7D381B) !important; }
+html[data-tema="oscuro"] .boton:hover { background: #7D381B !important; }
+html[data-tema="oscuro"] .toolbar { background: rgba(33, 25, 21, 0.96) !important; border-color: #4a3a31 !important; color: #f1e8e3; }
+
+/* Chat */
+html[data-tema="oscuro"] .contact-item.active,
+html[data-tema="oscuro"] .contact-item.kan-pinned-item,
+html[data-tema="oscuro"] .contact-item.kan-pinned-item.active { background-color: #34261f !important; }
+html[data-tema="oscuro"] .contact-item.kan-pinned-item.active,
+html[data-tema="oscuro"] .contact-item.active { box-shadow: inset 3px 0 0 #e08a62; }
+html[data-tema="oscuro"] .msg.them .msg-bubble { background: #2e231d !important; color: #f1e8e3 !important; border-color: #4a3a31 !important; }
+html[data-tema="oscuro"] .kan-chat-banner { background: #2b2414 !important; color: #f5dd9b !important; border-color: #6b5520 !important; }
+html[data-tema="oscuro"] .kan-opt-btn-chat,
+html[data-tema="oscuro"] .kan-opt-btn { background: #2e231d !important; color: #f0d5c4 !important; border-color: #4a3a31 !important; }
+html[data-tema="oscuro"] .kan-msg.bot { background: #2e231d !important; color: #f1e8e3 !important; }
+html[data-tema="oscuro"] .kan-display-banner { background: #2a201b !important; color: #f1e8e3; }
+
+/* Textos que tenían color casi negro fijo */
+html[data-tema="oscuro"] .info-value { color: #f1e8e3; }
+html[data-tema="oscuro"] .metric-info h4 { color: #c4b5ab; }
+html[data-tema="oscuro"] .estado-chip.Cancelado,
+html[data-tema="oscuro"] .estado-chip.Canceladas,
+html[data-tema="oscuro"] .estado-chip.Sin-pujas { background: #2e231d; color: #c4b5ab; }
+
+/* Login, registro, restablecer y verificar */
+html[data-tema="oscuro"] .login-card,
+html[data-tema="oscuro"] .register-card { background-color: rgba(33, 25, 21, 0.94) !important; color: #f1e8e3; }
+html[data-tema="oscuro"] .tarjeta { background: #211915 !important; color: #f1e8e3; }
+html[data-tema="oscuro"] .boton.secundario { background: transparent !important; color: #e08a62 !important; border-color: #e08a62 !important; }
+
+/* Panel de administración */
+html[data-tema="oscuro"] .badge-inactivo { background: #3d3214; color: #f5d27a; }
+html[data-tema="oscuro"] .aviso-correos { background: #3a2a12; border-color: #6b4f1f; color: #f5cf8a; }
+html[data-tema="oscuro"] .etiqueta-correo.pendiente { background: #3d3214; color: #f5d27a; }
+html[data-tema="oscuro"] .paginacion-admin button { background: #2e231d; color: #f1e8e3; border-color: #4a3a31; }
+
+/* El logo es marrón oscuro: en modo oscuro va sobre una placa clara para que se lea */
+html[data-tema="oscuro"] img[src$="logo.png"]:not(.hoja img) { background: #f4ece6; border-radius: 12px; padding: 6px; }
+html[data-tema="oscuro"] table th,
+html[data-tema="oscuro"] thead th { background-color: #2a201b !important; }
+html[data-tema="oscuro"] tbody tr:hover td { background-color: #2a201b; }

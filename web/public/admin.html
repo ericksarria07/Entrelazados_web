@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="sesion.js"></script>
+    <script src="tema.js"></script>
+    <script src="kan.js" data-contexto="administrador" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Panel de Administración</title>
+
+    <!-- Iconos de Tabler -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+    <!-- Fuentes Web -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900&display=swap" rel="stylesheet">
+
+    <!-- GUARDIÁN DE NAVEGACIÓN PARA ADMINISTRADORES -->
+    <script>
+        (function () {
+            const userEmail = localStorage.getItem('userEmail');
+            const userId = localStorage.getItem('userId');
+            const userRol = (localStorage.getItem('userRol') || '').toLowerCase();
+
+            if (!userEmail || !userId) {
+                window.location.href = 'preview.html';
+                return;
+            }
+
+            if (userRol !== 'administrador' && userRol !== 'admin') {
+                alert('Acceso restringido únicamente para Administradores.');
+                window.location.href = 'index.html';
+            }
+        })();
+    </script>
+
+    <style>
+        :root {
+            --color-principal: #7D381B;
+            --color-secundario: #3D170A;
+            --color-terciario: #993D24;
+            --color-bg: #f4f1ea;
+            --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', 'Source Sans 3', sans-serif;
+            --font-secundaria: 'Leelawadee', 'Source Sans 3', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--color-bg);
+            color: #1a1a1a;
+            font-family: var(--font-secundaria);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, .logo { font-family: var(--font-principal); font-weight: 900; }
+
+        /* HEADER */
+        .amazon-header {
+            background-color: var(--color-secundario);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .logo { font-size: 24px; color: #fff; text-decoration: none; }
+        .logo span { color: var(--color-terciario); }
+
+        .admin-badge-header {
+            background-color: #d9480f;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .user-btn-nav {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--color-principal);
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        /* SUB-BARRA */
+        .sub-bar {
+            background-color: #290f06;
+            color: #fff;
+            display: flex;
+            gap: 20px;
+            padding: 8px 24px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .sub-bar a { color: #f1e8e3; text-decoration: none; display: flex; align-items: center; gap: 6px; }
+        .sub-bar a:hover { color: var(--color-terciario); }
+
+        /* CONTENEDOR PRINCIPAL */
+        .admin-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 25px auto;
+            padding: 0 20px 40px;
+            flex: 1;
+        }
+
+        /* METRICAS / KPIS */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid #e0d8ce;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background-color: rgba(125, 56, 27, 0.1);
+            color: var(--color-principal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .metric-info h4 { font-size: 12px; text-transform: uppercase; color: #777; margin-bottom: 2px; }
+        .metric-info p { font-size: 22px; font-weight: 800; color: var(--color-secundario); }
+
+        /* PANELES DE TABLAS */
+        .panel-section {
+            background: #ffffff;
+            border-radius: 10px;
+            border: 1px solid #e0d8ce;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            border-bottom: 2px solid #f4f1ea;
+            padding-bottom: 10px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            color: var(--color-secundario);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* TABLAS RESPONSIVAS */
+        .table-responsive { width: 100%; overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th { background-color: #f9f7f4; color: var(--color-principal); font-weight: 700; }
+
+        .badge-status {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-activo { background: #e6fcf5; color: #0ca678; }
+        .badge-inactivo { background: #fff9db; color: #f59f00; }
+        .badge-suspendido { background: #ffe3e3; color: #f03e3e; }
+
+        .btn-action {
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-action:hover { opacity: 0.85; }
+        .btn-delete { background-color: #e03131; color: white; }
+
+        /* FORMULARIO CATEGORÍA */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--color-principal);
+            margin-bottom: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .btn-submit {
+            background-color: var(--color-principal);
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        footer {
+            background-color: var(--color-secundario);
+            color: #fff;
+            padding: 15px 24px;
+            text-align: center;
+            font-size: 12px;
+            margin-top: auto;
+        }
+
+        /* BÚSQUEDA, PAGINACIÓN Y AVISOS DE CORREO */
+        .barra-filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+        .barra-filtros input[type="search"] { flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #d6c7bd; border-radius: 6px; font: inherit; }
+        .barra-filtros label { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        .aviso-correos { background: #fff4e6; border: 1px solid #ffd8a8; color: #8a4b00; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 14px; }
+        .aviso-correos[hidden] { display: none; }
+        .etiqueta-correo { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; margin-left: 4px; white-space: nowrap; }
+        .etiqueta-correo.invalido { background: #ffe3e3; color: #a12a1a; }
+        .etiqueta-correo.pendiente { background: #fff3bf; color: #6b4b00; }
+        .paginacion-admin { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; }
+        .paginacion-admin:empty { display: none; }
+        .paginacion-admin button { padding: 5px 10px; border: 1px solid #d6c7bd; background: #fff; border-radius: 6px; cursor: pointer; font: inherit; }
+        .paginacion-admin button:disabled { opacity: .45; cursor: not-allowed; }
+        .btn-correo { background: #e7f5ff; color: #1864ab; }
+    </style>
+    <!-- AJUSTES RESPONSIVOS PARA CELULAR (cabecera y sub-barra) -->
+    <style>
+        @media (max-width: 768px) {
+            .amazon-header { flex-wrap: wrap; padding: 10px; gap: 10px; }
+            .amazon-header .logo { font-size: 22px; }
+            .amazon-header .nav-user { margin-left: auto; }
+            .amazon-header .search-bar { order: 3; width: 100%; min-width: 100%; display: flex !important; }
+            .amazon-header .search-category { max-width: 110px; font-size: 11px; padding: 0 4px; }
+            .amazon-header .search-input { min-width: 0; }
+            .sub-bar { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        }
+    </style>
+    <link rel="stylesheet" href="kan.css">
+</head>
+<body>
+
+    <header class="amazon-header">
+        <a href="index.html" class="logo">Entre<span>Lazados</span> Admin</a>
+        <span class="admin-badge-header"><i class="ti ti-shield-check"></i> Modo Administrador</span>
+        <button class="user-btn-nav" onclick="cerrarSesion()">
+            <i class="ti ti-logout"></i> Cerrar Sesión
+        </button>
+    </header>
+
+    <div class="sub-bar">
+        <a href="index.html"><i class="ti ti-home"></i> Ir a la Vista Pública</a>
+        <a href="dashboard.html"><i class="ti ti-chart-bar"></i> Mi Dashboard</a>
+        <a href="reportes.html"><i class="ti ti-report-analytics"></i> Reportes</a>
+    </div>
+
+    <main class="admin-container">
+
+        <!-- 1. MÉTRICAS GLOBALES -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-users"></i></div>
+                <div class="metric-info">
+                    <h4>Total Usuarios</h4>
+                    <p id="kpi-usuarios">0</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-truck"></i></div>
+                <div class="metric-info">
+                    <h4>Proveedores</h4>
+                    <p id="kpi-proveedores">0</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-shoe"></i></div>
+                <div class="metric-info">
+                    <h4>Emprendedores</h4>
+                    <p id="kpi-emprendedores">0</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon"><i class="ti ti-box"></i></div>
+                <div class="metric-info">
+                    <h4>Ofertas Publicadas</h4>
+                    <p id="kpi-ofertas">0</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. GESTIÓN DE USUARIOS -->
+        <section class="panel-section">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="ti ti-users-group"></i> Gestión General de Usuarios</h3>
+            </div>
+            <div class="aviso-correos" id="avisoCorreos" hidden></div>
+            <div class="barra-filtros">
+                <input type="search" id="buscarUsuario" placeholder="Buscar por nombre o correo..." oninput="buscarUsuariosConPausa()">
+                <label><input type="checkbox" id="soloProblemas" onchange="cargarUsuarios(1)"> Solo cuentas con problemas de correo</label>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre / Razón Social</th>
+                            <th>Correo Electrónico</th>
+                            <th>Rol</th>
+                            <th>Departamento</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-usuarios-body">
+                        <tr><td colspan="7" style="text-align:center;">Cargando usuarios...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="paginacion-admin" id="paginacion-usuarios"></div>
+        </section>
+
+        <!-- 3. MODERACIÓN DE OFERTAS Y PUBLICACIONES -->
+        <section class="panel-section">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="ti ti-shopping-bag"></i> Moderación de Insumos / Ofertas</h3>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Oferta</th>
+                            <th>Título Material</th>
+                            <th>Categoría</th>
+                            <th>Precio (C$)</th>
+                            <th>Unidad</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-ofertas-body">
+                        <tr><td colspan="6" style="text-align:center;">Cargando ofertas...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="paginacion-admin" id="paginacion-ofertas"></div>
+        </section>
+
+        <!-- 4. GESTIÓN DE CATEGORÍAS -->
+        <section class="panel-section">
+            <div class="panel-header">
+                <h3 class="panel-title"><i class="ti ti-category"></i> Agregar Nueva Categoría de Materiales</h3>
+            </div>
+            <form onsubmit="crearCategoria(event)" class="form-grid">
+                <div class="form-group">
+                    <label>Nombre de Categoría</label>
+                    <input type="text" id="catNombre" class="form-control" placeholder="Ej. Hilos y Costuras" required>
+                </div>
+                <div class="form-group">
+                    <label>Descripción (Opcional)</label>
+                    <input type="text" id="catDesc" class="form-control" placeholder="Hilos de nylon, cera o reforzados">
+                </div>
+                <button type="submit" class="btn-submit"><i class="ti ti-plus"></i> Guardar</button>
+            </form>
+        </section>
+
+    </main>
+
+    <footer>
+        EntreLazados © 2026 - Módulo de Control Administrativo
+    </footer>
+
+    <script>
+        const API_URL = window.location.origin;
+        // Escapa el texto escrito por usuarios antes de insertarlo como HTML (evita XSS)
+        const currentAdminId = localStorage.getItem('userId');
+        // Token JWT firmado por el servidor al iniciar sesión (ver /api/login)
+        const tokenSesion = localStorage.getItem('token') || '';
+
+        // sesion.js ya agrega el token y maneja la sesión vencida (401).
+        // Aquí solo se atiende el caso de un usuario que NO es administrador (403).
+        const fetchConSesion = window.fetch;
+        window.fetch = async (...args) => {
+            const res = await fetchConSesion(...args);
+            if (String(args[0]).includes('/api/admin/') && res.status === 403) {
+                window.cerrarSesionEntrelazados('Esta sección es solo para administradores.');
+            }
+            return res;
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarMetricas();
+            cargarUsuarios();
+            cargarOfertas();
+        });
+
+        // 1. CARGAR KPIS/MÉTRICAS
+        async function cargarMetricas() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/metricas`, {
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
+                });
+                if (!res.ok) throw new Error("Error al obtener métricas");
+                const data = await res.json();
+
+                document.getElementById('kpi-usuarios').textContent = data.totalUsuarios || 0;
+                document.getElementById('kpi-proveedores').textContent = data.totalProveedores || 0;
+                document.getElementById('kpi-emprendedores').textContent = data.totalEmprendedores || 0;
+                document.getElementById('kpi-ofertas').textContent = data.totalOfertas || 0;
+
+                // Cuentas que no pueden entrar por su correo (inválido o sin confirmar)
+                const aviso = document.getElementById('avisoCorreos');
+                const partes = [];
+                const cuentas = (n) => `${n} cuenta${n === 1 ? '' : 's'}`;
+                if (data.correosInvalidos) partes.push(`${cuentas(data.correosInvalidos)} con un correo inválido (no puede${data.correosInvalidos === 1 ? '' : 'n'} iniciar sesión)`);
+                if (data.cuentasSinVerificar) partes.push(`${cuentas(data.cuentasSinVerificar)} sin confirmar su correo`);
+                aviso.innerHTML = partes.length
+                    ? `<i class="ti ti-alert-triangle"></i> Hay ${partes.join(' y ')}. Marca <strong>"Solo cuentas con problemas de correo"</strong> para verlas y corregirlas.`
+                    : '';
+                aviso.hidden = partes.length === 0;
+            } catch (err) {
+                console.error("Error métricas:", err);
+            }
+        }
+
+        // Controles "Anterior / Página X de Y / Siguiente"
+        function pintarPaginacion(idContenedor, datos, funcion) {
+            const caja = document.getElementById(idContenedor);
+            if (!datos || datos.paginas <= 1) { caja.innerHTML = ''; return; }
+            caja.innerHTML = `
+                <button ${datos.pagina <= 1 ? 'disabled' : ''} onclick="${funcion}(${datos.pagina - 1})"><i class="ti ti-chevron-left"></i> Anterior</button>
+                <span>Página <strong>${datos.pagina}</strong> de ${datos.paginas} · ${datos.total} en total</span>
+                <button ${datos.pagina >= datos.paginas ? 'disabled' : ''} onclick="${funcion}(${datos.pagina + 1})">Siguiente <i class="ti ti-chevron-right"></i></button>`;
+        }
+
+        // 2. CARGAR Y GESTIONAR USUARIOS (20 por página, con búsqueda)
+        let paginaUsuarios = 1;
+        let pausaBusqueda = null;
+        function buscarUsuariosConPausa() {
+            clearTimeout(pausaBusqueda);
+            pausaBusqueda = setTimeout(() => cargarUsuarios(1), 300);
+        }
+
+        async function cargarUsuarios(pagina = paginaUsuarios) {
+            paginaUsuarios = pagina;
+            const params = new URLSearchParams({ pagina, porPagina: 20 });
+            const buscar = document.getElementById('buscarUsuario').value.trim();
+            if (buscar) params.set('buscar', buscar);
+            if (document.getElementById('soloProblemas').checked) params.set('problemas', '1');
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios?${params}`, {
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
+                });
+                const datos = await res.json();
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarUsuarios(datos.paginas);
+                const usuarios = datos.datos;
+                const tbody = document.getElementById('tabla-usuarios-body');
+                pintarPaginacion('paginacion-usuarios', datos, 'cargarUsuarios');
+
+                if (!usuarios.length) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">${buscar || params.has('problemas') ? 'Ningún usuario coincide con la búsqueda.' : 'No hay usuarios registrados.'}</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = usuarios.map(u => {
+                    const est = (u.EstadoCuenta || 'Activo').toLowerCase();
+                    const badgeClass = est === 'activo' ? 'badge-activo' : (est === 'suspendido' ? 'badge-suspendido' : 'badge-inactivo');
+                    const id = Number(u.UsuarioID);
+                    const etiquetas = (u.CorreoValido ? '' : '<span class="etiqueta-correo invalido" title="Le falta el dominio completo (ej. .com): no puede iniciar sesión">Correo inválido</span>')
+                        + (u.CorreoVerificado ? '' : '<span class="etiqueta-correo pendiente" title="No ha abierto el enlace de confirmación">Sin confirmar</span>');
+
+                    return `
+                        <tr>
+                            <td>#${id}</td>
+                            <td><strong>${esc(u.NombreRazonSocial || 'Sin Nombre')}</strong></td>
+                            <td>${esc(u.CorreoElectronico)}${etiquetas}</td>
+                            <td>${esc((u.TipoRol || 'Miembro').toUpperCase())}</td>
+                            <td>${esc(u.NombreDepartamento || 'Managua')}</td>
+                            <td><span class="badge-status ${badgeClass}">${esc(u.EstadoCuenta || 'Activo')}</span></td>
+                            <td>
+                                <select onchange="cambiarEstadoUsuario(${id}, this.value)" style="font-size:11px; padding:3px;">
+                                    <option value="">Cambiar estado...</option>
+                                    <option value="Activo">Activo</option>
+                                    <option value="Inactivo">Inactivo</option>
+                                    <option value="Suspendido">Suspendido</option>
+                                </select>
+                                <button onclick="corregirCorreo(${id}, ${esc(JSON.stringify(u.CorreoElectronico || ''))})" class="btn-action btn-correo" style="margin-left:4px;" title="Corregir correo">
+                                    <i class="ti ti-mail-cog"></i>
+                                </button>
+                                ${u.CorreoVerificado ? '' : `<button onclick="confirmarCorreo(${id})" class="btn-action btn-correo" style="margin-left:4px;" title="Dar el correo por confirmado"><i class="ti ti-mail-check"></i></button>`}
+                                <button onclick="eliminarUsuario(${id})" class="btn-action btn-delete" style="margin-left:4px;" title="Eliminar usuario">
+                                    <i class="ti ti-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error("Error usuarios:", err);
+            }
+        }
+
+        // Corrige un correo mal escrito (p. ej. "erick@gmail" sin ".com"): confírmalo antes con la persona
+        async function corregirCorreo(usuarioId, correoActual) {
+            const correo = prompt(`Correo nuevo para el usuario #${usuarioId}.\nConfírmalo antes con la persona: con él iniciará sesión y recuperará su contraseña.`, correoActual);
+            if (correo === null || correo.trim() === correoActual) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}/correo`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo: correo.trim() })
+                });
+                const data = await res.json();
+                alert(data.message);
+                if (res.ok) { cargarUsuarios(); cargarMetricas(); }
+            } catch (err) {
+                alert("Error al actualizar el correo.");
+            }
+        }
+
+        async function confirmarCorreo(usuarioId) {
+            if (!confirm(`¿Dar por confirmado el correo del usuario #${usuarioId}? Hazlo solo si comprobaste que el correo es suyo.`)) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}/verificar`, { method: 'PUT' });
+                const data = await res.json();
+                alert(data.message);
+                if (res.ok) { cargarUsuarios(); cargarMetricas(); }
+            } catch (err) {
+                alert("Error al actualizar la cuenta.");
+            }
+        }
+
+        async function cambiarEstadoUsuario(usuarioId, nuevoEstado) {
+            if (!nuevoEstado) return;
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}/estado`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + tokenSesion
+                    },
+                    body: JSON.stringify({ nuevoEstado })
+                });
+                const data = await res.json();
+                alert(data.message);
+                cargarUsuarios();
+            } catch (err) {
+                alert("Error al actualizar el estado del usuario.");
+            }
+        }
+
+        async function eliminarUsuario(usuarioId) {
+            if (!confirm(`¿Estás seguro de eliminar el usuario #${usuarioId}? Esta acción borrará todas sus publicaciones y registros.`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
+                });
+                const data = await res.json();
+                alert(data.message);
+                cargarUsuarios();
+                cargarMetricas();
+            } catch (err) {
+                alert("Error al eliminar el usuario.");
+            }
+        }
+
+        // 3. CARGAR Y MODERAR OFERTAS (15 por página, las más nuevas primero)
+        let paginaOfertas = 1;
+        async function cargarOfertas(pagina = paginaOfertas) {
+            paginaOfertas = pagina;
+            try {
+                const res = await fetch(`${API_URL}/api/ofertas?pagina=${pagina}&porPagina=15`);
+                const datos = await res.json();
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarOfertas(datos.paginas);
+                const ofertas = datos.datos;
+                const tbody = document.getElementById('tabla-ofertas-body');
+                pintarPaginacion('paginacion-ofertas', datos, 'cargarOfertas');
+
+                if (!ofertas.length) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No hay ofertas disponibles.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = ofertas.map(o => `
+                    <tr>
+                        <td>#${o.OfertaID}</td>
+                        <td><strong>${esc(o.TituloMaterial)}</strong></td>
+                        <td>${esc(o.NombreCategoria || 'General')}</td>
+                        <td>C$ ${esc(o.Precio)}</td>
+                        <td>${esc(o.UnidadMedida)}</td>
+                        <td>
+                            <button onclick="eliminarOfertaAdmin(${o.OfertaID})" class="btn-action btn-delete">
+                                <i class="ti ti-trash"></i> Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error("Error ofertas:", err);
+            }
+        }
+
+        async function eliminarOfertaAdmin(ofertaId) {
+            if (!confirm(`¿Deseas eliminar la oferta #${ofertaId}?`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/ofertas/${ofertaId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
+                });
+                const data = await res.json();
+                alert(data.message);
+                cargarOfertas();
+                cargarMetricas();
+            } catch (err) {
+                alert("Error al eliminar la oferta.");
+            }
+        }
+
+        // 4. CREAR NUEVA CATEGORÍA
+        async function crearCategoria(event) {
+            event.preventDefault();
+            const nombreCategoria = document.getElementById('catNombre').value.trim();
+            const descripcion = document.getElementById('catDesc').value.trim();
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/categorias`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + tokenSesion
+                    },
+                    body: JSON.stringify({ nombreCategoria, descripcion })
+                });
+
+                const data = await res.json();
+                alert(data.message);
+                if (res.ok) {
+                    document.getElementById('catNombre').value = '';
+                    document.getElementById('catDesc').value = '';
+                }
+            } catch (err) {
+                alert("Error al intentar registrar la categoría.");
+            }
+        }
+
+    </script>
+</body>
+</html>

@@ -374,3 +374,7 @@ backend/pruebas/sesiones_prueba.json
 
 # Fotos subidas por los usuarios (viven en el servidor y en los respaldos, no en git)
 backend/entrelazados-api/uploads/
+
+# Vercel (vínculo local del proyecto) y build de Next.js
+.vercel
+.next/

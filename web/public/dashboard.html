@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="sesion.js"></script>
+    <script src="tema.js"></script>
+    <script src="kan.js" data-contexto="dashboard" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EntreLazados - Dashboard de Control</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,900;1,6..12,400&display=swap" rel="stylesheet">
+
+    <!-- Gráficas (Chart.js). ExcelJS se carga solo al presionar "Exportar a Excel". -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+    <script>
+        (function () {
+            const userEmail = localStorage.getItem('userEmail');
+            const userId = localStorage.getItem('userId');
+
+            if (!userEmail || !userId) {
+                window.location.href = 'preview.html';
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet" href="comun.css">
+    <link rel="stylesheet" href="panel.css">
+    <link rel="stylesheet" href="kan.css">
+</head>
+<body>
+
+    <header class="amazon-header">
+        <a href="index.html" class="logo">Entre<span>Lazados</span></a>
+
+        <div class="header-location">
+            <i class="ti ti-map-pin" style="font-size: 18px;"></i>
+            <div>
+                <span>Enviar a</span>
+                <strong id="user-location">Nicaragua</strong>
+            </div>
+        </div>
+
+        <div class="search-bar">
+            <select id="searchCategory" class="search-category">
+                <option value="todos">Todos</option>
+                <option value="Cuero Vacuno">Cuero</option>
+                <option value="Suelas">Suelas</option>
+            </select>
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar en EntreLazados...">
+            <button class="search-btn" onclick="location.href='mercado.html'"><i class="ti ti-search"></i></button>
+        </div>
+
+        <div class="nav-user">
+            <div id="authArea"></div>
+        </div>
+    </header>
+
+    <div class="sub-bar">
+        <a href="index.html">Inicio</a>
+        <a href="mercado.html">Mercado Completo</a>
+        <a href="chat.html">Chat</a>
+        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="reportes.html"><i class="ti ti-report-analytics"></i> Reportes</a>
+    </div>
+
+    <div class="dash">
+    <section class="dash-hero">
+        <div class="dash-hero-inner">
+            <div>
+                <p class="eyebrow">Panel de control</p>
+                <h1>Hola, <span id="saludoNombre">bienvenido</span></h1>
+                <p class="hero-sub">Resumen de la actividad de EntreLazados · <span id="ultimaActualizacion">cargando datos…</span></p>
+            </div>
+            <div class="toolbar" role="toolbar" aria-label="Opciones del dashboard">
+                <label for="filtroPeriodo"><i class="ti ti-calendar"></i> Periodo
+                    <select id="filtroPeriodo">
+                        <option value="3">Últimos 3 meses</option>
+                        <option value="6" selected>Últimos 6 meses</option>
+                        <option value="12">Últimos 12 meses</option>
+                    </select>
+                </label>
+                <button class="btn btn-ghost" id="btnActualizar" type="button"><i class="ti ti-refresh"></i> Actualizar</button>
+                <button class="btn btn-excel" id="btnExportar" type="button" disabled><i class="ti ti-file-spreadsheet"></i> Exportar a Excel</button>
+            </div>
+        </div>
+    </section>
+
+    <main class="main-content">
+        <div class="alerta" id="alertaError" role="alert" hidden>
+            <i class="ti ti-alert-triangle" style="font-size: 20px;"></i>
+            <span id="alertaTexto">No se pudieron cargar las estadísticas.</span>
+            <button class="btn btn-ghost" type="button" onclick="cargarDashboard()"><i class="ti ti-refresh"></i> Reintentar</button>
+        </div>
+
+        <div class="cargando-capa" id="contenidoDashboard">
+            <!-- INDICADORES PRINCIPALES -->
+            <section class="kpi-grid" id="kpiGrid" aria-label="Indicadores principales"></section>
+
+            <!-- ACTIVIDAD PROPIA SEGÚN EL ROL -->
+            <section class="mi-actividad" id="seccionMiActividad" hidden>
+                <h2><i class="ti ti-user-star"></i> <span id="tituloMiActividad">Mi actividad</span></h2>
+                <div class="mini-kpis" id="miActividadGrid"></div>
+                <div class="mis-tratos" id="misTratos" hidden>
+                    <h3><i class="ti ti-gavel"></i> <span id="tituloMisTratos">Mis subastas cerradas</span></h3>
+                    <p class="nota-tratos" style="font-size:12px; color:#e3cfc4; margin:-4px 0 8px;">Marca cómo va cada trato: la otra parte recibe un aviso en el chat.</p>
+                    <div id="listaMisTratos"></div>
+                    <div class="paginacion-tratos" id="paginacionMisTratos"></div>
+                </div>
+            </section>
+
+            <!-- ACTIVIDAD EN EL TIEMPO + DEPARTAMENTOS -->
+            <div class="fila fila-2-1">
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-chart-line"></i> Actividad de la plataforma</h2>
+                            <p class="card-sub" id="subActividad">Nuevos registros, ofertas publicadas y pujas por mes</p>
+                        </div>
+                        <button class="btn-vista" type="button" data-vista="actividad" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                    </div>
+                    <div class="leyenda" id="leyendaActividad"></div>
+                    <div class="grafica grafica-alta" id="graficaActividadWrap"><canvas id="graficaActividad" aria-label="Gráfica de actividad mensual" role="img"></canvas></div>
+                    <div class="tabla-wrap" id="tablaActividad" hidden></div>
+                </article>
+
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-map-2"></i> Usuarios por departamento</h2>
+                            <p class="card-sub">Proveedores y emprendedores registrados</p>
+                        </div>
+                        <button class="btn-vista" type="button" data-vista="departamentos" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                    </div>
+                    <div class="leyenda" id="leyendaDepartamentos"></div>
+                    <div class="grafica grafica-alta" id="graficaDepartamentosWrap"><canvas id="graficaDepartamentos" aria-label="Gráfica de usuarios por departamento" role="img"></canvas></div>
+                    <div class="tabla-wrap" id="tablaDepartamentos" hidden></div>
+                </article>
+            </div>
+
+            <!-- CATEGORÍAS -->
+            <div class="fila fila-1-1">
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-category"></i> Ofertas por categoría</h2>
+                            <p class="card-sub">Materiales publicados en cada categoría</p>
+                        </div>
+                        <button class="btn-vista" type="button" data-vista="categorias" aria-pressed="false"><i class="ti ti-table"></i> Ver tabla</button>
+                    </div>
+                    <div class="grafica grafica-media" id="graficaCategoriasWrap"><canvas id="graficaCategorias" aria-label="Gráfica de ofertas por categoría" role="img"></canvas></div>
+                    <div class="tabla-wrap" id="tablaCategoriasConteo" hidden></div>
+                </article>
+
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-receipt-2"></i> Precios de referencia</h2>
+                            <p class="card-sub">Mínimo, promedio y máximo por categoría (C$)</p>
+                        </div>
+                    </div>
+                    <div class="tabla-wrap" id="tablaPrecios"></div>
+                </article>
+            </div>
+
+            <!-- SUBASTAS EN CURSO -->
+            <article class="card" style="margin-bottom: 18px;">
+                <div class="card-cabecera">
+                    <div>
+                        <h2><i class="ti ti-gavel"></i> Subastas en curso</h2>
+                        <p class="card-sub" id="subSubastas">Lotes activos ordenados por número de pujas</p>
+                    </div>
+                    <label class="sr-only" for="buscarSubasta">Buscar subasta</label>
+                    <input type="search" id="buscarSubasta" class="buscador-tabla" placeholder="Buscar lote o proveedor…">
+                </div>
+                <div class="tabla-wrap" id="tablaSubastas"></div>
+            </article>
+
+            <!-- PUJAS RECIENTES + ACCIONES -->
+            <div class="fila fila-1-1">
+                <article class="card">
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-activity"></i> Pujas recientes</h2>
+                            <p class="card-sub">Últimos movimientos en las subastas</p>
+                        </div>
+                    </div>
+                    <ul class="lista-pujas" id="listaPujas"></ul>
+                </article>
+
+                <article class="card" id="cardPublicacion" hidden>
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-package-import"></i> Publicar nueva materia prima</h2>
+                            <p class="card-sub">Se crea la oferta y su lote en subasta por 7 días</p>
+                        </div>
+                    </div>
+                    <form id="formPublicar" onsubmit="publicarMaterial(event)">
+                        <div class="form-group">
+                            <label for="pubTitulo">Título del material</label>
+                            <input type="text" id="pubTitulo" class="form-control" placeholder="Ej. Cuero vacuno castaño" maxlength="150" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pubCategoria">Categoría</label>
+                            <select id="pubCategoria" class="form-control" required>
+                                <option value="">Cargando categorías…</option>
+                            </select>
+                        </div>
+                        <div class="form-fila">
+                            <div class="form-group">
+                                <label for="pubPrecio">Precio (C$)</label>
+                                <input type="number" id="pubPrecio" class="form-control" placeholder="120" min="1" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pubUnidad">Unidad de medida</label>
+                                <input type="text" id="pubUnidad" class="form-control" placeholder="Pie² / Litro / Par" maxlength="30" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-principal" id="btnPublicar"><i class="ti ti-upload"></i> Publicar oferta y subasta</button>
+                    </form>
+                </article>
+
+                <article class="card" id="cardAccesos" hidden>
+                    <div class="card-cabecera">
+                        <div>
+                            <h2><i class="ti ti-bolt"></i> Accesos rápidos</h2>
+                            <p class="card-sub">Lo que más usas en EntreLazados</p>
+                        </div>
+                    </div>
+                    <div class="accesos" id="listaAccesos"></div>
+                </article>
+            </div>
+        </div>
+    </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-brand">
+                NICA<span>RAGUA</span>
+            </div>
+            <div class="footer-center">
+                <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
+                <p style="margin-top: 8px;">
+                <a href="index.html">Inicio</a> | 
+                <a href="mercado.html">Mercado</a> | 
+                <a href="chat.html">Chat</a> | 
+                <a href="dashboard.html">Dashboard</a> | 
+                <a href="perfil.html">Mi Perfil</a>
+                </p>
+            </div>
+            <div class="footer-volcano">
+                <img src="volcan.webp" alt="Volcán Nicaragua">
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = window.location.origin;
+
+        /* ==========================================================
+           UTILIDADES
+           ========================================================== */
+        // Escapa texto antes de insertarlo como HTML (evita XSS)
+
+        const fmtEntero = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 0 });
+        const fmtDecimal = new Intl.NumberFormat('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const entero = (n) => fmtEntero.format(Number(n) || 0);
+        const dinero = (n) => 'C$ ' + fmtDecimal.format(Number(n) || 0);
+        const dineroCorto = (n) => 'C$ ' + fmtEntero.format(Math.round(Number(n) || 0));
+        const porcentaje = (n) => (Number(n) || 0).toLocaleString('es-NI', { maximumFractionDigits: 1 }) + '%';
+
+        function nombreMes(clave, largo = false) {
+            const [a, m] = clave.split('-').map(Number);
+            const f = new Date(a, m - 1, 1);
+            const txt = f.toLocaleDateString('es-NI', largo ? { month: 'long', year: 'numeric' } : { month: 'short', year: '2-digit' });
+            return txt.charAt(0).toUpperCase() + txt.slice(1).replace('.', '');
+        }
+
+        function tiempoRestante(fecha) {
+            const ms = new Date(fecha) - new Date();
+            if (ms <= 0) return 'Finalizada';
+            const min = Math.floor(ms / 60000);
+            const d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+            if (d > 0) return `${d} d ${h} h`;
+            if (h > 0) return `${h} h ${m} min`;
+            return `${m} min`;
+        }
+
+        function haceCuanto(fecha) {
+            const seg = Math.max(0, (new Date() - new Date(fecha)) / 1000);
+            if (seg < 60) return 'hace un momento';
+            if (seg < 3600) return `hace ${Math.floor(seg / 60)} min`;
+            if (seg < 86400) return `hace ${Math.floor(seg / 3600)} h`;
+            if (seg < 604800) return `hace ${Math.floor(seg / 86400)} d`;
+            return new Date(fecha).toLocaleDateString('es-NI', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function mostrarToast(texto, esError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = texto;
+            t.classList.toggle('error', esError);
+            t.classList.add('visible');
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.remove('visible'), 3500);
+        }
+
+        function colorVar(nombre) {
+            return getComputedStyle(document.querySelector('.dash')).getPropertyValue(nombre).trim();
+        }
+
+        // "Lote Subasta: Cuero vacuno" → "Cuero vacuno"
+        const nombreLote = (t) => String(t || '').replace(/^Lote Subasta:\s*/i, '');
+
+        const vacioHTML = (icono, texto) => `<div class="vacio"><i class="ti ti-${icono}"></i><span>${texto}</span></div>`;
+
+        /* ==========================================================
+           ESTADO
+           ========================================================== */
+        const estado = {
+            datos: null,
+            graficas: {},
+            vistaTabla: { actividad: false, departamentos: false, categorias: false },
+            verTodasSubastas: false
+        };
+
+        const rolActual = () => (localStorage.getItem('userRol') || '').toLowerCase().trim();
+        const esAdminActual = () => ['administrador', 'admin'].includes(rolActual());
+
+        /* ==========================================================
+           INICIO
+           ========================================================== */
+        document.addEventListener('DOMContentLoaded', () => {
+            const userEmail = localStorage.getItem('userEmail');
+            const userNombre = localStorage.getItem('userNombre') || 'Usuario';
+            const userRol = localStorage.getItem('userRol') || 'Miembro';
+
+            if (!userEmail) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const rol = rolActual();
+            const esAdmin = esAdminActual();
+
+            // Enlace al panel admin en la sub-barra
+            const subBar = document.querySelector('.sub-bar');
+            if (esAdmin && subBar && !document.getElementById('nav-admin-link')) {
+                const adminLink = document.createElement('a');
+                adminLink.id = 'nav-admin-link';
+                adminLink.href = 'admin.html';
+                adminLink.style.color = '#f59f00';
+                adminLink.innerHTML = '<i class="ti ti-shield-check"></i> Panel Admin';
+                subBar.appendChild(adminLink);
+            }
+
+            document.getElementById('user-location').textContent = localStorage.getItem('userDepartamento') || 'Managua';
+            document.getElementById('saludoNombre').textContent = userNombre;
+
+            document.getElementById('authArea').innerHTML = `
+                <div class="user-dropdown-wrapper">
+                    <button class="user-btn-nav" onclick="toggleUserDropdown(event)">
+                        <i class="ti ti-user-circle" style="font-size: 22px;"></i>
+                        <div class="user-nav-text">
+                            <span class="user-nav-name">${esc(userNombre)}</span>
+                            <span class="user-nav-role">${esc(userRol.toUpperCase())}</span>
+                        </div>
+                        <i class="ti ti-chevron-down" style="font-size: 14px; margin-left: 2px;"></i>
+                    </button>
+                    <div class="dropdown-menu-nav" id="userDropdownMenu">
+                        <a href="perfil.html" class="dropdown-item-nav">
+                            <i class="ti ti-id" style="font-size: 18px; color: var(--color-principal);"></i> Ver mi perfil
+                        </a>
+                        <div class="dropdown-divider-nav"></div>
+                        <a href="javascript:void(0)" onclick="cerrarSesion()" class="dropdown-item-nav logout-item">
+                            <i class="ti ti-logout" style="font-size: 18px;"></i> Cerrar sesión
+                        </a>
+                    </div>
+                </div>`;
+
+            // Tarjeta de acción según el rol
+            if (rol === 'proveedor') {
+                document.getElementById('cardPublicacion').hidden = false;
+                cargarCategorias();
+            } else {
+                document.getElementById('cardAccesos').hidden = false;
+                renderAccesos(esAdmin);
+            }
+
+            // Estilo base de las gráficas
+            if (window.Chart) {
+                Chart.defaults.font.family = "'Source Sans 3', 'Leelawadee', sans-serif";
+                Chart.defaults.font.size = 12;
+                Chart.defaults.color = colorVar('--texto-2');
+            }
+
+            document.getElementById('filtroPeriodo').addEventListener('change', cargarDashboard);
+            document.getElementById('btnActualizar').addEventListener('click', cargarDashboard);
+            document.getElementById('btnExportar').addEventListener('click', exportarExcel);
+            document.getElementById('buscarSubasta').addEventListener('input', () => renderSubastas());
+            document.querySelectorAll('.btn-vista').forEach(b => b.addEventListener('click', () => alternarVista(b)));
+
+            cargarDashboard();
+        });
+
+        /* ==========================================================
+           CARGA DE DATOS
+           ========================================================== */
+        async function cargarDashboard() {
+            const meses = document.getElementById('filtroPeriodo').value;
+            const capa = document.getElementById('contenidoDashboard');
+            const btnAct = document.getElementById('btnActualizar');
+            const alerta = document.getElementById('alertaError');
+
+            // Al recargar se conserva lo anterior atenuado (sin parpadeos)
+            if (estado.datos) capa.classList.add('recargando');
+            btnAct.disabled = true;
+
+            try {
+                const res = await fetch(`${API_URL}/api/dashboard?meses=${encodeURIComponent(meses)}`);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.message || 'Error del servidor');
+                }
+                estado.datos = await res.json();
+                alerta.hidden = true;
+                renderTodo();
+                document.getElementById('btnExportar').disabled = false;
+                const hora = new Date(estado.datos.generado).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('ultimaActualizacion').textContent = `actualizado hoy a las ${hora}`;
+            } catch (err) {
+                console.error('Error al cargar el dashboard:', err);
+                document.getElementById('alertaTexto').textContent = estado.datos
+                    ? 'No se pudieron actualizar las estadísticas. Se muestran los últimos datos cargados.'
+                    : 'No se pudieron cargar las estadísticas. Revisa tu conexión e inténtalo de nuevo.';
+                alerta.hidden = false;
+                if (!estado.datos) document.getElementById('ultimaActualizacion').textContent = 'sin datos';
+            } finally {
+                capa.classList.remove('recargando');
+                btnAct.disabled = false;
+            }
+        }
+
+        function renderTodo() {
+            const d = estado.datos;
+            renderKPIs(d.resumen);
+            renderMiActividad(d.miActividad);
+            renderActividad(d.actividad, d.periodoMeses);
+            renderDepartamentos(d.departamentos);
+            renderCategorias(d.categorias);
+            renderPrecios(d.categorias);
+            renderSubastas();
+            renderPujas(d.pujasRecientes, d.esAdmin);
+        }
+
+        /* ==========================================================
+           INDICADORES
+           ========================================================== */
+        function renderKPIs(r) {
+            const totalUsuarios = r.proveedores + r.emprendedores;
+            const pctProv = totalUsuarios ? (r.proveedores / totalUsuarios) * 100 : 0;
+            const nuevo = (n, texto) => n > 0
+                ? `<span class="delta-sube">+${entero(n)}</span> ${texto}`
+                : `Sin cambios ${texto}`;
+
+            const tarjetas = [
+                { icono: 'building-factory', titulo: 'Proveedores', valor: entero(r.proveedores), pie: `${porcentaje(pctProv)} de los usuarios` },
+                { icono: 'shoe', titulo: 'Emprendedores', valor: entero(r.emprendedores), pie: nuevo(r.nuevosUsuarios30d, 'usuarios en 30 días') },
+                { icono: 'package', titulo: 'Ofertas publicadas', valor: entero(r.ofertas), pie: nuevo(r.ofertas30d, 'en 30 días') },
+                { icono: 'tag', titulo: 'Precio promedio', valor: dinero(r.precioPromedio), pie: 'por unidad, todas las categorías' },
+                { icono: 'gavel', titulo: 'Subastas activas', valor: entero(r.subastasActivas), pie: `<strong>${entero(r.subastasCerradas)}</strong> finalizadas` },
+                { icono: 'coins', titulo: 'Valor en subasta', valor: dineroCorto(r.valorEnSubasta), pie: 'suma de las pujas actuales' },
+                { icono: 'hand-click', titulo: 'Pujas realizadas', valor: entero(r.pujas), pie: nuevo(r.pujas30d, 'en 30 días') },
+                { icono: 'messages', titulo: 'Mensajes', valor: entero(r.mensajes), pie: nuevo(r.mensajes30d, 'en 30 días') }
+            ];
+
+            document.getElementById('kpiGrid').innerHTML = tarjetas.map(t => `
+                <div class="kpi">
+                    <div class="kpi-cabecera"><span>${t.titulo}</span><span class="kpi-icono"><i class="ti ti-${t.icono}"></i></span></div>
+                    <div class="kpi-valor" title="${esc(t.valor)}">${t.valor}</div>
+                    <div class="kpi-pie">${t.pie}</div>
+                </div>`).join('');
+        }
+
+        // "★ 4.5 (3)": promedio de las calificaciones que me dieron en tratos completados
+        const textoCalificacion = (m) => m.misCalificaciones
+            ? `★ ${Number(m.miCalificacion).toFixed(1)} (${entero(m.misCalificaciones)})`
+            : '—';
+        const estrellasFijas = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+        function datosMiActividad(m) {
+            if (m.rol === 'proveedor') return {
+                titulo: 'Mi actividad como proveedor',
+                filas: [
+                    ['Mis ofertas publicadas', entero(m.misOfertas), m.misOfertas],
+                    ['Mis subastas activas', entero(m.misSubastasActivas), m.misSubastasActivas],
+                    ['Pujas recibidas', entero(m.pujasRecibidas), m.pujasRecibidas],
+                    ['Valor actual de mis lotes', dineroCorto(m.valorMisSubastas), m.valorMisSubastas],
+                    ['Subastas vendidas', entero(m.subastasVendidas), m.subastasVendidas],
+                    ['Monto vendido en subastas', dineroCorto(m.montoVendido), m.montoVendido],
+                    ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos],
+                    ['Mi calificación', textoCalificacion(m), m.miCalificacion || 0]
+                ]
+            };
+            if (m.rol === 'emprendedor') return {
+                titulo: 'Mi actividad como emprendedor',
+                filas: [
+                    ['Pujas realizadas', entero(m.misPujas), m.misPujas],
+                    ['Subastas en las que participo', entero(m.subastasParticipando), m.subastasParticipando],
+                    ['Subastas que voy ganando', entero(m.subastasLiderando), m.subastasLiderando],
+                    ['Monto de los lotes que lidero', dineroCorto(m.montoLiderando), m.montoLiderando],
+                    ['Subastas ganadas', entero(m.subastasGanadas), m.subastasGanadas],
+                    ['Monto de subastas ganadas', dineroCorto(m.montoGanado), m.montoGanado],
+                    ['Mensajes recibidos', entero(m.mensajesRecibidos), m.mensajesRecibidos],
+                    ['Mi calificación', textoCalificacion(m), m.miCalificacion || 0]
+                ]
+            };
+            return null;
+        }
+
+        function renderMiActividad(m) {
+            const sec = document.getElementById('seccionMiActividad');
+            const info = datosMiActividad(m);
+            if (!info) { sec.hidden = true; return; }
+            document.getElementById('tituloMiActividad').textContent = info.titulo;
+            document.getElementById('miActividadGrid').innerHTML = info.filas.map(([etq, val]) =>
+                `<div class="mini-kpi"><div class="etq">${etq}</div><div class="val">${val}</div></div>`).join('');
+            sec.hidden = false;
+            cargarMisTratos(m.rol);
+        }
+
+        // Subastas que ya cerraron con ganador: el emprendedor ve las que ganó y el
+        // proveedor las que vendió, con acceso directo al chat para coordinar la entrega
+        // y botones para marcar cómo va el trato (ver tratos.js en el servidor).
+        const ESTADOS_TRATO = {
+            Pendiente: { texto: 'Pendiente', icono: 'ti-hourglass', clase: 'pendiente' },
+            EnProceso: { texto: 'En proceso', icono: 'ti-truck-delivery', clase: 'proceso' },
+            Completado: { texto: 'Completado', icono: 'ti-circle-check', clase: 'completado' },
+            Cancelado: { texto: 'Cancelado', icono: 'ti-circle-x', clase: 'cancelado' }
+        };
+        // Qué botones se ofrecen según el estado actual (Completado y Cancelado son finales)
+        const ACCIONES_TRATO = {
+            Pendiente: [
+                { estado: 'EnProceso', texto: 'Pago y entrega acordados', icono: 'ti-truck-delivery', principal: true },
+                { estado: 'Completado', texto: 'Completado', icono: 'ti-circle-check' },
+                { estado: 'Cancelado', texto: 'Cancelar', icono: 'ti-x' }
+            ],
+            EnProceso: [
+                { estado: 'Completado', texto: 'Marcar completado', icono: 'ti-circle-check', principal: true },
+                { estado: 'Cancelado', texto: 'Cancelar', icono: 'ti-x' }
+            ]
+        };
+        let rolMisTratos = null;
+        let paginaMisTratos = 1;
+        const POR_PAGINA_TRATOS = 5;
+
+        // Se piden de a POR_PAGINA_TRATOS (el servidor pagina); llegan primero los abiertos
+        async function cargarMisTratos(rol = rolMisTratos, pagina = paginaMisTratos) {
+            rolMisTratos = rol;
+            paginaMisTratos = pagina;
+            const caja = document.getElementById('misTratos');
+            try {
+                const res = await fetch(`${API_URL}/api/tratos?origen=Subasta&pagina=${pagina}&porPagina=${POR_PAGINA_TRATOS}`);
+                if (!res.ok) throw new Error('sin datos');
+                const datos = await res.json();
+                if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarMisTratos(rol, datos.paginas);
+                const tratos = datos.datos;
+                if (tratos.length === 0) { caja.hidden = true; return; }
+                pintarPaginacionTratos(datos);
+                document.getElementById('tituloMisTratos').textContent = rol === 'proveedor' ? 'Mis subastas vendidas' : 'Mis subastas ganadas';
+                document.getElementById('listaMisTratos').innerHTML = tratos.map(t => {
+                    const estado = ESTADOS_TRATO[t.estado] || { texto: t.estado, icono: 'ti-info-circle', clase: 'pendiente' };
+                    const acciones = ACCIONES_TRATO[t.estado] || [];
+                    const id = Number(t.id);
+                    // Trato completado: cada parte califica a la otra una vez
+                    let calificacion = '';
+                    if (t.estado === 'Completado') {
+                        const mia = Number(t.miCalificacion) || 0;
+                        const suya = Number(t.suCalificacion) || 0;
+                        calificacion = mia
+                            ? `<span class="trato-calificacion">Tu calificación: <span class="estrellas-fijas">${estrellasFijas(mia)}</span></span>`
+                            : `<span class="trato-calificacion">Califica a ${esc(t.contraparte)}:
+                                   <span class="trato-estrellas">${[5, 4, 3, 2, 1].map(n => `<button type="button" class="estrella" title="${n} estrella${n === 1 ? '' : 's'}" onclick="calificarTrato(${id}, ${n}, this)">★</button>`).join('')}</span>
+                               </span>`;
+                        if (suya) calificacion += `<span class="trato-calificacion">Te calificó: <span class="estrellas-fijas">${estrellasFijas(suya)}</span></span>`;
+                    }
+                    return `
+                    <div class="trato ${acciones.length ? '' : 'cerrado'}" data-trato="${id}">
+                        <div class="trato-info">
+                            <strong>${esc(t.descripcion.replace(/^Subasta ganada:\s*(Lote Subasta:\s*)?/i, ''))}</strong>
+                            <span>${t.soyProveedor ? 'Comprador' : 'Proveedor'}: <a class="enlace-perfil" href="perfil-publico.html?id=${Number(t.contraparteId)}" title="Ver su perfil público">${esc(t.contraparte)}</a> · ${esc(haceCuanto(t.fecha))}</span>
+                        </div>
+                        <div class="trato-lado">
+                            <span class="estado-trato ${estado.clase}"><i class="ti ${estado.icono}"></i> ${esc(estado.texto)}</span>
+                            <span class="trato-monto">${dinero(t.monto)}</span>
+                        </div>
+                        <div class="trato-acciones">
+                            <a href="chat.html?contacto=${Number(t.contraparteId)}"><i class="ti ti-message-circle"></i> ${acciones.length ? 'Coordinar' : 'Chat'}</a>
+                            <a href="comprobante.html?trato=${id}" target="_blank" rel="noopener" title="Abrir el comprobante para imprimirlo o guardarlo como PDF"><i class="ti ti-file-invoice"></i> Comprobante</a>
+                            ${acciones.map(a => `<button type="button" class="${a.principal ? 'principal' : ''}" onclick="cambiarEstadoTrato(${id}, '${a.estado}', this)"><i class="ti ${a.icono}"></i> ${a.texto}</button>`).join('')}
+                            ${calificacion}
+                        </div>
+                    </div>`;
+                }).join('');
+                caja.hidden = false;
+            } catch (e) {
+                caja.hidden = true;
+            }
+        }
+
+        // "Anterior / 1 de 3 / Siguiente" bajo la lista de tratos
+        function pintarPaginacionTratos(datos) {
+            const caja = document.getElementById('paginacionMisTratos');
+            if (datos.paginas <= 1) { caja.innerHTML = ''; return; }
+            caja.innerHTML = `
+                <button type="button" ${datos.pagina <= 1 ? 'disabled' : ''} onclick="cargarMisTratos(undefined, ${datos.pagina - 1})" aria-label="Tratos anteriores"><i class="ti ti-chevron-left"></i> Anterior</button>
+                <span>${datos.pagina} de ${datos.paginas} · ${datos.total} trato${datos.total === 1 ? '' : 's'}</span>
+                <button type="button" ${datos.pagina >= datos.paginas ? 'disabled' : ''} onclick="cargarMisTratos(undefined, ${datos.pagina + 1})" aria-label="Tratos siguientes">Siguiente <i class="ti ti-chevron-right"></i></button>`;
+        }
+
+        async function calificarTrato(tratoId, puntuacion, boton) {
+            const comentario = prompt(`Vas a dar ${puntuacion} estrella${puntuacion === 1 ? '' : 's'}. Puedes escribir un comentario (opcional, máximo 300 letras):`, '');
+            if (comentario === null) return;   // pulsó "Cancelar"
+            const botones = boton.closest('.trato-acciones').querySelectorAll('button');
+            botones.forEach(b => { b.disabled = true; });
+            try {
+                const res = await fetch(`${API_URL}/api/tratos/${tratoId}/calificacion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ puntuacion, comentario: comentario.trim() })
+                });
+                const resultado = await res.json().catch(() => ({}));
+                mostrarToast(resultado.message || (res.ok ? '¡Gracias por calificar!' : 'No se pudo guardar la calificación.'), !res.ok);
+                cargarMisTratos(rolMisTratos);
+            } catch (e) {
+                mostrarToast('Error de conexión con el servidor.', true);
+                botones.forEach(b => { b.disabled = false; });
+            }
+        }
+
+        async function cambiarEstadoTrato(tratoId, estado, boton) {
+            const datos = { estado };
+            if (estado === 'Cancelado') {
+                const motivo = prompt('¿Seguro que quieres cancelar este trato? Puedes escribir el motivo (opcional):', '');
+                if (motivo === null) return;   // pulsó "Cancelar" en el cuadro
+                datos.motivo = motivo.trim();
+            } else if (estado === 'Completado') {
+                if (!confirm('¿Confirmas que el material ya se entregó y se pagó?')) return;
+            }
+
+            const botones = boton.parentElement.querySelectorAll('button');
+            botones.forEach(b => { b.disabled = true; });
+            try {
+                const res = await fetch(`${API_URL}/api/tratos/${tratoId}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const resultado = await res.json().catch(() => ({}));
+                mostrarToast(resultado.message || (res.ok ? 'Trato actualizado.' : 'No se pudo actualizar el trato.'), !res.ok);
+                // Cancelar cambia los totales de "Mi actividad": se recarga todo
+                if (res.ok && estado === 'Cancelado') cargarDashboard();
+                else cargarMisTratos(rolMisTratos);
+            } catch (e) {
+                mostrarToast('Error de conexión con el servidor.', true);
+                botones.forEach(b => { b.disabled = false; });
+            }
+        }
+
+        /* ==========================================================
+           GRÁFICAS
+           ========================================================== */
+        function destruirGrafica(clave) {
+            if (estado.graficas[clave]) { estado.graficas[clave].destroy(); delete estado.graficas[clave]; }
+        }
+
+        function leyendaHTML(series) {
+            return series.map(s => `<span><i style="background:${s.color}"></i>${s.nombre}</span>`).join('');
+        }
+
+        function tablaHTML(columnas, filas) {
+            if (!filas.length) return vacioHTML('table-off', 'Sin datos para mostrar.');
+            return `<table class="tabla"><thead><tr>${columnas.map(c => `<th class="${c.num ? 'num' : ''}">${c.titulo}</th>`).join('')}</tr></thead>
+                <tbody>${filas.map(f => `<tr>${columnas.map((c, i) => `<td class="${c.num ? 'num' : ''}">${f[i]}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+        }
+
+        const opcionesEjes = (horizontal = false) => {
+            const grid = colorVar('--grid');
+            const valor = { beginAtZero: true, grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { precision: 0, padding: 6 } };
+            const categoria = { grid: { display: false }, border: { color: grid }, ticks: { padding: 6 } };
+            return horizontal ? { x: valor, y: categoria } : { x: categoria, y: valor };
+        };
+
+        const tooltipBase = () => ({
+            backgroundColor: '#2a1a12',
+            titleColor: '#fff',
+            bodyColor: '#f3e9e3',
+            padding: 10,
+            cornerRadius: 6,
+            boxPadding: 4,
+            usePointStyle: true
+        });
+
+        // Etiqueta directa al final de cada línea (evita que se encimen)
+        const etiquetasFinales = {
+            id: 'etiquetasFinales',
+            afterDatasetsDraw(chart) {
+                const { ctx, chartArea } = chart;
+                const items = chart.data.datasets.map((ds, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    const p = meta.data[meta.data.length - 1];
+                    return (!meta.hidden && p) ? { texto: ds.label, color: ds.borderColor, x: p.x, y: p.y } : null;
+                }).filter(Boolean).sort((a, b) => a.y - b.y);
+                const SEP = 14;
+                // Se separan hacia abajo…
+                for (let i = 1; i < items.length; i++) {
+                    if (items[i].y - items[i - 1].y < SEP) items[i].y = items[i - 1].y + SEP;
+                }
+                // …y si la última se sale del área, se empujan todas hacia arriba
+                if (items.length && items[items.length - 1].y > chartArea.bottom) {
+                    items[items.length - 1].y = chartArea.bottom;
+                    for (let i = items.length - 2; i >= 0; i--) {
+                        if (items[i + 1].y - items[i].y < SEP) items[i].y = items[i + 1].y - SEP;
+                    }
+                }
+                ctx.save();
+                ctx.font = `600 12px ${Chart.defaults.font.family}`;
+                ctx.textBaseline = 'middle';
+                items.forEach(it => {
+                    ctx.fillStyle = colorVar('--texto-2');
+                    ctx.fillText(it.texto, Math.min(it.x + 10, chartArea.right + 10), it.y);
+                });
+                ctx.restore();
+            }
+        };
+
+        function renderActividad(actividad, meses) {
+            destruirGrafica('actividad');
+            const series = [
+                { clave: 'registros', nombre: 'Registros', color: colorVar('--serie-1') },
+                { clave: 'ofertas', nombre: 'Ofertas', color: colorVar('--serie-2') },
+                { clave: 'pujas', nombre: 'Pujas', color: colorVar('--serie-3') }
+            ];
+            document.getElementById('subActividad').textContent =
+                `Nuevos registros, ofertas publicadas y pujas por mes · últimos ${meses} meses`;
+            document.getElementById('leyendaActividad').innerHTML = leyendaHTML(series);
+
+            document.getElementById('tablaActividad').innerHTML = tablaHTML(
+                [{ titulo: 'Mes' }, ...series.map(s => ({ titulo: s.nombre, num: true }))],
+                actividad.map(a => [nombreMes(a.mes, true), ...series.map(s => entero(a[s.clave]))])
+            );
+
+            const wrap = document.getElementById('graficaActividadWrap');
+            const total = actividad.reduce((t, a) => t + a.registros + a.ofertas + a.pujas, 0);
+            if (!window.Chart || total === 0) {
+                wrap.innerHTML = vacioHTML('chart-line', total === 0 ? 'Sin actividad registrada en este periodo.' : 'No se pudo cargar la librería de gráficas.');
+                return;
+            }
+            if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="graficaActividad" role="img" aria-label="Gráfica de actividad mensual"></canvas>';
+
+            estado.graficas.actividad = new Chart(document.getElementById('graficaActividad'), {
+                type: 'line',
+                data: {
+                    labels: actividad.map(a => nombreMes(a.mes)),
+                    datasets: series.map(s => ({
+                        label: s.nombre,
+                        data: actividad.map(a => a[s.clave]),
+                        borderColor: s.color,
+                        backgroundColor: s.color,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        cubicInterpolationMode: 'monotone'   // curva suave sin bajar de 0
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 70, top: 8 } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { ...tooltipBase(), callbacks: { title: (it) => nombreMes(actividad[it[0].dataIndex].mes, true) } }
+                    },
+                    scales: opcionesEjes()
+                },
+                plugins: [etiquetasFinales]
+            });
+        }
+
+        function renderDepartamentos(deps) {
+            destruirGrafica('departamentos');
+            const c1 = colorVar('--serie-1'), c2 = colorVar('--serie-2');
+            document.getElementById('leyendaDepartamentos').innerHTML = leyendaHTML([
+                { nombre: 'Proveedores', color: c1 }, { nombre: 'Emprendedores', color: c2 }
+            ]);
+            document.getElementById('tablaDepartamentos').innerHTML = tablaHTML(
+                [{ titulo: 'Departamento' }, { titulo: 'Proveedores', num: true }, { titulo: 'Emprendedores', num: true }, { titulo: 'Total', num: true }],
+                deps.map(d => [esc(d.departamento), entero(d.proveedores), entero(d.emprendedores), `<strong>${entero(d.proveedores + d.emprendedores)}</strong>`])
+            );
+
+            const wrap = document.getElementById('graficaDepartamentosWrap');
+            if (!window.Chart || !deps.length) {
+                wrap.style.height = '';
+                wrap.innerHTML = vacioHTML('map-off', 'Todavía no hay usuarios registrados.');
+                return;
+            }
+            wrap.style.height = Math.max(220, deps.length * 34 + 50) + 'px';
+            if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="graficaDepartamentos" role="img" aria-label="Gráfica de usuarios por departamento"></canvas>';
+
+            estado.graficas.departamentos = new Chart(document.getElementById('graficaDepartamentos'), {
+                type: 'bar',
+                data: {
+                    labels: deps.map(d => d.departamento),
+                    datasets: [
+                        { label: 'Proveedores', data: deps.map(d => d.proveedores), backgroundColor: c1, borderColor: '#fff', borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 0, maxBarThickness: 18 },
+                        { label: 'Emprendedores', data: deps.map(d => d.emprendedores), backgroundColor: c2, borderRadius: { topRight: 4, bottomRight: 4 }, borderSkipped: false, maxBarThickness: 18 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', axis: 'y', intersect: false },
+                    plugins: { legend: { display: false }, tooltip: tooltipBase() },
+                    scales: (() => { const s = opcionesEjes(true); s.x.stacked = true; s.y.stacked = true; return s; })()
+                }
+            });
+        }
+
+        function renderCategorias(cats) {
+            destruirGrafica('categorias');
+            document.getElementById('tablaCategoriasConteo').innerHTML = tablaHTML(
+                [{ titulo: 'Categoría' }, { titulo: 'Ofertas', num: true }, { titulo: 'Precio promedio', num: true }],
+                cats.map(c => [esc(c.categoria), entero(c.ofertas), dinero(c.precioPromedio)])
+            );
+
+            const wrap = document.getElementById('graficaCategoriasWrap');
+            if (!window.Chart || !cats.length) {
+                wrap.style.height = '';
+                wrap.innerHTML = vacioHTML('package-off', 'Todavía no hay ofertas publicadas.');
+                return;
+            }
+            wrap.style.height = Math.max(200, cats.length * 32 + 50) + 'px';
+            if (!wrap.querySelector('canvas')) wrap.innerHTML = '<canvas id="graficaCategorias" role="img" aria-label="Gráfica de ofertas por categoría"></canvas>';
+
+            // En pantallas angostas los nombres largos se recortan más (el nombre completo sale en el tooltip y en la tabla)
+            const recortar = (t, ancho) => { const max = ancho < 520 ? 15 : 28; return t.length > max ? t.slice(0, max - 1) + '…' : t; };
+            estado.graficas.categorias = new Chart(document.getElementById('graficaCategorias'), {
+                type: 'bar',
+                data: {
+                    labels: cats.map(c => c.categoria),
+                    datasets: [{ label: 'Ofertas', data: cats.map(c => c.ofertas), backgroundColor: colorVar('--serie-1'), borderRadius: 4, borderSkipped: 'start', maxBarThickness: 16 }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            ...tooltipBase(),
+                            callbacks: {
+                                label: (it) => ` ${entero(it.raw)} ${it.raw === 1 ? 'oferta' : 'ofertas'}`,
+                                afterLabel: (it) => ` Precio promedio: ${dinero(cats[it.dataIndex].precioPromedio)}`
+                            }
+                        }
+                    },
+                    scales: (() => { const s = opcionesEjes(true); s.y.ticks.callback = function (v) { return recortar(this.getLabelForValue(v), this.chart.width); }; return s; })()
+                }
+            });
+        }
+
+        function renderPrecios(cats) {
+            document.getElementById('tablaPrecios').innerHTML = cats.length
+                ? tablaHTML(
+                    [{ titulo: 'Categoría' }, { titulo: 'Ofertas', num: true }, { titulo: 'Mínimo', num: true }, { titulo: 'Promedio', num: true }, { titulo: 'Máximo', num: true }],
+                    cats.map(c => [esc(c.categoria), entero(c.ofertas), dinero(c.precioMinimo), `<strong>${dinero(c.precioPromedio)}</strong>`, dinero(c.precioMaximo)])
+                )
+                : vacioHTML('receipt-off', 'Los precios aparecerán cuando haya ofertas publicadas.');
+        }
+
+        function alternarVista(boton) {
+            const clave = boton.dataset.vista;
+            const ids = {
+                actividad: ['graficaActividadWrap', 'tablaActividad', 'leyendaActividad'],
+                departamentos: ['graficaDepartamentosWrap', 'tablaDepartamentos', 'leyendaDepartamentos'],
+                categorias: ['graficaCategoriasWrap', 'tablaCategoriasConteo', null]
+            }[clave];
+            const tabla = !estado.vistaTabla[clave];
+            estado.vistaTabla[clave] = tabla;
+            document.getElementById(ids[0]).hidden = tabla;
+            document.getElementById(ids[1]).hidden = !tabla;
+            if (ids[2]) document.getElementById(ids[2]).hidden = tabla;
+            boton.setAttribute('aria-pressed', String(tabla));
+            boton.innerHTML = tabla ? '<i class="ti ti-chart-bar"></i> Ver gráfica' : '<i class="ti ti-table"></i> Ver tabla';
+        }
+
+        /* ==========================================================
+           SUBASTAS Y PUJAS
+           ========================================================== */
+        function renderSubastas() {
+            if (!estado.datos) return;
+            const cont = document.getElementById('tablaSubastas');
+            const filtro = document.getElementById('buscarSubasta').value.trim().toLowerCase();
+            const todas = estado.datos.subastas;
+            const filtradas = todas.filter(s => !filtro || nombreLote(s.lote).toLowerCase().includes(filtro) || s.proveedor.toLowerCase().includes(filtro));
+            const LIMITE = 8;
+            const visibles = estado.verTodasSubastas ? filtradas : filtradas.slice(0, LIMITE);
+
+            document.getElementById('subSubastas').textContent =
+                `${entero(todas.length)} ${todas.length === 1 ? 'lote activo' : 'lotes activos'} · ordenados por número de pujas`;
+
+            if (!todas.length) { cont.innerHTML = vacioHTML('gavel', 'No hay subastas activas en este momento.'); return; }
+            if (!filtradas.length) { cont.innerHTML = vacioHTML('search-off', 'Ningún lote coincide con la búsqueda.'); return; }
+
+            const maxInc = Math.max(1, ...filtradas.map(s => s.precioBase > 0 ? (s.precioActual - s.precioBase) / s.precioBase * 100 : 0));
+            cont.innerHTML = `
+                <table class="tabla">
+                    <thead><tr>
+                        <th>Lote</th><th class="num">Precio base</th><th class="num">Puja actual</th>
+                        <th>Incremento</th><th class="num">Pujas</th><th>Cierra en</th><th></th>
+                    </tr></thead>
+                    <tbody>${visibles.map(s => {
+                        const inc = s.precioBase > 0 ? (s.precioActual - s.precioBase) / s.precioBase * 100 : 0;
+                        const horas = (new Date(s.fechaFin) - new Date()) / 3600000;
+                        const pronto = horas < 24;
+                        return `<tr>
+                            <td><div class="lote">${esc(nombreLote(s.lote))} ${s.esMia ? '<span class="chip chip-mia">Tu lote</span>' : ''}</div>
+                                <div class="secundario">${esc(s.proveedor)}</div></td>
+                            <td class="num">${dinero(s.precioBase)}</td>
+                            <td class="num"><strong>${dinero(s.precioActual)}</strong></td>
+                            <td><div class="barra-inc" title="Incremento sobre el precio base">
+                                <div class="pista"><div class="relleno" style="width:${Math.max(0, inc) / maxInc * 100}%"></div></div>
+                                <span>+${porcentaje(inc)}</span></div></td>
+                            <td class="num">${entero(s.pujas)}</td>
+                            <td><span class="chip ${pronto ? 'chip-pronto' : 'chip-normal'}">
+                                <i class="ti ti-${pronto ? 'alarm' : 'clock'}"></i>${pronto ? 'Cierra pronto · ' : ''}${tiempoRestante(s.fechaFin)}</span></td>
+                            <td><a class="enlace" href="mercado.html">Ver lote →</a></td>
+                        </tr>`;
+                    }).join('')}</tbody>
+                </table>
+                ${filtradas.length > LIMITE ? `<div style="text-align:center; margin-top:12px;">
+                    <button class="btn btn-ghost" type="button" onclick="estado.verTodasSubastas = !estado.verTodasSubastas; renderSubastas();">
+                        ${estado.verTodasSubastas ? 'Mostrar menos' : `Mostrar las ${entero(filtradas.length)} subastas`}</button></div>` : ''}`;
+        }
+
+        function renderPujas(pujas, esAdmin) {
+            const ul = document.getElementById('listaPujas');
+            if (!pujas.length) { ul.innerHTML = `<li style="border:none">${vacioHTML('hand-off', 'Todavía no hay pujas registradas.')}</li>`; return; }
+            ul.innerHTML = pujas.slice(0, 8).map(p => `
+                <li>
+                    <span class="puja-icono"><i class="ti ti-gavel"></i></span>
+                    <div class="puja-info">
+                        <strong title="${esc(nombreLote(p.lote))}">${esc(nombreLote(p.lote))}</strong>
+                        <span>${haceCuanto(p.fecha)}${p.esMia ? ' · <span class="chip chip-mia">Tu puja</span>' : ''}${esAdmin && p.postor ? ' · ' + esc(p.postor) : ''}</span>
+                    </div>
+                    <span class="puja-monto">${dinero(p.monto)}</span>
+                </li>`).join('');
+        }
+
+        function renderAccesos(esAdmin) {
+            const accesos = [
+                ...(esAdmin ? [{ href: 'admin.html', icono: 'shield-check', titulo: 'Panel de administración', texto: 'Usuarios, moderación y categorías', clase: 'acceso-admin' }] : []),
+                { href: 'mercado.html', icono: 'building-store', titulo: 'Mercado y subastas', texto: 'Explora materiales y puja por lotes' },
+                { href: 'chat.html', icono: 'messages', titulo: 'Mensajes', texto: 'Conversa con proveedores y talleres' },
+                { href: 'perfil.html', icono: 'id', titulo: 'Mi perfil', texto: 'Revisa y actualiza tus datos' }
+            ];
+            document.getElementById('listaAccesos').innerHTML = accesos.map(a => `
+                <a class="acceso ${a.clase || ''}" href="${a.href}">
+                    <i class="ti ti-${a.icono}"></i>
+                    <div><strong>${a.titulo}</strong><span>${a.texto}</span></div>
+                </a>`).join('');
+        }
+
+        /* ==========================================================
+           PUBLICAR MATERIAL (proveedores)
+           ========================================================== */
+        async function cargarCategorias() {
+            const sel = document.getElementById('pubCategoria');
+            try {
+                const res = await fetch(`${API_URL}/api/categorias`);
+                const cats = res.ok ? await res.json() : [];
+                sel.innerHTML = cats.length
+                    ? '<option value="">Selecciona una categoría</option>' + cats.map(c => `<option value="${Number(c.CategoriaID)}">${esc(c.NombreCategoria)}</option>`).join('')
+                    : '<option value="">No hay categorías disponibles</option>';
+            } catch (e) {
+                sel.innerHTML = '<option value="">No se pudieron cargar las categorías</option>';
+            }
+        }
+
+        async function publicarMaterial(event) {
+            event.preventDefault();
+            const boton = document.getElementById('btnPublicar');
+            const datos = {
+                titulo: document.getElementById('pubTitulo').value.trim(),
+                categoriaId: Number(document.getElementById('pubCategoria').value),
+                precio: parseFloat(document.getElementById('pubPrecio').value),
+                unidad: document.getElementById('pubUnidad').value.trim(),
+                distancia: 0,
+                fotos: []
+            };
+
+            boton.disabled = true;
+            try {
+                const res = await fetch(`${API_URL}/api/ofertas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    mostrarToast(result.message || '¡Material publicado con éxito!');
+                    document.getElementById('formPublicar').reset();
+                    cargarDashboard();
+                } else {
+                    mostrarToast(result.message || 'Error al publicar el material.', true);
+                }
+            } catch (err) {
+                mostrarToast('Error de conexión con el servidor.', true);
+            } finally {
+                boton.disabled = false;
+            }
+        }
+
+        /* ==========================================================
+           EXPORTAR A EXCEL (ExcelJS, se carga solo cuando se usa)
+           ========================================================== */
+        function cargarScript(url) {
+            return new Promise((ok, falla) => {
+                if (window.ExcelJS) return ok();
+                const s = document.createElement('script');
+                s.src = url;
+                s.onload = ok;
+                s.onerror = () => falla(new Error('No se pudo descargar la librería de Excel'));
+                document.head.appendChild(s);
+            });
+        }
+
+        // Excel guarda las fechas sin zona horaria: se ajustan para que se vean en hora local
+        const fechaExcel = (f) => { const d = new Date(f); return new Date(d.getTime() - d.getTimezoneOffset() * 60000); };
+
+        const FORMATO = {
+            dinero: '"C$" #,##0.00',
+            entero: '#,##0',
+            porcentaje: '0.0%',
+            fecha: 'dd/mm/yyyy hh:mm'
+        };
+
+        function agregarHoja(libro, nombre, titulo, columnas, filas, { total = null, nota = '' } = {}) {
+            const hoja = libro.addWorksheet(nombre, { views: [{ state: 'frozen', ySplit: 4 }], properties: { tabColor: { argb: 'FF7D381B' } } });
+            hoja.columns = columnas.map(c => ({ key: c.clave, width: c.ancho || 16 }));
+            const ultimaCol = columnas.length;
+
+            hoja.mergeCells(1, 1, 1, ultimaCol);
+            const t = hoja.getCell(1, 1);
+            t.value = titulo;
+            t.font = { name: 'Calibri', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+            t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3D170A' } };
+            t.alignment = { vertical: 'middle', indent: 1 };
+            hoja.getRow(1).height = 28;
+
+            hoja.mergeCells(2, 1, 2, ultimaCol);
+            const sub = hoja.getCell(2, 1);
+            sub.value = nota || `EntreLazados · Generado el ${new Date(estado.datos.generado).toLocaleString('es-NI')}`;
+            sub.font = { italic: true, size: 10, color: { argb: 'FF6B5A50' } };
+            sub.alignment = { indent: 1 };
+
+            const cabecera = hoja.getRow(4);
+            columnas.forEach((c, i) => {
+                const celda = cabecera.getCell(i + 1);
+                celda.value = c.titulo;
+                celda.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF993D24' } };
+                celda.alignment = { vertical: 'middle', horizontal: c.formato && c.formato !== 'texto' ? 'right' : 'left', wrapText: true };
+                celda.border = { bottom: { style: 'thin', color: { argb: 'FF7D381B' } } };
+            });
+            cabecera.height = 22;
+
+            filas.forEach((f, idx) => {
+                const fila = hoja.addRow(f);
+                fila.eachCell({ includeEmpty: true }, (celda, n) => {
+                    const col = columnas[n - 1];
+                    if (col && col.formato && FORMATO[col.formato]) celda.numFmt = FORMATO[col.formato];
+                    celda.border = { bottom: { style: 'hair', color: { argb: 'FFE6DDD4' } } };
+                    if (idx % 2 === 1) celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAF6F2' } };
+                });
+            });
+
+            if (!filas.length) {
+                const fila = hoja.addRow([]);
+                fila.getCell(1).value = 'Sin datos para este periodo.';
+                fila.getCell(1).font = { italic: true, color: { argb: 'FF8D7D73' } };
+            } else {
+                hoja.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + filas.length, column: ultimaCol } };
+                if (total) {
+                    const fila = hoja.addRow(total);
+                    fila.eachCell({ includeEmpty: true }, (celda, n) => {
+                        const col = columnas[n - 1];
+                        if (col && col.formato && FORMATO[col.formato]) celda.numFmt = FORMATO[col.formato];
+                        celda.font = { bold: true };
+                        celda.border = { top: { style: 'thin', color: { argb: 'FF3D170A' } } };
+                        celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1E7DF' } };
+                    });
+                }
+            }
+            return hoja;
+        }
+
+        async function exportarExcel() {
+            const d = estado.datos;
+            if (!d) return;
+            const boton = document.getElementById('btnExportar');
+            const original = boton.innerHTML;
+            boton.disabled = true;
+            boton.innerHTML = '<i class="ti ti-loader-2"></i> Generando…';
+
+            try {
+                await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+                const libro = new ExcelJS.Workbook();
+                libro.creator = 'EntreLazados';
+                libro.created = new Date();
+                const r = d.resumen;
+                const usuario = localStorage.getItem('userNombre') || 'Usuario';
+
+                // 1. RESUMEN
+                const filasResumen = [
+                    ['Proveedores registrados', r.proveedores, null],
+                    ['Emprendedores registrados', r.emprendedores, null],
+                    ['Usuarios nuevos', null, r.nuevosUsuarios30d],
+                    ['Ofertas publicadas', r.ofertas, r.ofertas30d],
+                    ['Precio promedio de las ofertas (C$)', r.precioPromedio, null],
+                    ['Subastas activas', r.subastasActivas, null],
+                    ['Subastas finalizadas', r.subastasCerradas, null],
+                    ['Valor total en subasta (C$)', r.valorEnSubasta, null],
+                    ['Pujas realizadas', r.pujas, r.pujas30d],
+                    ['Mensajes enviados', r.mensajes, r.mensajes30d]
+                ];
+                const hojaResumen = agregarHoja(libro, 'Resumen', 'Reporte del Dashboard · EntreLazados',
+                    [{ clave: 'a', titulo: 'Indicador', ancho: 40 }, { clave: 'b', titulo: 'Total', ancho: 18, formato: 'entero' }, { clave: 'c', titulo: 'Últimos 30 días', ancho: 18, formato: 'entero' }],
+                    filasResumen,
+                    { nota: `Generado por ${usuario} el ${new Date(d.generado).toLocaleString('es-NI')} · periodo de actividad: últimos ${d.periodoMeses} meses` });
+                // Los montos en córdobas llevan formato de moneda
+                [5, 8].forEach(i => { hojaResumen.getRow(4 + i).getCell(2).numFmt = FORMATO.dinero; });
+
+                const mia = datosMiActividad(d.miActividad);
+                if (mia) {
+                    hojaResumen.addRow([]);
+                    const tit = hojaResumen.addRow([mia.titulo]);
+                    tit.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF3D170A' } };
+                    mia.filas.forEach(([etq, , valor]) => {
+                        const fila = hojaResumen.addRow([etq, Number(valor) || 0]);
+                        fila.getCell(2).numFmt = /Valor|Monto/.test(etq) ? FORMATO.dinero : FORMATO.entero;
+                    });
+                }
+
+                // 2. ACTIVIDAD MENSUAL
+                const act = d.actividad;
+                agregarHoja(libro, 'Actividad mensual', `Actividad mensual · últimos ${d.periodoMeses} meses`,
+                    [{ clave: 'mes', titulo: 'Mes', ancho: 22 }, { clave: 'r', titulo: 'Registros', formato: 'entero' }, { clave: 'o', titulo: 'Ofertas', formato: 'entero' }, { clave: 'p', titulo: 'Pujas', formato: 'entero' }],
+                    act.map(a => [nombreMes(a.mes, true), a.registros, a.ofertas, a.pujas]),
+                    { total: ['Total', ...['registros', 'ofertas', 'pujas'].map(k => act.reduce((t, a) => t + a[k], 0))] });
+
+                // 3. CATEGORÍAS
+                const cats = d.categorias;
+                agregarHoja(libro, 'Categorías', 'Ofertas y precios por categoría',
+                    [{ clave: 'c', titulo: 'Categoría', ancho: 40 }, { clave: 'n', titulo: 'Ofertas', formato: 'entero', ancho: 12 },
+                     { clave: 'min', titulo: 'Precio mínimo', formato: 'dinero' }, { clave: 'avg', titulo: 'Precio promedio', formato: 'dinero' }, { clave: 'max', titulo: 'Precio máximo', formato: 'dinero' }],
+                    cats.map(c => [c.categoria, c.ofertas, c.precioMinimo, c.precioPromedio, c.precioMaximo]),
+                    { total: ['Total', cats.reduce((t, c) => t + c.ofertas, 0), null, r.precioPromedio, null] });
+
+                // 4. DEPARTAMENTOS
+                const deps = d.departamentos;
+                agregarHoja(libro, 'Departamentos', 'Usuarios por departamento',
+                    [{ clave: 'd', titulo: 'Departamento', ancho: 28 }, { clave: 'p', titulo: 'Proveedores', formato: 'entero' }, { clave: 'e', titulo: 'Emprendedores', formato: 'entero' }, { clave: 't', titulo: 'Total', formato: 'entero' }],
+                    deps.map(x => [x.departamento, x.proveedores, x.emprendedores, x.proveedores + x.emprendedores]),
+                    { total: ['Total', ...['proveedores', 'emprendedores'].map(k => deps.reduce((t, x) => t + x[k], 0)), deps.reduce((t, x) => t + x.proveedores + x.emprendedores, 0)] });
+
+                // 5. SUBASTAS EN CURSO
+                agregarHoja(libro, 'Subastas en curso', 'Subastas activas',
+                    [{ clave: 'id', titulo: 'N.º', ancho: 8, formato: 'entero' }, { clave: 'l', titulo: 'Lote', ancho: 40 }, { clave: 'pr', titulo: 'Proveedor', ancho: 28 },
+                     { clave: 'b', titulo: 'Precio base', formato: 'dinero' }, { clave: 'a', titulo: 'Puja actual', formato: 'dinero' }, { clave: 'i', titulo: 'Incremento', formato: 'porcentaje', ancho: 13 },
+                     { clave: 'n', titulo: 'Pujas', formato: 'entero', ancho: 10 }, { clave: 'f', titulo: 'Cierra el', formato: 'fecha', ancho: 18 }],
+                    d.subastas.map(s => [s.id, nombreLote(s.lote), s.proveedor, s.precioBase, s.precioActual, s.precioBase > 0 ? (s.precioActual - s.precioBase) / s.precioBase : 0, s.pujas, fechaExcel(s.fechaFin)]),
+                    { total: ['', 'Total', '', d.subastas.reduce((t, s) => t + s.precioBase, 0), d.subastas.reduce((t, s) => t + s.precioActual, 0), null, d.subastas.reduce((t, s) => t + s.pujas, 0), null] });
+
+                // 6. PUJAS RECIENTES
+                const colsPujas = [{ clave: 'f', titulo: 'Fecha', formato: 'fecha', ancho: 18 }, { clave: 'l', titulo: 'Lote', ancho: 40 }, { clave: 'm', titulo: 'Monto', formato: 'dinero' }];
+                if (d.esAdmin) colsPujas.push({ clave: 'p', titulo: 'Postor', ancho: 28 });
+                agregarHoja(libro, 'Pujas recientes', 'Últimas pujas registradas', colsPujas,
+                    d.pujasRecientes.map(p => [fechaExcel(p.fecha), nombreLote(p.lote), p.monto, ...(d.esAdmin ? [p.postor] : [])]));
+
+                const buffer = await libro.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const hoy = new Date();
+                const nombre = `EntreLazados_Dashboard_${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}.xlsx`;
+                const enlace = document.createElement('a');
+                enlace.href = URL.createObjectURL(blob);
+                enlace.download = nombre;
+                document.body.appendChild(enlace);
+                enlace.click();
+                setTimeout(() => { URL.revokeObjectURL(enlace.href); enlace.remove(); }, 1000);
+                mostrarToast(`Reporte descargado: ${nombre}`);
+            } catch (err) {
+                console.error('Error al exportar:', err);
+                mostrarToast('No se pudo generar el archivo de Excel. Inténtalo de nuevo.', true);
+            } finally {
+                boton.disabled = false;
+                boton.innerHTML = original;
+            }
+        }
+
+    </script>
+</body>
+</html>
