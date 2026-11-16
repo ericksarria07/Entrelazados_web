@@ -11,7 +11,8 @@
     "db:migrar": "drizzle-kit migrate",
     "db:estudio": "drizzle-kit studio",
     "db:revisar": "drizzle-kit check",
-    "probar:neon": "node --env-file=.env.local scripts/probar-neon.ts"
+    "probar:neon": "node --env-file=.env.local scripts/probar-neon.ts",
+    "test:api": "node --env-file-if-exists=.env.local pruebas/api/correr.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.11.3",
@@ -27,10 +28,13 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io-client": "^4.8.4",
     "typescript": "^5"
   },
   "description": "EntreLazados en Next.js (migración en curso, ver ROADMAP.md)",
