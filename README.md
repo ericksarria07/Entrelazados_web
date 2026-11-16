@@ -113,6 +113,11 @@ Entrelazados_web/
 ├── ROADMAP.md                    # plan de migración a Next.js + Vercel + Neon
 ├── .github/workflows/
 │   └── pruebas.yml               # GitHub Actions: corre todas las pruebas en cada push y PR
+├── web/                          # app en Next.js (migración en curso, ver la sección Next.js)
+│   ├── next.config.ts            # "/" muestra preview.html, igual que Express
+│   ├── app/api/salud/route.ts    # GET /api/salud: la app y Neon contestan
+│   ├── lib/db.ts                 # Pool de pg hacia Neon (attachDatabasePool)
+│   └── public/                   # copia de las páginas de Express; se pasan a React una por una
 └── backend/
     ├── package.json              # dependencias y comandos: npm install, npm start, npm test
     ├── neon.ts                   # configuración de Neon (Postgres); ver la sección Neon
@@ -442,6 +447,33 @@ npm run probar:neon        # prueba por la conexión con pooler (la que usará l
 
 Diferencias con MySQL que tendrán en cuenta las consultas migradas: nombres en snake_case, `timestamptz`,
 `boolean`, `RETURNING` en lugar de `insertId`, y `numeric` y `COUNT(*)` llegan como texto.
+
+---
+
+## Next.js en Vercel (`web/`): migración en curso
+
+La carpeta `web/` es la app en **Next.js 16** que reemplazará a Express (ver [ROADMAP](ROADMAP.md)).
+Vive en la rama `migracion-nextjs`. Por ahora sirve las mismas páginas de siempre, copiadas tal cual a `web/public/`.
+Lo que llama a `/api/...` o a Socket.IO **todavía no funciona**. Esas rutas se van pasando a Next.js en las ramas `nextjs/<tema>`.
+
+| | |
+|---|---|
+| Sitio | https://entrelazados.ericksv.com (CNAME en Cloudflare con nube gris, hacia Vercel) |
+| Vercel | proyecto `entrelazados`, *Root Directory* `web`, Node 22, rama de producción `migracion-nextjs` |
+| Variables | `DATABASE_URL` (Neon con pooler) en Vercel: production, preview y development |
+| Salud | `GET /api/salud` → `{"estado":"ok","bd":"ok"}` (503 si Neon no contesta) |
+
+Correrla en tu máquina:
+
+```bash
+cd web
+npm install
+cp ../backend/.env.local .env.local   # o: vercel env pull .env.local
+npm run dev                            # http://localhost:3000 y http://localhost:3000/api/salud
+```
+
+Cada *pull request* hacia `migracion-nextjs` recibe una vista previa en Vercel. Al mezclarlo, se publica en el dominio.
+El CI corre `npm run lint` y `npm run build` de `web/` (check "Next.js (build)").
 
 ---
 

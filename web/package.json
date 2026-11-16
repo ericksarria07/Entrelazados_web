@@ -1,0 +1,31 @@
+{
+  "name": "entrelazados-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@vercel/functions": "^3.11.3",
+    "next": "16.4.6",
+    "pg": "^8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "typescript": "^5"
+  },
+  "description": "EntreLazados en Next.js (migración en curso, ver ROADMAP.md)",
+  "engines": {
+    "node": ">=20.9"
+  }
+}

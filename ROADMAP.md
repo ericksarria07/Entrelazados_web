@@ -133,7 +133,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 
 | # | Trabajo | Días |
 |---|---|---|
-| 1.1 | Crear el proyecto Next.js, copiar `public/`, configurar variables de entorno | 1 |
+| 1.1 | Crear el proyecto Next.js, copiar `public/`, configurar variables de entorno. ✅ `web/` con Next.js 16, páginas copiadas, `/api/salud` contra Neon, proyecto en Vercel | 1 |
 | 1.2 | Esquema Postgres en Neon (18 tablas, snake_case, Drizzle). ✅ Esquema SQL cargado y probado (`sql/esquema_postgres.sql`); falta pasarlo a Drizzle | 1–1.5 |
 | 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT` | 5–8 |
 | 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación | 1.5–2 |
@@ -143,7 +143,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.8 | Fotos en Cloudinary con subida firmada | 1.5–2.5 |
 | 1.9 | Límites de peticiones con Upstash, `after()` para correos y avisos, Swagger | 1.5–2 |
 | 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions | 3–5 |
-| 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa | 1–2 |
+| 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio agregado en Vercel (rama `migracion-nextjs`) | 1–2 |
 | 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11) | 1–2 |
 
 En esta fase el JWT se queda en `localStorage`, para no tocar las páginas. Pasa a cookie en la Fase 2.

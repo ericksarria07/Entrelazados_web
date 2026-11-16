@@ -7,6 +7,7 @@
 #   1. Las pruebas unitarias (sin base de datos) con Node 20 y Node 22.
 #   2. Las 274 pruebas de integración de la API contra un MySQL 8.0 nuevo y
 #      vacío (un contenedor que se borra al terminar: nunca toca producción).
+#   3. El lint y el build del proyecto Next.js (carpeta web/).
 # El resultado aparece como ✅ o ❌ junto a cada commit y en el Pull Request.
 # Al ser Linux, también detecta nombres de tablas mal escritos (Usuarios ≠ usuarios),
 # igual que pasaría en la VM.
@@ -78,3 +79,22 @@ jobs:
       - name: Log del servidor (si algo falló)
         if: failure()
         run: cat /tmp/entrelazados_servidor_pruebas.log || true
+
+  web:
+    name: Next.js (build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      # No necesita base de datos: /api/salud se ejecuta en cada request, no en el build
+      - run: npm run build

@@ -1,0 +1,274 @@
+/* ==========================================================================
+   KAN, EL ASISTENTE FLOTANTE (componente compartido)
+   Lo usan index, mercado, dashboard y admin junto con kan.js.
+   Usa las variables de color de cada página (--color-principal, etc.).
+   ========================================================================== */
+.kan-widget-btn {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    width: 75px;
+    height: 75px;
+    background-color: #ffffff;
+    border: 3px solid var(--color-principal);
+    border-radius: 50%;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease;
+    overflow: hidden;
+    padding: 0;
+}
+
+.kan-widget-btn:hover {
+    transform: scale(1.12);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.kan-widget-btn img {
+    width: 88%;
+    height: 88%;
+    object-fit: contain;
+}
+
+.kan-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #e03131;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.kan-chat-window {
+    position: fixed;
+    bottom: 110px;
+    right: 25px;
+    width: 360px;
+    max-width: calc(100vw - 30px);
+    height: 520px;
+    max-height: calc(100vh - 130px);
+    background-color: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+    border: 1px solid #e0d8ce;
+    z-index: 9999;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: popupKan 0.25s ease-out forwards;
+}
+
+@keyframes popupKan {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.kan-chat-window.active {
+    display: flex;
+}
+
+.kan-header {
+    background: linear-gradient(135deg, var(--color-secundario), var(--color-principal));
+    color: white;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.kan-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.kan-avatar-header {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    border: 2px solid var(--color-terciario);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.kan-avatar-header img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.kan-title {
+    font-family: var(--font-principal);
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.kan-title span {
+    font-size: 11px;
+    font-weight: normal;
+}
+
+.kan-sub {
+    font-size: 11px;
+    color: #d1c2b8;
+}
+
+.kan-close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.kan-close-btn:hover { opacity: 1; }
+
+.kan-display-banner {
+    background-color: #f4efe9;
+    border-bottom: 1px solid #e0d8ce;
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 130px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.kan-display-banner img {
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.kan-body {
+    flex: 1;
+    padding: 12px 15px;
+    background-color: #fcfbf9;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.kan-msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-word;
+    white-space: pre-line;
+}
+
+.kan-msg.bot {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid #e0d8ce;
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.kan-msg.user {
+    background-color: var(--color-principal);
+    color: #ffffff;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+}
+
+.kan-quick-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.kan-opt-btn {
+    background-color: #f0e8e0;
+    color: var(--color-secundario);
+    border: 1px solid #dcd2c6;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+/* Opciones cortas en forma de "chips" (Mercado) */
+.kan-quick-options.chips {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.kan-quick-options.chips .kan-opt-btn {
+    padding: 6px 12px;
+    border-radius: 15px;
+    text-align: center;
+}
+
+.kan-opt-btn:hover {
+    background-color: var(--color-principal);
+    color: white;
+    border-color: var(--color-principal);
+}
+
+.kan-footer {
+    padding: 10px;
+    background-color: #ffffff;
+    border-top: 1px solid #e0d8ce;
+    display: flex;
+    gap: 8px;
+}
+
+.kan-input {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 14px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 13px;
+    outline: none;
+    font-family: var(--font-secundaria);
+}
+
+.kan-send-btn {
+    background-color: var(--color-principal);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.kan-send-btn:hover {
+    background-color: var(--color-terciario);
+}
