@@ -142,7 +142,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.7 | Cierre de subastas: QStash + cierre perezoso + Cron diario | 1.5–2.5 |
 | 1.8 | Fotos en Cloudinary con subida firmada | 1.5–2.5 |
 | 1.9 | Límites de peticiones con Upstash, `after()` para correos y avisos, Swagger | 1.5–2 |
-| 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions | 3–5 |
+| 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions. ✅ Suite portada a `web/pruebas/api/` (32 secciones, SQL en Postgres), job "API en Next.js (Postgres)" en el CI; cada rama de rutas (1.3/1.5) activa sus secciones, en el orden de la suite | 3–5 |
 | 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio agregado en Vercel (rama `migracion-nextjs`) | 1–2 |
 | 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11) | 1–2 |
 

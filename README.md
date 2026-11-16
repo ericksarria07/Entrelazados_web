@@ -121,6 +121,7 @@ Entrelazados_web/
 │   ├── db/migraciones/           # SQL generado por drizzle-kit (+ 0001_extras.sql escrito a mano)
 │   ├── drizzle.config.ts         # drizzle-kit: conexión directa de Neon, snake_case
 │   ├── scripts/probar-neon.ts    # npm run probar:neon (prueba de punta a punta de Neon)
+│   ├── pruebas/api/              # pruebas de integración de la API (npm run test:api), una sección por archivo
 │   ├── neon.ts                   # configuración de Neon (neon env pull escribe web/.env.local)
 │   └── public/                   # copia de las páginas de Express; se pasan a React una por una
 └── backend/
@@ -488,6 +489,52 @@ npm run dev                            # http://localhost:3000 y http://localhos
 
 Cada *pull request* hacia `migracion-nextjs` recibe una vista previa en Vercel. Al mezclarlo, se publica en el dominio.
 El CI corre `npm run lint` y `npm run build` de `web/` (check "Next.js (build)").
+
+---
+
+## Pruebas de la API en Next.js
+
+Las ~400 comprobaciones de integración de Express (`backend/pruebas/pruebas_api.js`) se portaron a
+`web/pruebas/api/`, para validar Next.js + Postgres a medida que se migran las rutas.
+
+| Archivo | Qué hace |
+|---|---|
+| `correr.mjs` | Vacía la base de pruebas, aplica las migraciones de Drizzle, siembra, levanta `next start` en el puerto 3055 y corre las secciones activas |
+| `secciones.mjs` | Las 32 secciones en orden, cada una con `activa` y lo que `requiere` |
+| `secciones/NN-*.mjs` | Una sección por archivo. Comparten estado en `ctx` (sesiones, IDs) |
+| `contexto.mjs` | `api()`, `check()`, `seccion()` y `q()` (consulta directa a la base de pruebas) |
+| `semilla.mjs` | Departamentos, `admin@prueba.com` y `antiguo@prueba.com` (contraseña en texto plano) |
+
+**Correrlas** (desde `web/`):
+
+```bash
+npm run build && npm run test:api
+PRUEBAS_SECCIONES=01,02 npm run test:api   # corre esas secciones aunque no estén activas
+```
+
+| Dónde | Base de pruebas |
+|---|---|
+| Tu máquina | Rama `pruebas` de Neon (sin vencimiento). Sus URLs van en `web/.env.local` como `PRUEBAS_DATABASE_URL` y `PRUEBAS_DATABASE_URL_UNPOOLED` |
+| GitHub Actions | Contenedor `postgres:18` desechable (job "API en Next.js (Postgres)") |
+
+El corredor **vacía** la base de pruebas en cada corrida. Por eso se niega a correr si `PRUEBAS_DATABASE_URL` es la misma base que `DATABASE_URL`.
+
+**Activar una sección:** en la rama que porta sus rutas, cambia `activa: false` por `activa: true` en `secciones.mjs`.
+El CI solo corre las activas, así que siempre está en verde, y el resumen muestra el avance (`secciones activas 5/32`).
+Conviene activarlas en orden, porque cada sección usa datos que crearon las anteriores.
+
+**El contrato:** las comprobaciones sobre el JSON de la API no se cambian al portar. Las páginas HTML esperan
+los mismos nombres (`OfertaID`, `TituloMaterial`…), así que la ruta nueva debe devolverlos igual.
+Lo único que se tradujo fue el SQL de `q()`. `q()` devuelve las filas con los nombres de MySQL y los booleanos como `1/0`, igual que `mysql2`.
+
+Estas secciones se reescriben cuando cambie su tecnología:
+
+| Sección | Se reescribe en |
+|---|---|
+| 13 Fotos (disco, `/uploads`) | 1.8 Cloudinary |
+| 15 Cierre automático de subastas | 1.7 QStash / cierre perezoso |
+| 23 Tiempo real (Socket.IO) | 1.6 Ably |
+| 32 Límites de intentos | 1.9 Upstash |
 
 ---
 
