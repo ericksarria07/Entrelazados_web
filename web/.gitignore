@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Vínculo local con el proyecto de Neon (neon init / neon checkout)
+.neon

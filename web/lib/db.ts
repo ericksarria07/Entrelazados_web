@@ -6,9 +6,14 @@
 // Vercel suspenda la función (Fluid compute), así no quedan conexiones colgadas.
 //
 //   DATABASE_URL  conexión con pooler (-pooler) de Neon
+//
+//   db             Drizzle con el esquema de db/esquema.ts (lo normal)
+//   obtenerPool()  el Pool de pg, para SQL directo (p. ej. /api/salud)
 // ==========================================================================
 import { attachDatabasePool } from "@vercel/functions";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import * as esquema from "@/db/esquema";
 
 function urlConexion(): string {
   const url = (process.env.DATABASE_URL ?? "").trim();
@@ -28,3 +33,17 @@ export function obtenerPool(): Pool {
   }
   return pool;
 }
+
+function crearDb() {
+  return drizzle({ client: obtenerPool(), schema: esquema, casing: "snake_case" });
+}
+
+let instancia: ReturnType<typeof crearDb> | undefined;
+
+// Se crea al primer uso (no al importar), para que el build no necesite DATABASE_URL.
+export const db = new Proxy({} as ReturnType<typeof crearDb>, {
+  get(_destino, propiedad) {
+    instancia ??= crearDb();
+    return Reflect.get(instancia, propiedad, instancia);
+  },
+});

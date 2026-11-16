@@ -116,11 +116,15 @@ Entrelazados_web/
 ├── web/                          # app en Next.js (migración en curso, ver la sección Next.js)
 │   ├── next.config.ts            # "/" muestra preview.html, igual que Express
 │   ├── app/api/salud/route.ts    # GET /api/salud: la app y Neon contestan
-│   ├── lib/db.ts                 # Pool de pg hacia Neon (attachDatabasePool)
+│   ├── lib/db.ts                 # db (Drizzle) y el Pool de pg hacia Neon (attachDatabasePool)
+│   ├── db/esquema.ts             # las 18 tablas en Drizzle: fuente única del esquema
+│   ├── db/migraciones/           # SQL generado por drizzle-kit (+ 0001_extras.sql escrito a mano)
+│   ├── drizzle.config.ts         # drizzle-kit: conexión directa de Neon, snake_case
+│   ├── scripts/probar-neon.ts    # npm run probar:neon (prueba de punta a punta de Neon)
+│   ├── neon.ts                   # configuración de Neon (neon env pull escribe web/.env.local)
 │   └── public/                   # copia de las páginas de Express; se pasan a React una por una
 └── backend/
     ├── package.json              # dependencias y comandos: npm install, npm start, npm test
-    ├── neon.ts                   # configuración de Neon (Postgres); ver la sección Neon
     ├── entrelazados-api/
     │   ├── index.js              # arranque: crea la base de datos, los servicios y la app, y escucha
     │   ├── app.js                # Express: middlewares, rutas, archivos estáticos y errores
@@ -185,7 +189,6 @@ Entrelazados_web/
     │       └── *.webp, logo.png  # imágenes
     ├── sql/
     │   ├── esquema_mysql.sql     # crea la base completa desde cero
-    │   ├── esquema_postgres.sql  # el mismo esquema traducido a Postgres (Neon), en snake_case
     │   ├── migracion_v7.sql      # rol Administrador
     │   ├── migracion_v8.sql      # fotos en disco y cierre de subastas
     │   ├── migracion_v9.sql      # subastas ligadas a su publicación, estado Cancelada
@@ -198,10 +201,7 @@ Entrelazados_web/
     │   ├── restaurar.sh          # restaurar un respaldo
     │   ├── instalar_cron.sh      # programa el respaldo diario
     │   ├── configurar_correo.sh  # guarda EMAIL_USER / EMAIL_PASS / APP_URL y manda una prueba
-    │   ├── probar_gemini.js      # comprueba la clave de Gemini (Kan)
-    │   ├── neon_comun.js         # conexión a Neon para los scripts (lee backend/.env.local)
-    │   ├── cargar_esquema_neon.js # npm run db:esquema:neon
-    │   └── probar_neon.js        # npm run probar:neon
+    │   └── probar_gemini.js      # comprueba la clave de Gemini (Kan)
     └── pruebas/
         ├── LEEME.md              # cómo correr las pruebas
         ├── unidad/               # 78 pruebas unitarias (node:test, sin base de datos)
@@ -420,30 +420,44 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 
 ---
 
-## Neon (Postgres): migración en curso
+## Neon (Postgres) con Drizzle: migración en curso
 
-La aplicación **sigue usando MySQL**. Como primer paso del [ROADMAP](ROADMAP.md), Neon ya tiene el esquema
-traducido a Postgres (`backend/sql/esquema_postgres.sql`) y una prueba de punta a punta.
+La app de Express **sigue usando MySQL**. La nueva (`web/`) usa Neon, y su esquema vive en código con **Drizzle**.
 
 | | |
 |---|---|
-| Proyecto | Neon, rama `production` (vinculada en `backend/.neon`, ignorado por git) |
-| Variables | `DATABASE_URL` (con pooler, para la app) y `DATABASE_URL_UNPOOLED` (directa, para el esquema y migraciones), en `backend/.env.local` (ignorado por git) |
-| Driver | `pg` (node-postgres), el que recomienda Neon para Node y para Vercel |
+| Proyecto | Neon `Entrelazados`, rama `production` (vinculada en `web/.neon`, ignorado por git) |
+| Variables | `DATABASE_URL` (con pooler, para la app) y `DATABASE_URL_UNPOOLED` (directa, para migraciones), en `web/.env.local` (ignorado por git) |
+| Esquema | `web/db/esquema.ts`: camelCase en TypeScript, snake_case en la base (`casing: 'snake_case'`) |
+| Migraciones | `web/db/migraciones/`: `0000_inicial.sql` (generada) y `0001_extras.sql` (a mano: `unaccent`, trigger de `fecha_actualizacion` y las 15 categorías) |
+| Driver | `pg` (node-postgres) + `drizzle-orm/node-postgres` |
 
-Las variables vienen de Neon, no se escriben a mano. Desde `backend/`:
+Desde `web/`:
 
 ```bash
-npm i -g neon              # CLI de Neon (una vez)
-neon login                 # abre el navegador (una vez)
-neon env pull              # escribe DATABASE_URL y DATABASE_URL_UNPOOLED en .env.local
-npm run db:esquema:neon    # carga el esquema por la conexión directa; si ya existe, no hace nada
-npm run probar:neon        # prueba por la conexión con pooler (la que usará la app)
+neon login && neon env pull   # (una vez) escribe DATABASE_URL y DATABASE_URL_UNPOOLED en .env.local
+npm run db:migrar             # aplica en Neon las migraciones que falten
+npm run probar:neon           # prueba de punta a punta por la conexión con pooler
+npm run db:estudio            # Drizzle Studio: ver y editar los datos en el navegador
 ```
 
-`probar:neon` comprueba la conexión, las 18 tablas, `INSERT ... RETURNING`, dos pujas simultáneas con
-`SELECT ... FOR UPDATE` (la segunda espera y se rechaza si ya no supera el precio), la búsqueda sin acentos
-(`unaccent` + `ILIKE`), que `COUNT(*)` llega como texto y el trigger de `fecha_actualizacion`. Borra sus datos de prueba.
+**Cambiar el esquema:**
+1. Edita `db/esquema.ts`.
+2. `npm run db:generar` crea el SQL en `db/migraciones/`. Revísalo y súbelo junto con el cambio.
+3. `npm run db:migrar` lo aplica en Neon.
+
+Lo que Drizzle no sabe expresar (funciones, triggers, datos) va en una migración a mano: `npx drizzle-kit generate --custom --name <nombre>`.
+El CI corre `npm run db:revisar` para comprobar que las migraciones sean coherentes.
+
+`probar:neon` comprueba:
+- la conexión y las 18 tablas;
+- `INSERT ... RETURNING`;
+- dos pujas simultáneas con `SELECT ... FOR UPDATE`: la segunda espera y se rechaza si ya no supera el precio;
+- la búsqueda sin acentos (`unaccent` + `ILIKE`);
+- que `COUNT(*)` llega como texto;
+- el trigger de `fecha_actualizacion`.
+
+Al final borra sus datos de prueba.
 
 Diferencias con MySQL que tendrán en cuenta las consultas migradas: nombres en snake_case, `timestamptz`,
 `boolean`, `RETURNING` en lugar de `insertId`, y `numeric` y `COUNT(*)` llegan como texto.
@@ -468,7 +482,7 @@ Correrla en tu máquina:
 ```bash
 cd web
 npm install
-cp ../backend/.env.local .env.local   # o: vercel env pull .env.local
+neon env pull                          # escribe .env.local (ver la sección Neon)
 npm run dev                            # http://localhost:3000 y http://localhost:3000/api/salud
 ```
 
