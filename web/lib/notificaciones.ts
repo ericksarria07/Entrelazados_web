@@ -137,3 +137,30 @@ async function avisarPorCorreo(avisos: AvisoNotificacion[], urlBase: string | nu
     if (r.status === "rejected") console.error("⚠️ Notificación por correo no enviada:", (r.reason as Error).message);
   }
 }
+
+// ---------------------------------------------------------- CONSULTAS (app/api/notificaciones)
+export async function listarNotificaciones(usuarioId: number, limite = 30) {
+  const pool = obtenerPool();
+  const [{ rows }, { rows: [{ total }] }] = await Promise.all([
+    pool.query<FilaNotificacion>(
+      "SELECT * FROM notificaciones WHERE usuario_id = $1 ORDER BY fecha_creacion DESC, notificacion_id DESC LIMIT $2",
+      [usuarioId, limite]
+    ),
+    pool.query("SELECT count(*)::int AS total FROM notificaciones WHERE usuario_id = $1 AND es_leida = false", [usuarioId]),
+  ]);
+  return { noLeidas: total as number, notificaciones: rows.map(aJson) };
+}
+
+// Devuelve true si la marcó (false si no existe o es de otro usuario)
+export async function marcarLeida(usuarioId: number, notificacionId: number): Promise<boolean> {
+  const r = await obtenerPool().query("UPDATE notificaciones SET es_leida = true WHERE notificacion_id = $1 AND usuario_id = $2", [
+    notificacionId,
+    usuarioId,
+  ]);
+  return (r.rowCount ?? 0) > 0;
+}
+
+export async function marcarTodasLeidas(usuarioId: number): Promise<number> {
+  const r = await obtenerPool().query("UPDATE notificaciones SET es_leida = true WHERE usuario_id = $1 AND es_leida = false", [usuarioId]);
+  return r.rowCount ?? 0;
+}
