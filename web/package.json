@@ -12,7 +12,8 @@
     "db:estudio": "drizzle-kit studio",
     "db:revisar": "drizzle-kit check",
     "probar:neon": "node --env-file=.env.local scripts/probar-neon.ts",
-    "test:api": "node --env-file-if-exists=.env.local pruebas/api/correr.mjs"
+    "test:api": "node --env-file-if-exists=.env.local pruebas/api/correr.mjs",
+    "admin:crear": "node --env-file=.env.local scripts/crear-admin.ts"
   },
   "dependencies": {
     "@ably/pubsub-server": "^3.1.0",
