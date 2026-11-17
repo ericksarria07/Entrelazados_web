@@ -145,7 +145,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.9 | Límites de peticiones en memoria, `after()` para correos y avisos, Swagger. ✅ Límites de login, registro, recuperación, Kan, fotos e IA (sección 32 activa) y `after()` en todos los avisos; Swagger en `/api/docs` y `/api/openapi.json` (`web/docs/openapi.yaml`, revisado por la sección 12) | 1–1.5 |
 | 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions. ✅ Suite portada a `web/pruebas/api/` (32 secciones, SQL en Postgres), job "API en Next.js (Postgres)" en el CI; cada rama de rutas (1.3/1.5) activa sus secciones, en el orden de la suite | 3–5 |
 | 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio en Vercel; sin datos que migrar (la VM venció sin respaldo: se arrancó de cero en Neon); `npm run admin:crear` para la cuenta de administrador; `npm run recorrido` (Playwright) recorre las 14 páginas en producción con capturas y cuentas temporales que borra al final: 38/38 pasos. Gemini encendido en producción (`GEMINI_MODELO=gemini-3.5-flash-lite`, plan gratis): Kan, "Completar con IA" y el precio sugerido responden con IA y tienen su paso en el recorrido. El recorrido es la base de las pruebas E2E de la 2.8 | 1–2 |
-| 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11) | 1–2 |
+| 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11). ✅ Rama protegida con los 5 checks; ramas de Neon por vista previa (integración Neon ↔ Vercel) y sin variables de producción en Preview; migraciones en el build de Vercel (`npm run vercel-build`); prueba de humo `humo.yml` después de cada despliegue (solo avisa); rollback documentado en el README | 1–2 |
 
 En esta fase el JWT se queda en `localStorage`, para no tocar las páginas. Pasa a cookie en la Fase 2.
 
@@ -308,14 +308,14 @@ Hay **CI** (`.github/workflows/pruebas.yml`: unitarias en Node 20 y 22, e integr
 | B. Despliegue desde GitHub Actions | Se desactiva el despliegue automático de Vercel; el workflow hace pruebas → migraciones → `vercel build` → `vercel deploy --prebuilt --prod` (con los secretos `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`) | Si se necesita control total del orden, por ejemplo garantizar que la migración termine antes del despliegue |
 
 ### Checklist
-- [ ] Conectar el repo de GitHub al proyecto de Vercel
-- [ ] Activar la integración Neon ↔ Vercel (ramas de BD para las vistas previas)
-- [ ] Protección de rama en `master`: CI obligatorio, sin push directo
-- [ ] Adaptar `pruebas.yml` a Postgres y sumar lint
-- [ ] Workflow de migraciones al fusionar en `master`
-- [ ] Endpoint `/api/salud` y prueba de humo después del despliegue
-- [ ] Variables de entorno separadas por entorno en Vercel
-- [ ] Documentar en el README cómo hacer rollback
+- [x] Conectar el repo de GitHub al proyecto de Vercel
+- [x] Activar la integración Neon ↔ Vercel (ramas de BD para las vistas previas)
+- [x] Protección de rama (`migracion-nextjs` mientras dure la migración; `master` al cerrarla): CI obligatorio, sin push directo
+- [x] Adaptar `pruebas.yml` a Postgres y sumar lint
+- [x] Migraciones al fusionar: en el build de Vercel (`vercel-build`), antes de que la versión nueva quede activa
+- [x] Endpoint `/api/salud` y prueba de humo después del despliegue (`.github/workflows/humo.yml`)
+- [x] Variables de entorno separadas por entorno en Vercel
+- [x] Documentar en el README cómo hacer rollback
 
 ---
 
