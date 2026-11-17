@@ -1,5 +1,5 @@
 // 13. Fotos de las ofertas
-// Se revisa en la 1.8 (fotos en Cloudinary): hoy prueba fotos guardadas en disco y servidas en /uploads.
+// En Vercel las fotos van a Vercel Blob; aquí (sin BLOB_READ_WRITE_TOKEN) se guardan en disco y se sirven en /uploads.
 // Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
 import { api, check, seccion, q, B } from '../contexto.mjs';

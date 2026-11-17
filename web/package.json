@@ -15,6 +15,7 @@
     "test:api": "node --env-file-if-exists=.env.local pruebas/api/correr.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "^2.9.0",
     "@vercel/functions": "^3.11.3",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.4",
