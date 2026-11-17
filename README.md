@@ -79,7 +79,7 @@ Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegid
 
 ### Para todos
 - **Dashboard** con 8 indicadores, gráficas (Chart.js), precios de referencia por categoría, subastas en curso y **exportación a Excel** (6 hojas).
-- **Kan**, el asistente virtual con IA.
+- **Kan**, el asistente virtual con IA. La conversación sigue al cambiar de página (se guarda en el navegador hasta cerrar sesión o que venza la sesión) y Kan recuerda los últimos 10 mensajes al contestar.
 - **Chat** directo entre proveedores y emprendedores, con **contador de mensajes no leídos** en el menú de todas las páginas y en cada contacto, y la marca "Visto".
 - **Confirmación del correo al registrarse**: enlace de 24 horas; sin confirmarlo no se puede entrar (se puede pedir otro enlace desde el login).
 - **Recuperación de contraseña por correo**: enlace de un solo uso que vence en 1 hora.
@@ -396,7 +396,7 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | GET | `/api/chat/contactos`, `/api/chat/mensajes` 🔒 | Conversaciones propias (primero las que tienen mensajes sin leer). Abrir una conversación marca sus mensajes como leídos |
 | GET | `/api/chat/no-leidos` 🔒 | `{ total, porContacto }` mensajes sin leer |
 | POST | `/api/chat/enviar` 🔒 | Enviar un mensaje |
-| POST | `/api/chat/ia` 🔒 | Preguntar a Kan |
+| POST | `/api/chat/ia` 🔒 | Preguntar a Kan (`mensajeUsuario` y, opcional, `historial` con los últimos mensajes) |
 | GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas (primero las abiertas). `?origen=Subasta`, `?pagina=&porPagina=` |
 | PUT | `/api/tratos/:id/estado` 🔒 | `{ estado: 'EnProceso' \| 'Completado' \| 'Cancelado', motivo? }` (solo las dos partes del trato) |
 | POST | `/api/tratos/:id/calificacion` 🔒 | `{ puntuacion: 1-5, comentario? }` una vez por persona, solo tratos completados |
@@ -475,7 +475,7 @@ Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya fu
 |---|---|
 | Sitio | https://entrelazados.ericksv.com (CNAME en Cloudflare con nube gris, hacia Vercel) |
 | Vercel | proyecto `entrelazados`, *Root Directory* `web`, Node 22, rama de producción `migracion-nextjs` |
-| Variables | `DATABASE_URL` (Neon con pooler) y `JWT_SECRET` en Vercel. Opcionales: `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_HOST`, `EMAIL_PORT`, `APP_URL`, `VERIFICAR_CORREO` y `LIMITE_*`, con el mismo significado que en Express. Sin correo configurado, las cuentas se crean ya confirmadas. `BLOB_READ_WRITE_TOKEN` (production y preview) la agregó el Blob store `entrelazados-fotos`: con ella las fotos van a Vercel Blob; sin ella, a disco (`UPLOADS_DIR`, por defecto una carpeta temporal) servidas en `/uploads/ofertas/`. `CRON_SECRET` protege el cron diario (`web/vercel.json`) y `APP_URL` = `https://entrelazados.ericksv.com` arma los enlaces de los correos (las dos solo en production). `CIERRE_PEREZOSO=0` apaga el cierre perezoso. `ABLY_API_KEY` (production y preview; la llave de pruebas va en `web/.env.local`) enciende el tiempo real; los canales se separan por `ABLY_CANAL_PREFIJO` (por defecto `VERCEL_ENV`). `GEMINI_API_KEY` (y `GEMINI_MODELO`) encienden la IA: sin ella Kan da sus respuestas fijas, la descripción con IA responde 503 y la sugerencia de precio usa la mediana |
+| Variables | `DATABASE_URL` (Neon con pooler) y `JWT_SECRET` en Vercel. Opcionales: `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_HOST`, `EMAIL_PORT`, `APP_URL`, `VERIFICAR_CORREO` y `LIMITE_*`, con el mismo significado que en Express. Sin correo configurado, las cuentas se crean ya confirmadas. `BLOB_READ_WRITE_TOKEN` (production y preview) la agregó el Blob store `entrelazados-fotos`: con ella las fotos van a Vercel Blob; sin ella, a disco (`UPLOADS_DIR`, por defecto una carpeta temporal) servidas en `/uploads/ofertas/`. `CRON_SECRET` protege el cron diario (`web/vercel.json`) y `APP_URL` = `https://entrelazados.ericksv.com` arma los enlaces de los correos (las dos solo en production). `CIERRE_PEREZOSO=0` apaga el cierre perezoso. `ABLY_API_KEY` (production y preview; la llave de pruebas va en `web/.env.local`) enciende el tiempo real; los canales se separan por `ABLY_CANAL_PREFIJO` (por defecto `VERCEL_ENV`). `GEMINI_API_KEY` (production, *Sensitive*; clave gratis de [Google AI Studio](https://aistudio.google.com/apikey), se carga con `vercel env add GEMINI_API_KEY production --sensitive`) enciende la IA: sin ella Kan da sus respuestas fijas, la descripción con IA responde 503 y la sugerencia de precio usa la mediana. `GEMINI_MODELO` = `gemini-3.5-flash-lite` en producción: en el plan gratis los modelos flash grandes (3.6–3.8) respondían 503/504 por alta demanda, y flash-lite contesta en 1–4 s, también con fotos y JSON. Cada llamada a Gemini tiene 20 s como máximo y un solo reintento (`web/lib/gemini.ts`), así que si Gemini falla se usa el respaldo en segundos |
 | Código | Rutas en `web/app/**/route.ts`, con SQL a mano (`pg`). Ayudas en `web/lib/`: `http.ts` (`ruta()`, `ErrorHttp`), `sesion.ts` (`exigirSesion`, `exigirAdmin`), `limites.ts` (en memoria), `correo.ts` (nodemailer + `after()`) |
 | Salud | `GET /api/salud` → `{"estado":"ok","bd":"ok"}` (503 si Neon no contesta) |
 
@@ -492,6 +492,33 @@ Cada *pull request* hacia `migracion-nextjs` recibe una vista previa en Vercel. 
 El CI corre `npm run lint` y `npm run build` de `web/` (check "Next.js (build)").
 
 ---
+
+## Administrador y recorrido completo (`web/`)
+
+**Crear la cuenta de administrador** (registrarse como admin está prohibido a propósito):
+
+```bash
+cd web
+npm run admin:crear     # pide correo, nombre y contraseña (no se muestra); usa DATABASE_URL de .env.local
+```
+
+Si el correo ya existe, ofrece convertir esa cuenta en administrador.
+
+**Recorrido con capturas** (`web/pruebas/recorrido/recorrido.mjs`): Playwright abre el sitio en tamaño de teléfono y lo recorre como una persona: registro, publicar con fotos, editar, búsqueda, mapa, favoritos y alertas, pujas en vivo (Ably), campana, chat en vivo, cierre de la subasta, trato, calificación, comprobante, perfil público, dashboard, reportes (Excel y PDF), Kan, panel de admin (suspender, categorías), recuperar contraseña y Swagger.
+
+```bash
+cd web
+npm run recorrido                                  # contra https://entrelazados.ericksv.com
+RECORRIDO_URL=http://localhost:3000 npm run recorrido
+```
+
+| | |
+|---|---|
+| Cuentas | Temporales (`rec<fecha>-…@example.com`): un proveedor, dos emprendedores y un admin. Los correos se confirman en la base (a example.com no llegan los enlaces) |
+| Limpieza | Al final, pase lo que pase, el admin temporal borra las cuentas por la API (con sus fotos de Blob y sus datos) y se borra a sí mismo |
+| Resultado | Capturas `.jpg` y `resultado.json` en `web/pruebas/recorrido/salida/` (fuera de git) |
+| Requisitos | `DATABASE_URL` de la misma base que la URL probada. Playwright fijo en 1.57.0: es la última versión con Chromium para macOS 13 |
+| Ojo | Cuenta para el límite de 5 registros por hora por conexión: si se corre varias veces seguidas, los registros por formulario se anotan como "límite alcanzado" y las cuentas se crean en la base |
 
 ## Pruebas de la API en Next.js
 

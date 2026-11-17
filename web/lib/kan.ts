@@ -138,10 +138,29 @@ async function contextoDelMercado() {
   };
 }
 
-// mensaje: lo que escribió el usuario; rol: el de su sesión
+// Un mensaje anterior de la conversación (lo manda kan.js para que Kan tenga contexto)
+export type MensajeHistorial = { rol: "usuario" | "kan"; texto: string };
+const MAX_HISTORIAL = 10;
+const LARGO_HISTORIAL = 1000;
+
+// Limpia el historial que manda el navegador: si no es un arreglo se ignora; solo los
+// últimos 10 con rol válido y texto, cada uno cortado a 1000 caracteres
+export function leerHistorial(valor: unknown): MensajeHistorial[] {
+  if (!Array.isArray(valor)) return [];
+  return valor
+    .filter(
+      (m): m is MensajeHistorial =>
+        !!m && typeof m === "object" && (m.rol === "usuario" || m.rol === "kan") && typeof m.texto === "string" && m.texto.trim() !== "",
+    )
+    .slice(-MAX_HISTORIAL)
+    .map((m) => ({ rol: m.rol, texto: m.texto.trim().slice(0, LARGO_HISTORIAL) }));
+}
+
+// mensaje: lo que escribió el usuario; rol: el de su sesión; historial: lo hablado antes
 export async function responderKan(
   mensaje: string,
   rol: string,
+  historial: MensajeHistorial[] = [],
 ): Promise<string> {
   const rolNormalizado = (rol || "emprendedor").toLowerCase().trim();
   const esAdmin =
@@ -172,7 +191,7 @@ ${contexto.subastas}
   try {
     const respuesta = await ai.models.generateContent({
       model: modeloGemini(),
-      contents: mensaje,
+      contents: conversacionParaGemini(historial, mensaje),
       config: {
         systemInstruction: instrucciones,
         temperature: 0.6,
@@ -187,4 +206,13 @@ ${contexto.subastas}
     );
     return SIN_CONEXION_IA;
   }
+}
+
+// Historial + pregunta nueva como turnos de Gemini. La conversación tiene que empezar
+// con el usuario, así que se quitan las respuestas de Kan que queden al principio
+// (por ejemplo, la respuesta a una pregunta rápida)
+function conversacionParaGemini(historial: MensajeHistorial[], mensaje: string) {
+  const turnos = historial.map((m) => ({ role: m.rol === "kan" ? "model" : "user", parts: [{ text: m.texto }] }));
+  while (turnos.length && turnos[0].role === "model") turnos.shift();
+  return [...turnos, { role: "user", parts: [{ text: mensaje }] }];
 }

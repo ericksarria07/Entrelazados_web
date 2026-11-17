@@ -642,7 +642,23 @@ paths:
               type: object
               required: [mensajeUsuario]
               properties:
-                mensajeUsuario: { type: string, maxLength: 1000, example: hola }
+                mensajeUsuario: { type: string, maxLength: 1000, example: ¿y cuánto cuesta ese? }
+                historial:
+                  type: array
+                  description: |
+                    Opcional. Los mensajes anteriores de la conversación, para que Kan los recuerde (kan.js manda los
+                    últimos 10). Se usan solo los 10 últimos con rol válido, cada texto cortado a 1000 caracteres; si no
+                    es una lista se ignora.
+                  maxItems: 10
+                  items:
+                    type: object
+                    required: [rol, texto]
+                    properties:
+                      rol: { type: string, enum: [usuario, kan] }
+                      texto: { type: string, maxLength: 1000 }
+                  example:
+                    - { rol: usuario, texto: ¿Qué cuero me recomiendas para billeteras? }
+                    - { rol: kan, texto: Te recomiendo el cuero vacuno flor entera... }
       responses:
         "200":
           description: Respuesta de Kan

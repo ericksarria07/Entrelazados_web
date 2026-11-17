@@ -10,6 +10,10 @@
      de quien inició sesión; sus respuestas están aquí mismo (no gastan IA).
    - Lo que el usuario escribe a mano se envía a POST /api/chat/ia (Gemini).
    - Todo texto se muestra escapado: **texto** se convierte en negrita.
+   - La conversación se guarda en el navegador y reaparece en cada página hasta
+     cerrar sesión (sesion.js borra localStorage) o que venza el token. Sin
+     sesión se guarda en sessionStorage (dura lo que la pestaña). Las preguntas
+     escritas a mano van con los últimos mensajes, para que Kan los recuerde.
    ========================================================================== */
 (function () {
     'use strict';
@@ -23,6 +27,9 @@
     };
     const MINUTOS_PARA_DORMIR = 2;
     const SEGUIMIENTO = '¿Tienes alguna otra pregunta o duda?';
+    const CLAVE_GUARDADO = 'kan-conversacion';
+    const MAX_GUARDADOS = 40;      // mensajes que se conservan entre páginas
+    const MAX_HISTORIAL = 10;      // mensajes anteriores que se le mandan a Kan (IA)
 
     // ---------------------------------------------------------------------
     // CONTENIDO: saludo y preguntas rápidas por página y por rol.
@@ -125,6 +132,7 @@
     const contexto = (script && script.dataset.contexto) || 'inicio';
     let temporizadorSueno = null;
     let el = {};   // referencias a los elementos del componente
+    let conversacion = { mensajes: [], abierta: false };
 
     const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     // Escapa el texto y convierte **así** en negrita (lo único que se permite como formato)
@@ -135,6 +143,61 @@
         if (rol === 'administrador' || rol === 'admin') return CONTENIDO.administrador;
         const pagina = CONTENIDO[contexto] || CONTENIDO.inicio;
         return rol === 'proveedor' ? pagina.proveedor : pagina.emprendedor;
+    }
+
+    // ---------------------------------------------------------------------
+    // CONVERSACIÓN GUARDADA
+    // ---------------------------------------------------------------------
+    function leer(almacen, clave) { try { return window[almacen].getItem(clave); } catch (e) { return null; } }
+
+    // Datos de la sesión actual: id del usuario, firma del token (cambia en cada login)
+    // y si el token ya venció (exp del JWT), aunque todavía no haya habido un 401
+    function sesionActual() {
+        const token = leer('localStorage', 'token');
+        if (!token) return null;
+        let vencido = false;
+        try {
+            const datos = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            vencido = typeof datos.exp === 'number' && datos.exp * 1000 <= Date.now();
+        } catch (e) { /* token raro: se trata como sesión sin fecha */ }
+        return { usuarioId: String(leer('localStorage', 'userId') || ''), firma: token.slice(-16), vencido };
+    }
+
+    const almacenActual = () => (sesionActual() ? 'localStorage' : 'sessionStorage');
+
+    function cargarConversacion() {
+        const sesion = sesionActual();
+        try {
+            const guardada = JSON.parse(leer(almacenActual(), CLAVE_GUARDADO) || 'null');
+            const deEstaSesion = guardada && Array.isArray(guardada.mensajes) &&
+                (!sesion || (!sesion.vencido && guardada.usuarioId === sesion.usuarioId && guardada.firma === sesion.firma));
+            if (deEstaSesion) {
+                conversacion = {
+                    abierta: !!guardada.abierta,
+                    mensajes: guardada.mensajes
+                        .filter((m) => m && typeof m.texto === 'string' && (m.quien === 'user' || m.quien === 'bot'))
+                        .slice(-MAX_GUARDADOS)
+                };
+                return;
+            }
+        } catch (e) { /* guardado dañado: se empieza de cero */ }
+        conversacion = { mensajes: [], abierta: false };
+        try { window[almacenActual()].removeItem(CLAVE_GUARDADO); } catch (e) { }
+    }
+
+    function guardarConversacion() {
+        const sesion = sesionActual();
+        conversacion.mensajes = conversacion.mensajes.slice(-MAX_GUARDADOS);
+        const datos = Object.assign({ usuarioId: sesion ? sesion.usuarioId : '', firma: sesion ? sesion.firma : '' }, conversacion);
+        try { window[almacenActual()].setItem(CLAVE_GUARDADO, JSON.stringify(datos)); } catch (e) { /* sin espacio o bloqueado */ }
+    }
+
+    // Lo último que se habló, para que Kan (IA) tenga contexto. Sin el "¿Tienes otra pregunta?"
+    function historialParaKan() {
+        return conversacion.mensajes
+            .filter((m) => m.texto !== SEGUIMIENTO)
+            .slice(-MAX_HISTORIAL)
+            .map((m) => ({ rol: m.quien === 'user' ? 'usuario' : 'kan', texto: m.texto }));
     }
 
     function crearElementos() {
@@ -218,7 +281,11 @@
         }, MINUTOS_PARA_DORMIR * 60 * 1000);
     }
 
-    function agregarMensaje(texto, quien) {
+    function agregarMensaje(texto, quien, guardar = true) {
+        if (guardar) {
+            conversacion.mensajes.push({ texto: String(texto), quien });
+            guardarConversacion();
+        }
         const div = document.createElement('div');
         div.className = `kan-msg ${quien}`;
         div.innerHTML = formato(texto);
@@ -229,6 +296,8 @@
     function alternar() {
         const abierta = el.ventana.classList.toggle('active');
         el.insignia.style.display = 'none';
+        conversacion.abierta = abierta;
+        guardarConversacion();
         if (abierta) {
             cargarMenu();
             el.entrada.focus();
@@ -261,13 +330,14 @@
         if (!texto) return;
         el.entrada.value = '';
         reiniciarSueno();
+        const historial = historialParaKan();   // lo anterior, sin la pregunta nueva
         agregarMensaje(texto, 'user');
         cambiarPose('telefono');
         try {
             const res = await fetch('/api/chat/ia', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mensajeUsuario: texto })
+                body: JSON.stringify({ mensajeUsuario: texto, historial })
             });
             const data = await res.json();
             cambiarPose('respondiendo');
@@ -283,6 +353,14 @@
     function iniciar() {
         crearElementos();
         cargarMenu();
+        cargarConversacion();
+        // Lo que ya se habló en otras páginas, debajo del saludo y las preguntas de esta
+        conversacion.mensajes.forEach((m) => agregarMensaje(m.texto, m.quien, false));
+        if (conversacion.mensajes.length) el.insignia.style.display = 'none';
+        if (conversacion.abierta) {
+            el.ventana.classList.add('active');
+            el.insignia.style.display = 'none';
+        }
         reiniciarSueno();
     }
 
