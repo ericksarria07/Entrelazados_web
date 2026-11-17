@@ -7,6 +7,7 @@ import { avisarRebaja } from "@/lib/favoritos";
 import { MAX_FOTOS, borrarFotos, guardarFotos, leerArchivos, revisarArchivos, validarFotos } from "@/lib/fotos";
 import { ErrorHttp, json, leerFormulario, ruta } from "@/lib/http";
 import { eliminarOferta, mensajeOfertaBorrada, traducirErrorCategoria, urlsDeFotos, validarOferta } from "@/lib/ofertas";
+import { limite } from "@/lib/limites";
 import { exigirRoles, exigirSesion } from "@/lib/sesion";
 import { aTodos } from "@/lib/tiempo-real";
 import { enteroPositivo, leerFotosAntiguas } from "@/lib/utilidades";
@@ -37,6 +38,7 @@ function leerFotosQuitar(valor: unknown): string[] {
 export const PUT = ruta<Contexto>(async (req, ctx) => {
   const usuario = await exigirSesion(req);
   exigirRoles(usuario, "proveedor");
+  limite("fotos", `u${usuario.id}`).consumir();
   const { campos, archivos } = await leerFormulario(req);
   const errorArchivos = revisarArchivos(archivos);
   if (errorArchivos) throw new ErrorHttp(400, errorArchivos);

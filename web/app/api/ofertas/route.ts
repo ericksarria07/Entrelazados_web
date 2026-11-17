@@ -7,6 +7,7 @@ import { avisarNuevaPublicacion } from "@/lib/favoritos";
 import { borrarFotos, guardarFotos, leerArchivos, revisarArchivos, validarFotos } from "@/lib/fotos";
 import { ErrorHttp, conRespaldo, json, leerFormulario, ruta } from "@/lib/http";
 import { insertarSubasta, traducirErrorCategoria, urlsDeFotos, validarOferta } from "@/lib/ofertas";
+import { limite } from "@/lib/limites";
 import { exigirRoles, exigirSesion } from "@/lib/sesion";
 import { aTodos } from "@/lib/tiempo-real";
 import {
@@ -84,6 +85,7 @@ export const GET = conRespaldo([], async (req) => {
 export const POST = ruta(async (req) => {
   const usuario = await exigirSesion(req);
   exigirRoles(usuario, "proveedor");
+  limite("fotos", `u${usuario.id}`).consumir();
   // El proveedor es SIEMPRE el usuario de la sesión, nunca el que envíe el navegador
   const proveedorId = usuario.id;
   const { campos, archivos } = await leerFormulario(req);
