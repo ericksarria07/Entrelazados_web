@@ -469,7 +469,7 @@ Diferencias con MySQL que tendrán en cuenta las consultas migradas: nombres en 
 
 La carpeta `web/` es la app en **Next.js 16** que reemplazará a Express (ver [ROADMAP](ROADMAP.md)).
 Vive en la rama `migracion-nextjs`. Por ahora sirve las mismas páginas de siempre, copiadas tal cual a `web/public/`.
-Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya funcionan registro, login, confirmación del correo, recuperación de contraseña, ofertas (con fotos), subastas, pujas, cierre de subastas, tratos, dashboard, categorías, estadísticas y perfiles. Lo demás de `/api/...` responde 404 y Socket.IO **todavía no funciona**.
+Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya funcionan registro, login, confirmación del correo, recuperación de contraseña, ofertas (con fotos), subastas, pujas, cierre de subastas, tratos, dashboard, chat, campana de notificaciones, categorías, estadísticas y perfiles. Lo demás de `/api/...` responde 404 y Socket.IO **todavía no funciona**.
 
 | | |
 |---|---|
