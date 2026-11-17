@@ -26,7 +26,8 @@
     "nodemailer": "^10.6.0",
     "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@ably/pubsub-device": "^3.1.0",

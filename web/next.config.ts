@@ -4,10 +4,12 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
 
-  // Los correos llevan el logo adjunto (lib/correo.ts lo lee de public/). Vercel no
-  // copia public/ dentro de las funciones, así que se incluye a mano.
+  // Archivos que las funciones leen del disco y Vercel no copia solo: el logo de los
+  // correos (lib/correo.ts) y la especificación de la API (lib/documentacion.ts).
   outputFileTracingIncludes: {
     "/**": ["./public/logo.png"],
+    // La especificación de la API que sirven /api/openapi.json y /api/docs
+    "/api/openapi.json": ["./docs/openapi.yaml"],
   },
 
   // Durante la migración, las páginas son los HTML copiados de Express en public/.

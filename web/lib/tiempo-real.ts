@@ -80,3 +80,16 @@ export async function tokenParaNavegador(usuarioId: number | null) {
   });
   return { tokenRequest, canales };
 }
+
+// Corta al instante el tiempo real de un usuario (cuenta suspendida o eliminada):
+// Ably revoca sus permisos y lo desconecta; como la API ya no le firma otro, no vuelve
+// a entrar. Requiere "revocable tokens" activado en la llave. Nunca lanza errores.
+export async function revocarTiempoReal(usuarioId: number): Promise<void> {
+  const ably = obtenerCliente();
+  if (!ably || !usuarioId) return;
+  try {
+    await ably.auth.revokeTokens([{ type: "clientId", value: `usuario-${usuarioId}` }]);
+  } catch (err) {
+    console.error(`⚠️ Tiempo real: no se pudieron revocar los permisos del usuario ${usuarioId}:`, (err as Error).message);
+  }
+}

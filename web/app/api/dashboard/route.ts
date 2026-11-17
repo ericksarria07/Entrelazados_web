@@ -4,11 +4,11 @@
 import { urlPublica } from "@/lib/config";
 import { cerrarVencidasSiToca } from "@/lib/cierre-subastas";
 import { obtenerPool } from "@/lib/db";
+import { inicioDelPeriodo, leerMeses } from "@/lib/periodos";
 import { json, ruta } from "@/lib/http";
 import { type Usuario, exigirSesion } from "@/lib/sesion";
 import { redondearCalificacion } from "@/lib/utilidades";
 
-const PERIODOS = [3, 6, 12];
 const CAMPOS_DE_TEXTO = ["categoria", "departamento", "lote", "proveedor", "mes", "rol", "postor"];
 
 type Fila = Record<string, unknown>;
@@ -21,15 +21,6 @@ const aNumeros = (o: Fila) =>
       typeof v === "string" && v !== "" && !isNaN(Number(v)) && !CAMPOS_DE_TEXTO.includes(k) ? Number(v) : v,
     ])
   );
-
-// Primer día del mes de inicio del periodo (ej. 6 meses = mes actual + 5 anteriores)
-function inicioDelPeriodo(meses: number) {
-  const inicio = new Date();
-  inicio.setDate(1);
-  inicio.setHours(0, 0, 0, 0);
-  inicio.setMonth(inicio.getMonth() - (meses - 1));
-  return inicio;
-}
 
 // Serie mes a mes (incluye los meses sin actividad, en 0)
 function serieMensual(filas: Fila[], inicio: Date, meses: number) {
@@ -94,8 +85,7 @@ export const GET = ruta(async (req) => {
   const usuario = await exigirSesion(req);
   // Cierre perezoso: las subastas recién vencidas ya cuentan como cerradas y con su trato
   await cerrarVencidasSiToca(urlPublica(req), { esperar: true });
-  const pedido = Number(new URL(req.url).searchParams.get("meses"));
-  const meses = PERIODOS.includes(pedido) ? pedido : 6;
+  const meses = leerMeses(new URL(req.url).searchParams.get("meses"));
   const inicio = inicioDelPeriodo(meses);
   const yo = usuario.id;
 
