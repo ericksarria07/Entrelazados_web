@@ -8,6 +8,10 @@
 //   LIMITE_LOGIN          intentos FALLIDOS de login por IP cada 15 min (10)
 //   LIMITE_REGISTRO       cuentas nuevas por IP cada hora                (5)
 //   LIMITE_RECUPERACION   solicitudes de recuperación por IP cada 15 min (5)
+//   LIMITE_KAN_MINUTO     preguntas a Kan por usuario cada minuto       (10)
+//   LIMITE_KAN_DIA        preguntas a Kan por usuario cada día         (150)
+//   LIMITE_FOTOS          publicaciones por usuario cada hora           (20)
+//   LIMITE_IA             consultas al asistente de IA por usuario cada hora (30)
 //
 //   limite('registro', ipDe(req)).consumir();        // cuenta y, si se pasó, 429
 //   const l = limite('login', ipDe(req));
@@ -31,6 +35,11 @@ const DEFINICIONES = {
   login: { ventanaMs: 15 * MINUTO, env: "LIMITE_LOGIN", porDefecto: 10, mensaje: "Demasiados intentos fallidos de inicio de sesión." },
   registro: { ventanaMs: 60 * MINUTO, env: "LIMITE_REGISTRO", porDefecto: 5, mensaje: "Se crearon demasiadas cuentas desde esta conexión." },
   recuperacion: { ventanaMs: 15 * MINUTO, env: "LIMITE_RECUPERACION", porDefecto: 5, mensaje: "Demasiadas solicitudes para recuperar la contraseña." },
+  // Por usuario (la clave es `u${usuario.id}`)
+  kanMinuto: { ventanaMs: MINUTO, env: "LIMITE_KAN_MINUTO", porDefecto: 10, mensaje: "Le estás escribiendo muy rápido a Kan." },
+  kanDia: { ventanaMs: 24 * 60 * MINUTO, env: "LIMITE_KAN_DIA", porDefecto: 150, mensaje: "Llegaste al máximo de preguntas a Kan por hoy." },
+  fotos: { ventanaMs: 60 * MINUTO, env: "LIMITE_FOTOS", porDefecto: 20, mensaje: "Publicaste demasiadas ofertas en poco tiempo." },
+  ia: { ventanaMs: 60 * MINUTO, env: "LIMITE_IA", porDefecto: 30, mensaje: "Usaste mucho el asistente de IA en poco tiempo." },
 } as const;
 
 type NombreLimite = keyof typeof DEFINICIONES;

@@ -1,11 +1,8 @@
 // 30. Asistente de IA para publicar
 // Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
-import { createRequire } from 'node:module';
+import { estadisticas, normalizarUnidad, redondearPrecio } from '../../../lib/reglas-precio.ts';
 import { api, check, seccion, q } from '../contexto.mjs';
-
-// Funciones puras del asistente de precios. Cuando se porten a web/lib (1.5), importarlas de ahí.
-const require = createRequire(import.meta.url);
 
 export default async function correr(ctx) {
     let r;
@@ -20,7 +17,6 @@ export default async function correr(ctx) {
     check('…con una categoría que no existe → 400', r.status === 400);
     // Para comparar: otro precio de cuero por pie² (de p2) además de los que ya hay en la categoría 1
     await api('POST', '/api/ofertas', { token: ctx.p2.token, body: { titulo: 'Cuero vacuno negro', precio: 500, unidad: 'pie2', categoriaId: 1 } });
-    const { normalizarUnidad, estadisticas, redondearPrecio } = require('../../../../backend/entrelazados-api/servicios/asistenteIA.js');
     const preciosPie2 = [
         ...(await q(`SELECT precio AS p, unidad_medida AS u FROM ofertas WHERE categoria_id = 1`)),
         ...(await q(`SELECT t.monto_total AS p, o.unidad_medida AS u FROM tratos_cerrados t
