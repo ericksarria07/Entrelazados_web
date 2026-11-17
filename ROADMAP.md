@@ -50,7 +50,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
                    │          │          │          │
                    ▼          ▼          ▼          ▼
             ┌──────────┐ ┌─────────┐ ┌─────────┐ ┌──────────────┐
-            │ Neon     │ │ Ably    │ │ QStash  │ │ Vercel Blob  │
+            │ Neon     │ │ Ably    │ │ Cron    │ │ Vercel Blob  │
             │ Postgres │ │ tiempo  │ │ cierre  │ │ fotos + CDN  │
             │          │ │ real    │ │ subasta │ │ de imágenes  │
             └──────────┘ └─────────┘ └─────────┘ └──────────────┘
@@ -67,7 +67,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Base de datos | **Neon** (Postgres serverless) | Plan gratis, ramas de BD para probar migraciones, integración con Vercel | D1 (SQLite): sin transacciones interactivas ni `FOR UPDATE`, que son clave para las pujas |
 | Acceso a datos | **Drizzle ORM** (esquema y migraciones) + **`pg`** (node-postgres; las rutas escriben su SQL a mano con `$1, $2…`) con `attachDatabasePool` de `@vercel/functions` | Mapea snake_case ↔ camelCase y da tipos. `pg` es el driver que recomienda Neon para Vercel (Fluid compute reutiliza el pool entre peticiones) y permite transacciones interactivas con `FOR UPDATE` (probado con `npm run probar:neon` en `web/`) | `@neondatabase/serverless`: Neon lo recomienda para entornos edge; su driver HTTP no tiene transacciones interactivas |
 | Tiempo real | **Ably** (Pusher como equivalente) | Socket.IO no funciona en Vercel. Ably tiene buen plan gratis, SDK para React y canales privados | SSE desde Route Handlers (las funciones tienen duración máxima); Supabase Realtime (otra plataforma más) |
-| Cierre de subastas | **QStash** (mensaje programado por subasta) + **cierre perezoso** + **Vercel Cron diario** | Cierra a la hora exacta y **no mantiene Neon despierto** | Cron cada minuto: gasta las horas de cómputo gratis de Neon y en Vercel Hobby el cron es diario |
+| Cierre de subastas | **Cierre perezoso** + **Vercel Cron diario** | Sin servicio nuevo y **no mantiene Neon despierto**. El ganador se entera cuando alguien usa el sitio o, a más tardar, con el cron del día | QStash (cierra a la hora exacta, pero es otra cuenta); cron cada minuto (gasta las horas gratis de Neon y en Vercel Hobby el cron es diario) |
 | Fotos | **Vercel Blob** (`@vercel/blob`, store `entrelazados-fotos`) | Las fotos siguen llegando al servidor como hoy, así que las páginas no cambian. La página ya las reduce a 1600 px, y 5 fotos caben en el límite de 4,5 MB por petición. Sin cuenta nueva: es parte de Vercel. En tu máquina y en las pruebas se guardan en disco (`web/lib/fotos.ts`) | Cloudinary (miniaturas automáticas, pero cambia la subida y es otra cuenta); Google Cloud Storage; Cloudflare R2 |
 | Sesión | **Cookie httpOnly** con `jose` (o Auth.js) | El token no se puede robar con un XSS | JWT en `localStorage` (actual) |
 | Límites de peticiones | **En memoria** (`web/lib/limites.ts`, sin `express-rate-limit`) | Sin servicio ni paquete nuevo. En Vercel cada instancia cuenta por su lado y empieza de cero al arrancar: el límite es aproximado, y se aceptó así | Upstash Redis (otra cuenta y otra dependencia solo para esto); tabla en Postgres (límite exacto, una consulta más por intento) |
@@ -83,11 +83,10 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Cliente en `sesion.js` | Hook de React (`useChannel`) en el layout |
 
 ### Detalle: cierre de subastas
-1. **QStash:** al crear una subasta se programa un mensaje para su `FechaFin`, que llama a `POST /api/subastas/{id}/cerrar` (con firma verificada).
-2. **Cierre perezoso:** al consultar una subasta vencida que sigue abierta, se cierra en ese momento.
-3. **Vercel Cron diario:** barre y cierra cualquier subasta que se haya escapado.
-
-Se reutiliza la lógica actual de `crearCierreSubastas` (`servicios/subastas.js`). Solo cambia quién la dispara.
+✅ `web/lib/cierre-subastas.ts`, con la misma lógica de `crearCierreSubastas` (`servicios/subastas.js`). Solo cambia quién la dispara:
+1. **Cierre perezoso:** al listar subastas, pujar, ver los tratos o abrir el dashboard se cierran las vencidas, como mucho una vez cada 15 s por instancia. En tratos y dashboard se espera al cierre, para que el trato aparezca enseguida; en lo demás va después de responder.
+2. **Vercel Cron diario** (`web/vercel.json`, 06:00 UTC = medianoche en Nicaragua): `GET /api/cron/cerrar-subastas`, protegido con `CRON_SECRET`.
+3. **A mano:** `POST /api/admin/subastas/cerrar-vencidas`.
 
 ---
 
@@ -125,7 +124,7 @@ Estimaciones en días de trabajo de una persona que conoce el código y sabe Rea
 - [x] Crear la cuenta de Vercel, instalar Vercel CLI e iniciar sesión
 - [ ] Activar 2FA en Vercel y en Cloudflare
 - [x] Crear la cuenta y el proyecto de Neon, con el esquema cargado (PR #13)
-- [ ] Crear cuentas en Ably y Upstash (QStash). ✅ Blob store `entrelazados-fotos` creado en Vercel
+- [ ] Crear la cuenta de Ably (✅ creada; falta la llave en Vercel). ✅ Blob store `entrelazados-fotos` creado en Vercel
 - [ ] Buscar un respaldo de la BD y de las fotos de la VM vencida (si existe)
 
 ### Fase 1: Backend moderno, mismas páginas (≈ 26–37 días)
@@ -139,7 +138,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación. ✅ `web/lib/` (`http`, `sesion`, `limites`, `correo`, `config`, `utilidades`) | 1.5–2 |
 | 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅; ofertas, subastas, pujas, notificaciones (campana y correo) y `DELETE /api/admin/ofertas/[id]` ✅; rutas públicas (`/api/categorias`, `/api/ping`, `/api/estadisticas`) y perfiles (`/api/perfil/[id]`, `/api/usuarios/[id]/{reputacion,publico,resenas}`) ✅. Secciones activas: 01–07, 09, 11, 13, 14 y 17 | 4–6 |
 | 1.6 | Tiempo real con Ably (`tiempoReal.js` + `sesion.js`) | 2–3 |
-| 1.7 | Cierre de subastas: QStash + cierre perezoso + Cron diario | 1.5–2.5 |
+| 1.7 | Cierre de subastas: cierre perezoso + Cron diario. ✅ También tratos (`/api/tratos`, estado, calificación y comprobante) y `/api/dashboard`; secciones 15, 16 y 20 activas | 1–1.5 |
 | 1.8 | Fotos en Vercel Blob. ✅ `web/lib/fotos.ts` (Blob en Vercel, disco en las pruebas) | 1 |
 | 1.9 | Límites de peticiones en memoria (login, registro y recuperación ya están; faltan Kan, fotos e IA), `after()` para correos y avisos, Swagger | 1–1.5 |
 | 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions. ✅ Suite portada a `web/pruebas/api/` (32 secciones, SQL en Postgres), job "API en Next.js (Postgres)" en el CI; cada rama de rutas (1.3/1.5) activa sus secciones, en el orden de la suite | 3–5 |
@@ -197,7 +196,6 @@ La raíz `ericksv.com` queda libre para un portafolio u otros proyectos.
 | Vercel | Hobby (gratis) | **Solo uso no comercial**. Si EntreLazados se vuelve negocio: Pro, US$20/mes. Duración máxima de las funciones (Kan / Gemini) |
 | Neon | Free | ~0,5 GB de almacenamiento, suspensión tras minutos sin uso, horas de cómputo limitadas |
 | Ably | Free | Conexiones simultáneas y mensajes por mes |
-| Upstash | Free (QStash) | Mensajes por día |
 | Vercel Blob | Incluido en Hobby | Almacenamiento y transferencia por mes |
 
 Los planes gratuitos cambian seguido: revisar las páginas de precios antes de empezar cada fase.
@@ -295,8 +293,8 @@ Hay **CI** (`.github/workflows/pruebas.yml`: unitarias en Node 20 y 22, e integr
 | **Vistas previas por PR** | Integración de Vercel con GitHub: cada PR recibe su URL. La integración Neon ↔ Vercel crea una **rama de la BD por vista previa**, así que las pruebas nunca tocan los datos reales |
 | **Producción solo con pruebas en verde** | **Protección de rama** en `master`: exigir que pasen los checks de CI (y una revisión) antes de fusionar. Vercel despliega producción al fusionar |
 | **Migraciones automáticas** | Paso de CI con `drizzle-kit migrate` contra la BD de producción **antes** del despliegue. Las migraciones deben ser **compatibles hacia atrás** (primero agregar columnas, después quitar las viejas en otra versión) para que la versión anterior siga funcionando si hay rollback |
-| **Variables por entorno** | En Vercel, valores separados para *Production*, *Preview* y *Development*: BD, Ably, Vercel Blob, QStash, Gemini. Las vistas previas nunca usan las claves de producción |
-| **Tareas programadas solo en producción** | Vercel Cron y los mensajes de QStash apuntan únicamente al dominio de producción |
+| **Variables por entorno** | En Vercel, valores separados para *Production*, *Preview* y *Development*: BD, Ably, Vercel Blob, Gemini. Las vistas previas nunca usan las claves de producción |
+| **Tareas programadas solo en producción** | Vercel Cron solo corre en producción (`CRON_SECRET` y `APP_URL` existen solo ahí) |
 | **Prueba de humo** | Después de desplegar, un paso que consulta `GET /api/salud` (responde si la app y la BD contestan). Si falla, se avisa y se hace rollback |
 | **Rollback** | **Instant Rollback** de Vercel: volver a la versión anterior con un clic o con `vercel rollback`, sin reconstruir |
 | **Notificaciones** | Estado del despliegue en el PR (Vercel lo comenta solo) y aviso por correo o Discord si falla producción |

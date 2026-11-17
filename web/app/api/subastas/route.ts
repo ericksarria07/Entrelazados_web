@@ -1,6 +1,8 @@
 // /api/subastas (de rutas/subastas.js)
 //   GET   subastas abiertas, con filtros y paginación
 //   POST  crear una subasta desde el Mercado (proveedor)
+import { urlPublica } from "@/lib/config";
+import { cerrarVencidasSiToca } from "@/lib/cierre-subastas";
 import { enTransaccion, obtenerPool } from "@/lib/db";
 import { ErrorHttp, conRespaldo, json, leerCuerpo, ruta } from "@/lib/http";
 import { DIAS_SUBASTA, PRECIO_MAXIMO, insertarSubasta, traducirErrorCategoria, urlsDeFotos } from "@/lib/ofertas";
@@ -13,6 +15,8 @@ import { enteroPositivo, leerFotosAntiguas, leerPaginacion, patronLike, respuest
 // publicación. Primero las que cierran antes.
 // Filtros opcionales: ?q=texto&categoria=ID&proveedorId=ID. Con ?pagina=N&porPagina=M responde paginado.
 export const GET = conRespaldo([], async (req) => {
+  // Cierre perezoso: las vencidas se cierran después de responder (ya no salen en la lista)
+  await cerrarVencidasSiToca(urlPublica(req));
   const query = new URL(req.url).searchParams;
   const pag = leerPaginacion(query, 10);
   const condiciones = ["s.estado = 'Activa'", "s.fecha_fin > now()"];

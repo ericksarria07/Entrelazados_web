@@ -1,8 +1,9 @@
 // 14. Cierre automático de subastas
-// Se revisa en la 1.7 (cierre con QStash / cierre perezoso): hoy lo dispara /api/admin/subastas/cerrar-vencidas.
+// En Vercel el cierre es perezoso (al listar subastas, pujar, ver tratos o el dashboard) y con un
+// cron diario. Aquí CIERRE_PEREZOSO=0: lo dispara /api/admin/subastas/cerrar-vencidas.
 // Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
-import { api, check, seccion, q } from '../contexto.mjs';
+import { B, api, check, seccion, q } from '../contexto.mjs';
 
 export default async function correr(ctx) {
     let r;
@@ -47,4 +48,13 @@ export default async function correr(ctx) {
     check('Dashboard del ganador: 1 subasta ganada por C$590', r.status === 200 && r.data.miActividad.subastasGanadas === 1 && r.data.miActividad.montoGanado === 590, JSON.stringify(r.data && r.data.miActividad));
     r = await api('GET', '/api/dashboard', { token: ctx.p1.token });
     check('Dashboard del proveedor: 1 subasta vendida', r.status === 200 && r.data.miActividad.subastasVendidas === 1, JSON.stringify(r.data && r.data.miActividad));
+
+    // Cron diario de Vercel: solo responde con el secreto (CRON_SECRET)
+    const cron = (auth) => fetch(B + '/api/cron/cerrar-subastas', { headers: auth ? { Authorization: auth } : {} }).then(async (x) => ({ status: x.status, data: await x.json() }));
+    r = await cron();
+    check('El cron de cierre sin secreto → 401', r.status === 401);
+    r = await cron('Bearer secreto-equivocado');
+    check('…con un secreto equivocado → 401', r.status === 401);
+    r = await cron('Bearer secreto-cron-pruebas');
+    check('…con el secreto corre el cierre (no quedaba nada por cerrar)', r.status === 200 && r.data.cerradas === 0, JSON.stringify(r));
 }
