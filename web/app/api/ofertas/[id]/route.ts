@@ -3,6 +3,7 @@
 //   DELETE  eliminar (su dueño o el admin)
 import { urlPublica } from "@/lib/config";
 import { enTransaccion } from "@/lib/db";
+import { avisarRebaja } from "@/lib/favoritos";
 import { MAX_FOTOS, borrarFotos, guardarFotos, leerArchivos, revisarArchivos, validarFotos } from "@/lib/fotos";
 import { ErrorHttp, json, leerFormulario, ruta } from "@/lib/http";
 import { eliminarOferta, mensajeOfertaBorrada, traducirErrorCategoria, urlsDeFotos, validarOferta } from "@/lib/ofertas";
@@ -108,7 +109,13 @@ export const PUT = ruta<Contexto>(async (req, ctx) => {
         "UPDATE subastas SET titulo_lote = $1, categoria_id = $2 WHERE oferta_id = $3 AND estado = 'Activa' AND fecha_fin > now()",
         [`Lote Subasta: ${datos.titulo}`, datos.categoriaId, ofertaId]
       );
-      return { borradas, antiguasQuedan, subastaActualizada: (subasta.rowCount ?? 0) > 0 };
+      return {
+        borradas,
+        antiguasQuedan,
+        subastaActualizada: (subasta.rowCount ?? 0) > 0,
+        proveedorId: oferta.proveedor_id as number,
+        precioAnterior: Number(oferta.precio),
+      };
     });
   } catch (err) {
     await borrarFotos(urlsNuevas);
@@ -118,7 +125,11 @@ export const PUT = ruta<Contexto>(async (req, ctx) => {
   await borrarFotos(resultado.borradas.map((f) => f.foto_url));
   const fotosFinales = (await urlsDeFotos([ofertaId])).get(ofertaId) || resultado.antiguasQuedan;
   if (resultado.subastaActualizada) aTodos("subastas:cambio", { motivo: "editada" });
-  // El aviso de rebaja a quienes la guardaron en favoritos llega con la rama de favoritos
+  // Si bajó de precio, se avisa a quienes la guardaron en favoritos (después de responder)
+  avisarRebaja(
+    { ofertaId, proveedorId: resultado.proveedorId, titulo: datos.titulo, precioAnterior: resultado.precioAnterior, precioNuevo: datos.precio },
+    urlPublica(req)
+  );
   return json({
     message: resultado.subastaActualizada
       ? "Publicación actualizada. Su subasta abierta también muestra el título y la categoría nuevos."
