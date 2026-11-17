@@ -496,7 +496,7 @@ El CI corre `npm run lint` y `npm run build` de `web/` (check "Next.js (build)")
 ### Despliegue continuo
 
 ```
-PR ──▶ CI (5 checks obligatorios) ──▶ vista previa en Vercel, con su propia rama de Neon
+PR ──▶ CI (5 checks obligatorios) ──▶ vista previa en Vercel, con su propia rama de Neon (vacía)
                                         └─ migraciones en esa rama · humo: /api/salud
 mezcla en migracion-nextjs ──▶ build de Vercel: migraciones en producción ──▶ next build
                                  (si fallan, el build falla y sigue la versión anterior)
@@ -506,7 +506,7 @@ mezcla en migracion-nextjs ──▶ build de Vercel: migraciones en producción
 | Pieza | Cómo |
 |---|---|
 | Rama protegida | `migracion-nextjs` exige los 5 checks del CI y no admite push directo (también para administradores) |
-| Base de las vistas previas | Integración **Neon ↔ Vercel**: cada vista previa recibe su rama de Neon (copia de producción) en `DATABASE_URL`/`DATABASE_URL_UNPOOLED`, y se borra al cerrar el PR. Las vistas previas no tienen las variables de producción: ni su base ni `BLOB_READ_WRITE_TOKEN` (las fotos van a disco temporal) |
+| Base de las vistas previas | Integración **Neon ↔ Vercel** con un proyecto de Neon **aparte y vacío** (`neon-charcoal-window`, prefijo `DATABASE`, solo en Preview): cada vista previa recibe su rama en `DATABASE_URL`/`DATABASE_URL_UNPOOLED`, y la rama se borra al cerrar el PR. Ningún dato real llega a una vista previa, y como cada rama empieza vacía, el build crea todo el esquema desde las migraciones (así una migración rota falla en el PR). Para probar una vista previa hay que registrarse ahí. Las vistas previas no tienen las variables de producción: ni su base ni `BLOB_READ_WRITE_TOKEN` (las fotos van a disco temporal) |
 | Migraciones | `vercel.json` → `npm run vercel-build` = `scripts/migrar-en-build.mjs` (`drizzle-kit migrate` con `DATABASE_URL_UNPOOLED`) y `next build`. En producción, sin esa variable el build falla a propósito; en una vista previa sin base solo avisa |
 | Prueba de humo | `.github/workflows/humo.yml`, con cada despliegue que Vercel reporta a GitHub. Producción: `/api/salud` (app y base, 3 intentos), `/`, `/api/docs` y `/api/ping`. Si falla, el workflow queda en rojo y GitHub avisa por correo. Vistas previas: solo `/api/salud`, y como están protegidas por Vercel necesitan el secreto `VERCEL_BYPASS` ("Protection Bypass for Automation"); sin él, solo avisa. Se puede correr a mano (Actions → Prueba de humo) contra cualquier URL |
 
