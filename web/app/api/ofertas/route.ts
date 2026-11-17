@@ -1,7 +1,9 @@
 // /api/ofertas (de rutas/ofertas.js)
 //   GET   lista pública, con filtros y paginación
 //   POST  publicar (proveedor), con hasta 5 fotos; abre su lote en subasta (7 días)
+import { urlPublica } from "@/lib/config";
 import { enTransaccion, obtenerPool } from "@/lib/db";
+import { avisarNuevaPublicacion } from "@/lib/favoritos";
 import { borrarFotos, guardarFotos, leerArchivos, revisarArchivos, validarFotos } from "@/lib/fotos";
 import { ErrorHttp, conRespaldo, json, leerFormulario, ruta } from "@/lib/http";
 import { insertarSubasta, traducirErrorCategoria, urlsDeFotos, validarOferta } from "@/lib/ofertas";
@@ -126,6 +128,10 @@ export const POST = ruta(async (req) => {
     throw traducirErrorCategoria(err);
   }
   aTodos("subastas:cambio", { motivo: "nueva" });
-  // Las alertas de búsqueda (favoritos.avisarNuevaPublicacion) llegan con la rama de favoritos
+  // Alertas de búsqueda: después de responder (nunca hacen fallar la publicación)
+  avisarNuevaPublicacion(
+    { ofertaId, proveedorId, titulo: datos.titulo, descripcion: datos.descripcion, categoriaId: datos.categoriaId, precio: datos.precio },
+    urlPublica(req)
+  );
   return json({ message: "¡Material publicado y lote en subasta activo exitosamente!", ofertaId, fotos: urls });
 });
