@@ -99,11 +99,14 @@
     }
     window.actualizarNoLeidosEntrelazados = actualizarNoLeidos;
 
-    // ---------------------------------------------------------------- TIEMPO REAL (Socket.IO)
+    // ---------------------------------------------------------------- TIEMPO REAL (Ably)
     // window.tiempoRealEntrelazados.conectado dice si los avisos llegan solos; si no,
     // las páginas siguen preguntando cada cierto tiempo como antes.
+    // La API firma un permiso de solo lectura (/api/tiempo-real/token) para el canal
+    // público y el canal propio. Cada evento se reenvía como "entrelazados:<evento>".
     const EVENTOS_TIEMPO_REAL = ['puja:nueva', 'subastas:cambio', 'chat:mensaje', 'notificacion:nueva'];
-    const tiempoReal = window.tiempoRealEntrelazados = { conectado: false, socket: null };
+    const SDK_ABLY = 'https://unpkg.com/@ably/pubsub-device@3.0.0/dist/cdn/ably.min.js';   // define window.AblyPubSub
+    const tiempoReal = window.tiempoRealEntrelazados = { conectado: false, cliente: null };
     const avisar = (nombre, detalle) => document.dispatchEvent(new CustomEvent('entrelazados:' + nombre, { detail: detalle }));
 
     function cargarScript(src) {
@@ -116,18 +119,45 @@
         });
     }
 
-    async function conectarTiempoReal(token) {
+    // Pide a la API el permiso de Ably (y los nombres de los canales). null si no se puede:
+    // sin tiempo real configurado (503), token vencido o cuenta suspendida (401/403).
+    async function pedirPermiso(token) {
         try {
-            if (!window.io) await cargarScript('/socket.io/socket.io.min.js');
-        } catch (e) { return; }   // sin Socket.IO la página funciona igual, preguntando cada cierto tiempo
-        const socket = window.io({ auth: { token } });
-        tiempoReal.socket = socket;
-        socket.on('connect', () => { tiempoReal.conectado = true; avisar('conexion', { conectado: true }); });
-        socket.on('disconnect', () => { tiempoReal.conectado = false; avisar('conexion', { conectado: false }); });
-        // Token vencido o cuenta suspendida: no se insiste (la API ya cierra la sesión con su 401)
-        socket.on('connect_error', (err) => { if (err && err.message === 'sesion-invalida') socket.disconnect(); });
-        EVENTOS_TIEMPO_REAL.forEach(evento => socket.on(evento, (datos) => avisar(evento, datos)));
-        socket.on('chat:mensaje', () => actualizarNoLeidos());
+            const res = await window.fetch('/api/tiempo-real/token', { headers: { Authorization: 'Bearer ' + token } });
+            return res.ok ? await res.json() : null;
+        } catch (e) { return null; }
+    }
+
+    async function conectarTiempoReal(token) {
+        const permiso = await pedirPermiso(token);
+        if (!permiso) return;   // la página funciona igual, preguntando cada cierto tiempo
+        try {
+            if (!window.AblyPubSub) await cargarScript(SDK_ABLY);
+        } catch (e) { return; }
+        let primero = permiso.tokenRequest;
+        const cliente = window.AblyPubSub.createClient({
+            // El permiso dura 1 hora; el SDK pide otro solo. Si la sesión ya no sirve, se deja de insistir.
+            authCallback: async (_params, listo) => {
+                if (primero) { listo(null, primero); primero = null; return; }
+                const nuevo = await pedirPermiso(token);
+                if (nuevo) listo(null, nuevo.tokenRequest);
+                else { listo('sesion-invalida', null); cliente.close(); }
+            },
+        });
+        tiempoReal.cliente = cliente;
+        cliente.connection.on('connected', () => { tiempoReal.conectado = true; avisar('conexion', { conectado: true }); });
+        cliente.connection.on(['disconnected', 'suspended', 'closed', 'failed'], () => {
+            if (!tiempoReal.conectado) return;
+            tiempoReal.conectado = false;
+            avisar('conexion', { conectado: false });
+        });
+        const reenviar = (mensaje) => {
+            if (!EVENTOS_TIEMPO_REAL.includes(mensaje.name)) return;
+            avisar(mensaje.name, mensaje.data);
+            if (mensaje.name === 'chat:mensaje') actualizarNoLeidos();
+        };
+        cliente.channels.get(permiso.canales.publico).subscribe(reenviar);
+        if (permiso.canales.usuario) cliente.channels.get(permiso.canales.usuario).subscribe(reenviar);
     }
 
     document.addEventListener('DOMContentLoaded', () => {

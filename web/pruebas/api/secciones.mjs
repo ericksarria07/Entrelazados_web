@@ -32,7 +32,7 @@ export const SECCIONES = [
     { archivo: "20-calificaciones-de-los-tratos.mjs", titulo: "21. Calificaciones de los tratos", activa: true, requiere: ["03-inicio-de-sesion.mjs","15-cierre-automatico-de-subastas.mjs","16-seguimiento-de-tratos.mjs"] },
     { archivo: "21-avisar-a-quienes-pujaron.mjs", titulo: "22. Avisar a quienes pujaron si se cancela una subasta", activa: false, requiere: ["03-inicio-de-sesion.mjs","17-editar-publicaciones.mjs"] },
     { archivo: "22-correos-invalidos-y-confirmacion.mjs", titulo: "23. Correos inválidos y confirmación por el admin", activa: false, requiere: ["01-registro.mjs","02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs","17-editar-publicaciones.mjs"] },
-    { archivo: "23-tiempo-real.mjs", titulo: "24. Tiempo real (Socket.IO)", activa: false, requiere: ["01-registro.mjs","02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
+    { archivo: "23-tiempo-real.mjs", titulo: "24. Tiempo real (Ably)", activa: true, requiere: ["01-registro.mjs","02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
     { archivo: "24-notificaciones.mjs", titulo: "25. Notificaciones (campana)", activa: false, requiere: ["03-inicio-de-sesion.mjs","23-tiempo-real.mjs"] },
     { archivo: "25-reportes.mjs", titulo: "26. Reportes", activa: false, requiere: ["03-inicio-de-sesion.mjs","23-tiempo-real.mjs"] },
     { archivo: "26-favoritos-y-alertas-de.mjs", titulo: "27. Favoritos y alertas de búsqueda", activa: false, requiere: ["03-inicio-de-sesion.mjs","17-editar-publicaciones.mjs","23-tiempo-real.mjs"] },

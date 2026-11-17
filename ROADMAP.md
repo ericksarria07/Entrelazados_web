@@ -74,13 +74,15 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Tareas después de responder | **`after()`** de Next.js | Las 14 tareas que hoy se lanzan sin esperar (correos, alertas) se cortarían al congelarse la función | Lanzar sin esperar (actual) |
 
 ### Detalle: tiempo real con Ably
-`servicios/tiempoReal.js` conserva su interfaz (`aTodos`, `aUsuario`) y por dentro publica en Ably:
+✅ `web/lib/tiempo-real.ts` conserva la interfaz (`aTodos`, `aUsuario`) y publica en Ably después de responder. La cuenta cobra por usuario activo (MAU), así que exige los SDK nuevos: `@ably/pubsub-server` en la API y `@ably/pubsub-device` en el navegador. El paquete `ably` se rechaza.
 
-| Hoy (Socket.IO) | Con Ably |
+| Express (Socket.IO) | Next.js (Ably) |
 |---|---|
-| Sala por usuario | Canal privado `private:usuario-{id}`, autorizado por `/api/ably/token` con la sesión |
-| Emisión a todos (`subastas:cambio`) | Canal público `subastas` |
-| Cliente en `sesion.js` | Hook de React (`useChannel`) en el layout |
+| Sala por usuario | Canal `<prefijo>:usuario:<id>`. El permiso de solo lectura lo firma `GET /api/tiempo-real/token` con la sesión |
+| Emisión a todos (`puja:nueva`, `subastas:cambio`) | Canal `<prefijo>:publico` |
+| Cliente en `sesion.js` | `sesion.js` carga `@ably/pubsub-device` desde unpkg y emite los mismos eventos `entrelazados:<evento>`. En la Fase 2 pasa a un hook de React |
+
+El prefijo (`ABLY_CANAL_PREFIJO`, por defecto `VERCEL_ENV`) separa producción, vistas previas, tu máquina y cada corrida de pruebas. Llaves creadas con la CLI de Ably en la app "Leather marketplace": `entrelazados-api` (Vercel, production y preview) y `entrelazados-pruebas` (`web/.env.local`). Sin `ABLY_API_KEY`, el tiempo real queda apagado y las páginas siguen preguntando cada cierto tiempo.
 
 ### Detalle: cierre de subastas
 ✅ `web/lib/cierre-subastas.ts`, con la misma lógica de `crearCierreSubastas` (`servicios/subastas.js`). Solo cambia quién la dispara:
@@ -124,7 +126,7 @@ Estimaciones en días de trabajo de una persona que conoce el código y sabe Rea
 - [x] Crear la cuenta de Vercel, instalar Vercel CLI e iniciar sesión
 - [ ] Activar 2FA en Vercel y en Cloudflare
 - [x] Crear la cuenta y el proyecto de Neon, con el esquema cargado (PR #13)
-- [ ] Crear la cuenta de Ably (✅ creada; falta la llave en Vercel). ✅ Blob store `entrelazados-fotos` creado en Vercel
+- [x] Cuenta de Ably con sus llaves (`ABLY_API_KEY` en Vercel). ✅ Blob store `entrelazados-fotos` creado en Vercel
 - [ ] Buscar un respaldo de la BD y de las fotos de la VM vencida (si existe)
 
 ### Fase 1: Backend moderno, mismas páginas (≈ 26–37 días)
@@ -137,7 +139,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT`. SQL a mano con `pg`. Avance: cuentas ✅, ofertas, subastas y pujas ✅ | 5–8 |
 | 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación. ✅ `web/lib/` (`http`, `sesion`, `limites`, `correo`, `config`, `utilidades`) | 1.5–2 |
 | 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅; ofertas, subastas, pujas, notificaciones (campana y correo) y `DELETE /api/admin/ofertas/[id]` ✅; rutas públicas (`/api/categorias`, `/api/ping`, `/api/estadisticas`) y perfiles (`/api/perfil/[id]`, `/api/usuarios/[id]/{reputacion,publico,resenas}`) ✅; chat (`/api/chat/{contactos,no-leidos,mensajes,enviar}`) y campana (`/api/notificaciones`) ✅. Secciones activas: 01–09, 11, 13–17, 19 y 20 | 4–6 |
-| 1.6 | Tiempo real con Ably (`tiempoReal.js` + `sesion.js`) | 2–3 |
+| 1.6 | Tiempo real con Ably (`tiempoReal.js` + `sesion.js`). ✅ `web/lib/tiempo-real.ts`, `/api/tiempo-real/token` y `sesion.js`; sección 23 reescrita (entrega y permisos de canal) | 1–1.5 |
 | 1.7 | Cierre de subastas: cierre perezoso + Cron diario. ✅ También tratos (`/api/tratos`, estado, calificación y comprobante) y `/api/dashboard`; secciones 15, 16 y 20 activas | 1–1.5 |
 | 1.8 | Fotos en Vercel Blob. ✅ `web/lib/fotos.ts` (Blob en Vercel, disco en las pruebas) | 1 |
 | 1.9 | Límites de peticiones en memoria (login, registro y recuperación ya están; faltan Kan, fotos e IA), `after()` para correos y avisos, Swagger | 1–1.5 |
