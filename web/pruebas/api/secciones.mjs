@@ -18,7 +18,7 @@ export const SECCIONES = [
     { archivo: "06-subastas-y-pujas.mjs", titulo: "5. Subastas y pujas", activa: true, requiere: ["03-inicio-de-sesion.mjs","05-ofertas.mjs"] },
     { archivo: "07-borrar-ofertas.mjs", titulo: "6. Borrar ofertas", activa: true, requiere: ["03-inicio-de-sesion.mjs","05-ofertas.mjs","06-subastas-y-pujas.mjs"] },
     { archivo: "08-chat.mjs", titulo: "7. Chat", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
-    { archivo: "09-perfil.mjs", titulo: "8. Perfil", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },
+    { archivo: "09-perfil.mjs", titulo: "8. Perfil", activa: true, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "10-panel-de-administrador.mjs", titulo: "9. Panel de administrador", activa: false, requiere: ["02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
     { archivo: "11-restablecer-contrasena.mjs", titulo: "10. Restablecer contraseña", activa: true, requiere: ["02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
     { archivo: "12-rutas-publicas-y-errores.mjs", titulo: "11. Rutas públicas y errores", activa: false, requiere: ["03-inicio-de-sesion.mjs"] },

@@ -137,7 +137,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.2 | Esquema Postgres en Neon (18 tablas, snake_case, Drizzle). ✅ `web/db/esquema.ts` + migraciones de Drizzle aplicadas en Neon y probadas (`npm run probar:neon` en `web/`) | 1–1.5 |
 | 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT`. SQL a mano con `pg`. Avance: cuentas ✅, ofertas, subastas y pujas ✅ | 5–8 |
 | 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación. ✅ `web/lib/` (`http`, `sesion`, `limites`, `correo`, `config`, `utilidades`) | 1.5–2 |
-| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅; ofertas, subastas, pujas, notificaciones (campana y correo) y `DELETE /api/admin/ofertas/[id]` ✅. Secciones activas: 01–07, 11, 13, 14 y 17 | 4–6 |
+| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅; ofertas, subastas, pujas, notificaciones (campana y correo) y `DELETE /api/admin/ofertas/[id]` ✅; rutas públicas (`/api/categorias`, `/api/ping`, `/api/estadisticas`) y perfiles (`/api/perfil/[id]`, `/api/usuarios/[id]/{reputacion,publico,resenas}`) ✅. Secciones activas: 01–07, 09, 11, 13, 14 y 17 | 4–6 |
 | 1.6 | Tiempo real con Ably (`tiempoReal.js` + `sesion.js`) | 2–3 |
 | 1.7 | Cierre de subastas: QStash + cierre perezoso + Cron diario | 1.5–2.5 |
 | 1.8 | Fotos en Vercel Blob. ✅ `web/lib/fotos.ts` (Blob en Vercel, disco en las pruebas) | 1 |
