@@ -4,6 +4,7 @@
 // Postgres hace esperar a la segunda y vuelve a revisar la condición con el precio nuevo.
 // El precio nuevo y el historial (tabla pujas) se guardan en la misma transacción.
 import { urlPublica } from "@/lib/config";
+import { cerrarVencidasSiToca } from "@/lib/cierre-subastas";
 import { enTransaccion, obtenerPool } from "@/lib/db";
 import { ErrorHttp, json, leerCuerpo, ruta } from "@/lib/http";
 import { type AvisoNotificacion, enviarNotificaciones } from "@/lib/notificaciones";
@@ -23,6 +24,8 @@ export const POST = ruta(async (req) => {
   if (montoPuja > PRECIO_MAXIMO) throw new ErrorHttp(400, "El monto de la puja es demasiado alto.");
   const subastaId = enteroPositivo(b.subastaId);
   if (!subastaId) throw new ErrorHttp(404, "La subasta no existe.");
+  // Cierre perezoso, después de responder (la puja ya rechaza las vencidas por su cuenta)
+  await cerrarVencidasSiToca(urlPublica(req));
 
   const aceptada = await enTransaccion(async (c) => {
     const actualizada = await c.query(

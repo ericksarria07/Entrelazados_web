@@ -90,6 +90,9 @@ const servidor = spawn(path.join(WEB, 'node_modules', '.bin', 'next'), ['start',
         JWT_SECRET: 'secreto-de-pruebas-local',
         GEMINI_API_KEY: 'sin-clave',
         EMAIL_USER: '', EMAIL_PASS: '', APP_URL: '', VERIFICAR_CORREO: '1',
+        // El cierre de subastas lo controlan las pruebas con la ruta del admin (sección 15)
+        CIERRE_PEREZOSO: '0',
+        CRON_SECRET: 'secreto-cron-pruebas',
         LIMITE_REGISTRO: '40', LIMITE_RECUPERACION: '30', LIMITE_LOGIN: '30', LIMITE_API: '2000',
     },
 });
