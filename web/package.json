@@ -13,7 +13,8 @@
     "db:revisar": "drizzle-kit check",
     "probar:neon": "node --env-file=.env.local scripts/probar-neon.ts",
     "test:api": "node --env-file-if-exists=.env.local pruebas/api/correr.mjs",
-    "admin:crear": "node --env-file=.env.local scripts/crear-admin.ts"
+    "admin:crear": "node --env-file=.env.local scripts/crear-admin.ts",
+    "recorrido": "node --env-file=.env.local pruebas/recorrido/recorrido.mjs"
   },
   "dependencies": {
     "@ably/pubsub-server": "^3.1.0",
@@ -43,6 +44,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "playwright": "1.57.0",
     "typescript": "^5"
   },
   "description": "EntreLazados en Next.js (migración en curso, ver ROADMAP.md)",

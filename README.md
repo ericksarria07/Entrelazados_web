@@ -493,6 +493,33 @@ El CI corre `npm run lint` y `npm run build` de `web/` (check "Next.js (build)")
 
 ---
 
+## Administrador y recorrido completo (`web/`)
+
+**Crear la cuenta de administrador** (registrarse como admin está prohibido a propósito):
+
+```bash
+cd web
+npm run admin:crear     # pide correo, nombre y contraseña (no se muestra); usa DATABASE_URL de .env.local
+```
+
+Si el correo ya existe, ofrece convertir esa cuenta en administrador.
+
+**Recorrido con capturas** (`web/pruebas/recorrido/recorrido.mjs`): Playwright abre el sitio en tamaño de teléfono y lo recorre como una persona: registro, publicar con fotos, editar, búsqueda, mapa, favoritos y alertas, pujas en vivo (Ably), campana, chat en vivo, cierre de la subasta, trato, calificación, comprobante, perfil público, dashboard, reportes (Excel y PDF), Kan, panel de admin (suspender, categorías), recuperar contraseña y Swagger.
+
+```bash
+cd web
+npm run recorrido                                  # contra https://entrelazados.ericksv.com
+RECORRIDO_URL=http://localhost:3000 npm run recorrido
+```
+
+| | |
+|---|---|
+| Cuentas | Temporales (`rec<fecha>-…@example.com`): un proveedor, dos emprendedores y un admin. Los correos se confirman en la base (a example.com no llegan los enlaces) |
+| Limpieza | Al final, pase lo que pase, el admin temporal borra las cuentas por la API (con sus fotos de Blob y sus datos) y se borra a sí mismo |
+| Resultado | Capturas `.jpg` y `resultado.json` en `web/pruebas/recorrido/salida/` (fuera de git) |
+| Requisitos | `DATABASE_URL` de la misma base que la URL probada. Playwright fijo en 1.57.0: es la última versión con Chromium para macOS 13 |
+| Ojo | Cuenta para el límite de 5 registros por hora por conexión: si se corre varias veces seguidas, los registros por formulario se anotan como "límite alcanzado" y las cuentas se crean en la base |
+
 ## Pruebas de la API en Next.js
 
 Las ~400 comprobaciones de integración de Express (`backend/pruebas/pruebas_api.js`) se portaron a

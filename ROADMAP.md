@@ -144,7 +144,7 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.8 | Fotos en Vercel Blob. ✅ `web/lib/fotos.ts` (Blob en Vercel, disco en las pruebas) | 1 |
 | 1.9 | Límites de peticiones en memoria, `after()` para correos y avisos, Swagger. ✅ Límites de login, registro, recuperación, Kan, fotos e IA (sección 32 activa) y `after()` en todos los avisos; Swagger en `/api/docs` y `/api/openapi.json` (`web/docs/openapi.yaml`, revisado por la sección 12) | 1–1.5 |
 | 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions. ✅ Suite portada a `web/pruebas/api/` (32 secciones, SQL en Postgres), job "API en Next.js (Postgres)" en el CI; cada rama de rutas (1.3/1.5) activa sus secciones, en el orden de la suite | 3–5 |
-| 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio agregado en Vercel (rama `migracion-nextjs`) | 1–2 |
+| 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio en Vercel; sin datos que migrar (la VM venció sin respaldo: se arrancó de cero en Neon); `npm run admin:crear` para la cuenta de administrador; `npm run recorrido` (Playwright) recorre las 14 páginas en producción con capturas y cuentas temporales que borra al final: 38/38 pasos. El recorrido es la base de las pruebas E2E de la 2.8 | 1–2 |
 | 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11) | 1–2 |
 
 En esta fase el JWT se queda en `localStorage`, para no tocar las páginas. Pasa a cookie en la Fase 2.
