@@ -445,7 +445,9 @@ npm run db:estudio            # Drizzle Studio: ver y editar los datos en el nav
 **Cambiar el esquema:**
 1. Edita `db/esquema.ts`.
 2. `npm run db:generar` crea el SQL en `db/migraciones/`. Revísalo y súbelo junto con el cambio.
-3. `npm run db:migrar` lo aplica en Neon.
+3. Al mezclar el PR, el build de Vercel la aplica sola (ver "Despliegue continuo"). `npm run db:migrar` sigue sirviendo para aplicarla a mano.
+
+**Las migraciones tienen que ser compatibles hacia atrás**: primero se agrega (columna nueva con valor por defecto o que acepte NULL) y en otro PR, cuando ya nada la usa, se quita lo viejo. Así un rollback a la versión anterior sigue funcionando con el esquema nuevo.
 
 Lo que Drizzle no sabe expresar (funciones, triggers, datos) va en una migración a mano: `npx drizzle-kit generate --custom --name <nombre>`.
 El CI corre `npm run db:revisar` para comprobar que las migraciones sean coherentes.
@@ -490,6 +492,33 @@ npm run dev                            # http://localhost:3000 y http://localhos
 
 Cada *pull request* hacia `migracion-nextjs` recibe una vista previa en Vercel. Al mezclarlo, se publica en el dominio.
 El CI corre `npm run lint` y `npm run build` de `web/` (check "Next.js (build)").
+
+### Despliegue continuo
+
+```
+PR ──▶ CI (5 checks obligatorios) ──▶ vista previa en Vercel, con su propia rama de Neon (copia de producción)
+                                        └─ migraciones en esa rama · humo: /api/salud
+mezcla en migracion-nextjs ──▶ build de Vercel: migraciones en producción ──▶ next build
+                                 (si fallan, el build falla y sigue la versión anterior)
+                           ──▶ entrelazados.ericksv.com ──▶ humo: /api/salud, portada, /api/docs
+```
+
+| Pieza | Cómo |
+|---|---|
+| Rama protegida | `migracion-nextjs` exige los 5 checks del CI y no admite push directo (también para administradores) |
+| Base de las vistas previas | Integración **Neon ↔ Vercel** instalada desde Neon (proyecto `Entrelazados`, rama `production`, base `neondb`, rol `neondb_owner`). En producción pone `DATABASE_URL`/`DATABASE_URL_UNPOOLED` de la rama `production`; en cada vista previa crea una rama de Neon copiada de `production` y pone sus variables solo para esa rama de git. Las ramas viejas se borran solas. Ojo: una vista previa tiene una copia de los datos reales (por eso las vistas previas están protegidas por Vercel). Las vistas previas no tienen `BLOB_READ_WRITE_TOKEN` (las fotos van a disco temporal) |
+| Migraciones | `vercel.json` → `npm run vercel-build` = `scripts/migrar-en-build.mjs` (`drizzle-kit migrate` con `DATABASE_URL_UNPOOLED`) y `next build`. En producción, sin esa variable el build falla a propósito; en una vista previa sin base solo avisa |
+| Prueba de humo | `.github/workflows/humo.yml`, con cada despliegue que Vercel reporta a GitHub. Producción: `/api/salud` (app y base, 3 intentos), `/`, `/api/docs` y `/api/ping`. Si falla, el workflow queda en rojo y GitHub avisa por correo. Vistas previas: solo `/api/salud`, y como están protegidas por Vercel necesitan el secreto `VERCEL_BYPASS` ("Protection Bypass for Automation"); sin él, solo avisa. Se puede correr a mano (Actions → Prueba de humo) contra cualquier URL |
+
+**Rollback** (si producción falla): vuelve a la versión anterior al instante, sin reconstruir:
+
+```bash
+cd web
+vercel rollback                  # o en Vercel: Deployments → el anterior → ⋯ → Instant Rollback
+vercel promote <url-del-nuevo>   # cuando esté corregido, vuelve a la versión nueva
+```
+
+Después de un rollback, Vercel deja de publicar solo las mezclas nuevas hasta que se haga `promote`. El rollback no deshace migraciones: por eso tienen que ser compatibles hacia atrás.
 
 ---
 

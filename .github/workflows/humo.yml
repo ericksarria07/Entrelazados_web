@@ -1,0 +1,71 @@
+# Prueba de humo después de cada despliegue de Vercel (ROADMAP 1.12).
+#
+# Vercel avisa a GitHub cuando termina un despliegue (evento deployment_status).
+# Este workflow consulta el sitio recién publicado:
+#   Production → /api/salud (app + base de datos), la portada y /api/docs.
+#                Si algo falla, el workflow queda en rojo y GitHub avisa por correo.
+#                El rollback es manual (ver README, "Despliegue continuo").
+#   Preview    → solo /api/salud: confirma que la rama de Neon de la vista previa
+#                y su migración funcionaron (informativo). Las vistas previas están
+#                protegidas por Vercel: con el secreto VERCEL_BYPASS ("Protection
+#                Bypass for Automation") se revisan; sin él, solo se avisa.
+# También se puede correr a mano contra cualquier URL (Actions → Prueba de humo).
+
+name: Prueba de humo
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL a revisar (sin barra final)
+        required: true
+        default: https://entrelazados.ericksv.com
+
+permissions:
+  contents: read
+
+jobs:
+  humo:
+    name: Humo (${{ github.event.deployment_status.environment || 'manual' }})
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      URL: ${{ github.event.inputs.url || github.event.deployment_status.environment_url }}
+      ENTORNO: ${{ github.event.deployment_status.environment || 'manual' }}
+      BYPASS: ${{ secrets.VERCEL_BYPASS }}
+    steps:
+      - name: /api/salud (app y base de datos)
+        run: |
+          cabecera=()
+          [ -n "$BYPASS" ] && cabecera=(-H "x-vercel-protection-bypass: $BYPASS")
+          for intento in 1 2 3; do
+            codigo=$(curl -s -o salud.json -w '%{http_code}' --max-time 20 "${cabecera[@]}" "$URL/api/salud" || echo 000)
+            echo "Intento $intento: HTTP $codigo $(head -c 200 salud.json 2>/dev/null)"
+            if [ "$codigo" = "200" ] && grep -q '"bd":"ok"' salud.json; then exit 0; fi
+            if [ "$ENTORNO" = "Preview" ] && [[ "$codigo" =~ ^(302|401|403)$ ]]; then
+              echo "::notice::La vista previa está protegida por Vercel. Agrega el secreto VERCEL_BYPASS para revisarla."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::$URL/api/salud no respondió bien después de 3 intentos"
+          exit 1
+
+      - name: Portada y documentación
+        if: env.ENTORNO != 'Preview'
+        run: |
+          for ruta in / /api/docs /api/ping; do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL$ruta" || echo 000)
+            echo "$ruta → HTTP $codigo"
+            [ "$codigo" = "200" ] || { echo "::error::$URL$ruta respondió $codigo"; exit 1; }
+          done
+
+      - name: Qué hacer si falló producción
+        if: failure() && env.ENTORNO == 'Production'
+        run: |
+          echo "::error::La prueba de humo de producción falló."
+          echo "Para volver a la versión anterior (sin reconstruir):"
+          echo "  cd web && vercel rollback          (o en Vercel: Deployments → el anterior → Instant Rollback)"
+          echo "Después de corregir, 'vercel promote <url>' devuelve la versión nueva."
