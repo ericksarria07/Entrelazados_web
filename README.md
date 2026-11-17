@@ -79,7 +79,7 @@ Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegid
 
 ### Para todos
 - **Dashboard** con 8 indicadores, gráficas (Chart.js), precios de referencia por categoría, subastas en curso y **exportación a Excel** (6 hojas).
-- **Kan**, el asistente virtual con IA.
+- **Kan**, el asistente virtual con IA. La conversación sigue al cambiar de página (se guarda en el navegador hasta cerrar sesión o que venza la sesión) y Kan recuerda los últimos 10 mensajes al contestar.
 - **Chat** directo entre proveedores y emprendedores, con **contador de mensajes no leídos** en el menú de todas las páginas y en cada contacto, y la marca "Visto".
 - **Confirmación del correo al registrarse**: enlace de 24 horas; sin confirmarlo no se puede entrar (se puede pedir otro enlace desde el login).
 - **Recuperación de contraseña por correo**: enlace de un solo uso que vence en 1 hora.
@@ -396,7 +396,7 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 | GET | `/api/chat/contactos`, `/api/chat/mensajes` 🔒 | Conversaciones propias (primero las que tienen mensajes sin leer). Abrir una conversación marca sus mensajes como leídos |
 | GET | `/api/chat/no-leidos` 🔒 | `{ total, porContacto }` mensajes sin leer |
 | POST | `/api/chat/enviar` 🔒 | Enviar un mensaje |
-| POST | `/api/chat/ia` 🔒 | Preguntar a Kan |
+| POST | `/api/chat/ia` 🔒 | Preguntar a Kan (`mensajeUsuario` y, opcional, `historial` con los últimos mensajes) |
 | GET | `/api/tratos` 🔒 | Mis subastas ganadas o vendidas (primero las abiertas). `?origen=Subasta`, `?pagina=&porPagina=` |
 | PUT | `/api/tratos/:id/estado` 🔒 | `{ estado: 'EnProceso' \| 'Completado' \| 'Cancelado', motivo? }` (solo las dos partes del trato) |
 | POST | `/api/tratos/:id/calificacion` 🔒 | `{ puntuacion: 1-5, comentario? }` una vez por persona, solo tratos completados |

@@ -41,6 +41,14 @@ export default async function correr(ctx) {
     check('Kan responde con sesión', r.status === 200 && /Kan/.test(r.data.respuesta), JSON.stringify(r));
     r = await api('POST', '/api/chat/ia', { token: ctx.admin.token, body: { mensajeUsuario: 'quiero ver las métricas', rolUsuario: 'emprendedor' } });
     check('Kan usa el rol de la sesión (admin), no el que manda el navegador', r.status === 200 && /Administración/.test(r.data.respuesta), JSON.stringify(r));
+    // historial: los mensajes anteriores para que Kan recuerde (opcional; si no sirve se ignora)
+    const historial = Array.from({ length: 14 }, (_, i) => ({ rol: i % 2 ? 'kan' : 'usuario', texto: `mensaje ${i}` }));
+    r = await api('POST', '/api/chat/ia', { token: ctx.e2.token, body: { mensajeUsuario: '¿y cuánto cuesta ese?', historial } });
+    check('Kan acepta el historial de la conversación (más de 10 se recorta)', r.status === 200 && typeof r.data.respuesta === 'string', JSON.stringify(r));
+    r = await api('POST', '/api/chat/ia', { token: ctx.e2.token, body: { mensajeUsuario: '¿y cuánto cuesta ese?', historial: 'no es una lista' } });
+    check('Kan ignora un historial que no es una lista', r.status === 200 && typeof r.data.respuesta === 'string', JSON.stringify(r));
+    r = await api('POST', '/api/chat/ia', { token: ctx.e2.token, body: { historial: [{ rol: 'kan', texto: 'hola' }, { rol: 'raro', texto: 1 }, null] } });
+    check('Kan con historial pero sin mensaje → 400', r.status === 400, JSON.stringify(r));
 
     // Documentación de la API (Swagger)
     r = await api('GET', '/api/openapi.json');

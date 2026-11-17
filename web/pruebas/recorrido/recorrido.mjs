@@ -523,6 +523,36 @@ try {
         return texto.replace(/\s+/g, ' ').trim().slice(0, 220);
     });
 
+    await paso('Emprendedor 1', 'Kan sigue al cambiar de página', 'Se va al Mercado: la ventana de Kan sigue abierta con la conversación de la portada.', async (pg) => {
+        await ir(pg, '/mercado.html');
+        await pg.waitForSelector('.kan-chat-window.active', { timeout: 10000 });
+        const texto = await pg.locator('.kan-chat-window').innerText();
+        if (!/billeteras resistentes/i.test(texto)) throw new Error('La conversación no se conservó');
+        const mensajes = await pg.locator('.kan-msg.user').count();
+        return `${mensajes} preguntas conservadas`;
+    });
+
+    await paso('Emprendedor 1', 'Kan recuerda lo hablado', 'Pregunta "¿Y cuánto cuesta ese?" sin decir cuál: Kan usa la conversación anterior para entenderla.', async (pg) => {
+        const antes = (await pg.locator('.kan-chat-window').innerText()).length;
+        await pg.fill('.kan-input', '¿Y cuánto cuesta ese?');
+        await pg.press('.kan-input', 'Enter');
+        await pg.waitForFunction((n) => document.querySelector('.kan-chat-window').innerText.length > n + 120, antes + 30, { timeout: 60000 });
+        await pg.waitForTimeout(1500);
+        const texto = (await pg.locator('.kan-chat-window').innerText()).slice(antes);
+        if (/problemas temporales/i.test(texto)) throw new Error('Kan respondió con el mensaje de respaldo (Gemini no contestó)');
+        return texto.replace(/\s+/g, ' ').trim().slice(0, 220);
+    });
+
+    await paso('Emprendedor 1', 'Cerrar sesión borra a Kan', 'Cierra sesión y vuelve a entrar: el chat de Kan empieza de nuevo, sin la conversación anterior.', async (pg) => {
+        await Promise.all([pg.waitForURL(/login\.html/, { timeout: 20000 }), pg.evaluate(() => window.cerrarSesion())]);
+        await iniciarSesionUI(pg, cuentas.emp1);
+        await pg.click('.kan-widget-btn');
+        await pg.waitForSelector('.kan-chat-window.active');
+        const preguntas = await pg.locator('.kan-msg.user').count();
+        if (preguntas !== 0) throw new Error(`Quedaron ${preguntas} preguntas de la sesión anterior`);
+        return 'Chat limpio después de volver a iniciar sesión';
+    });
+
     // 8. Panel de admin
     await paso('Admin', 'Panel de administrador', 'El admin ve las métricas y la lista de usuarios.', async (pg) => {
         await iniciarSesionUI(pg, cuentas.admin);
