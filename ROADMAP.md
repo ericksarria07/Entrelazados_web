@@ -82,7 +82,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Emisión a todos (`puja:nueva`, `subastas:cambio`) | Canal `<prefijo>:publico` |
 | Cliente en `sesion.js` | `sesion.js` carga `@ably/pubsub-device` desde unpkg y emite los mismos eventos `entrelazados:<evento>`. En la Fase 2 pasa a un hook de React |
 
-El prefijo (`ABLY_CANAL_PREFIJO`, por defecto `VERCEL_ENV`) separa producción, vistas previas, tu máquina y cada corrida de pruebas. Llaves creadas con la CLI de Ably en la app "Leather marketplace": `entrelazados-api` (Vercel, production y preview) y `entrelazados-pruebas` (`web/.env.local`). Sin `ABLY_API_KEY`, el tiempo real queda apagado y las páginas siguen preguntando cada cierto tiempo.
+El prefijo (`ABLY_CANAL_PREFIJO`, por defecto `VERCEL_ENV`) separa producción, vistas previas, tu máquina y cada corrida de pruebas. Llaves creadas con la CLI de Ably en la app "Leather marketplace": `entrelazados-api` (Vercel, production y preview) y `entrelazados-pruebas` (`web/.env.local`). Sin `ABLY_API_KEY`, el tiempo real queda apagado y las páginas siguen preguntando cada cierto tiempo. Las dos llaves tienen activados los "revocable tokens" (Control API de Ably): al suspender o eliminar una cuenta, `revocarTiempoReal()` revoca sus permisos y Ably la desconecta al instante.
 
 ### Detalle: cierre de subastas
 ✅ `web/lib/cierre-subastas.ts`, con la misma lógica de `crearCierreSubastas` (`servicios/subastas.js`). Solo cambia quién la dispara:
@@ -136,13 +136,13 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 |---|---|---|
 | 1.1 | Crear el proyecto Next.js, copiar `public/`, configurar variables de entorno. ✅ `web/` con Next.js 16, páginas copiadas, `/api/salud` contra Neon, proyecto en Vercel | 1 |
 | 1.2 | Esquema Postgres en Neon (18 tablas, snake_case, Drizzle). ✅ `web/db/esquema.ts` + migraciones de Drizzle aplicadas en Neon y probadas (`npm run probar:neon` en `web/`) | 1–1.5 |
-| 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT`. SQL a mano con `pg`. Avance: cuentas ✅, ofertas, subastas y pujas ✅ | 5–8 |
+| 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT`. SQL a mano con `pg`. ✅ Todas las consultas portadas (las 16 rutas de Express) | 5–8 |
 | 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación. ✅ `web/lib/` (`http`, `sesion`, `limites`, `correo`, `config`, `utilidades`) | 1.5–2 |
-| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅; ofertas, subastas, pujas, notificaciones (campana y correo) y `DELETE /api/admin/ofertas/[id]` ✅; rutas públicas (`/api/categorias`, `/api/ping`, `/api/estadisticas`) y perfiles (`/api/perfil/[id]`, `/api/usuarios/[id]/{reputacion,publico,resenas}`) ✅; chat (`/api/chat/{contactos,no-leidos,mensajes,enviar}`) y campana (`/api/notificaciones`) ✅; favoritos, alertas de búsqueda (con sus avisos al publicar y al bajar de precio) y mapa de proveedores ✅; Kan (`/api/chat/ia`) y asistente de IA (`/api/ia/publicacion`, `/api/ia/precio`) con `@google/genai` ✅. Secciones activas: 01–09, 11–17, 19, 20, 23, 26, 28, 29 y 32 | 4–6 |
+| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). ✅ Toda la API en `web/app/api/` (56 rutas): cuentas, ofertas, subastas y pujas, cierre de subastas, tratos, dashboard, chat, campana, favoritos y alertas, mapa, Kan, asistente de IA, reportes y el panel de admin (usuarios, correos, estados, eliminar cuentas, categorías y moderación). Las 32 secciones de `npm run test:api` están activas | 4–6 |
 | 1.6 | Tiempo real con Ably (`tiempoReal.js` + `sesion.js`). ✅ `web/lib/tiempo-real.ts`, `/api/tiempo-real/token` y `sesion.js`; sección 23 reescrita (entrega y permisos de canal) | 1–1.5 |
 | 1.7 | Cierre de subastas: cierre perezoso + Cron diario. ✅ También tratos (`/api/tratos`, estado, calificación y comprobante) y `/api/dashboard`; secciones 15, 16 y 20 activas | 1–1.5 |
 | 1.8 | Fotos en Vercel Blob. ✅ `web/lib/fotos.ts` (Blob en Vercel, disco en las pruebas) | 1 |
-| 1.9 | Límites de peticiones en memoria, `after()` para correos y avisos, Swagger. ✅ Límites de login, registro, recuperación, Kan, fotos e IA (sección 32 activa) y `after()` en todos los avisos; falta Swagger | 1–1.5 |
+| 1.9 | Límites de peticiones en memoria, `after()` para correos y avisos, Swagger. ✅ Límites de login, registro, recuperación, Kan, fotos e IA (sección 32 activa) y `after()` en todos los avisos; Swagger en `/api/docs` y `/api/openapi.json` (`web/docs/openapi.yaml`, revisado por la sección 12) | 1–1.5 |
 | 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions. ✅ Suite portada a `web/pruebas/api/` (32 secciones, SQL en Postgres), job "API en Next.js (Postgres)" en el CI; cada rama de rutas (1.3/1.5) activa sus secciones, en el orden de la suite | 3–5 |
 | 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio agregado en Vercel (rama `migracion-nextjs`) | 1–2 |
 | 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11) | 1–2 |
@@ -327,7 +327,7 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 
 ### Criterios para cerrar la rama
 - [ ] Las 14 páginas (incluida `perfil-publico`, de la versión 14) en React
-- [ ] Toda la API en Route Handlers, sobre Neon; MySQL y Socket.IO retirados
+- [ ] Toda la API en Route Handlers, sobre Neon (✅ en `migracion-nextjs`); MySQL y Socket.IO retirados (al cerrar la migración)
 - [ ] Pruebas adaptadas y en verde en el CI
 - [ ] Sitio funcionando en `entrelazados.ericksv.com` desde la rama larga
 - [ ] Carpeta Express (`backend/entrelazados-api`) eliminada o archivada

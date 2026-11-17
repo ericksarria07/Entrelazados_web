@@ -1,5 +1,6 @@
 // 25. Notificaciones (campana)
-// Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
+// Portada de backend/pruebas/pruebas_api.js. Los avisos en tiempo real llegan por Ably (ver la sección 23):
+// sin ABLY_API_KEY esas comprobaciones se omiten (ctx.checkTR) y las de la base de datos corren igual.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
 import { api, check, seccion, q } from '../contexto.mjs';
 
@@ -28,9 +29,10 @@ export default async function correr(ctx) {
     const cambioLista = ctx.esperarEvento(ctx.anonimo.socket, 'subastas:cambio', d => d.motivo === 'cerrada');
     r = await api('POST', '/api/admin/subastas/cerrar-vencidas', { token: ctx.admin.token });
     n = await ganada;
-    check('Al cerrar la subasta, el ganador recibe "¡Ganaste!"', r.status === 200 && n && /C\$350/.test(n.mensaje) && n.enlace === 'chat.html', JSON.stringify(n));
-    check('…y el mensaje automático del chat le llega al instante', (await chatGanador) !== null);
-    check('…y todas las páginas saben que la lista de subastas cambió', (await cambioLista) !== null);
+    check('Cerrar las subastas vencidas responde 200', r.status === 200, JSON.stringify(r));
+    ctx.checkTR('Al cerrar la subasta, el ganador recibe "¡Ganaste!"', n && /C\$350/.test(n.mensaje) && n.enlace === 'chat.html', JSON.stringify(n));
+    ctx.checkTR('…y el mensaje automático del chat le llega al instante', (await chatGanador) !== null);
+    ctx.checkTR('…y todas las páginas saben que la lista de subastas cambió', (await cambioLista) !== null);
     const cierreNotifs = await q(`SELECT usuario_id, tipo FROM notificaciones WHERE referencia_id = $1 AND tipo IN ('SubastaTerminada', 'SubastaGanada') ORDER BY usuario_id`, [ctx.subRT]);
     check('…el proveedor y quien perdió reciben "Terminó la subasta"', cierreNotifs.length === 3 && cierreNotifs.some(x => x.UsuarioID === ctx.p2.id && x.Tipo === 'SubastaTerminada') && cierreNotifs.some(x => x.UsuarioID === ctx.e1.id && x.Tipo === 'SubastaTerminada'), JSON.stringify(cierreNotifs));
 
@@ -38,18 +40,21 @@ export default async function correr(ctx) {
     const notifTrato = ctx.esperarEvento(ctx.sE3, 'notificacion:nueva', x => x.tipo === 'TratoActualizado');
     r = await api('PUT', `/api/tratos/${tratoRT}/estado`, { token: ctx.p2.token, body: { estado: 'Completado' } });
     n = await notifTrato;
-    check('Cambiar el estado de un trato notifica a la otra parte', r.status === 200 && n && /completado/.test(n.titulo), JSON.stringify(n));
+    check('Cambiar el estado de un trato responde 200', r.status === 200, JSON.stringify(r));
+    ctx.checkTR('Cambiar el estado de un trato notifica a la otra parte', n && /completado/.test(n.titulo), JSON.stringify(n));
     const notifCalif = ctx.esperarEvento(ctx.sP2, 'notificacion:nueva', x => x.tipo === 'CalificacionRecibida');
     r = await api('POST', `/api/tratos/${tratoRT}/calificacion`, { token: ctx.e3.token, body: { puntuacion: 4, comentario: 'Buen hilo' } });
     n = await notifCalif;
-    check('Calificar notifica a quien recibe la calificación', r.status === 201 && n && /★★★★☆/.test(n.titulo) && /Buen hilo/.test(n.mensaje), JSON.stringify([r.data, n]));
+    check('Calificar responde 201', r.status === 201, JSON.stringify(r));
+    ctx.checkTR('Calificar notifica a quien recibe la calificación', n && /★★★★☆/.test(n.titulo) && /Buen hilo/.test(n.mensaje), JSON.stringify([r.data, n]));
     check('…la respuesta de calificar no cambió de forma', r.data && r.data.calificadoId === ctx.p2.id && r.data.lote === undefined, JSON.stringify(r.data));
 
-    const desconexion = new Promise((listo) => { ctx.sE3.once('disconnect', () => listo(true)); setTimeout(() => listo(false), 4000); });
+    const desconexion = new Promise((listo) => { ctx.sE3.once('disconnect', () => listo(true)); setTimeout(() => listo(false), ctx.sE3.connected ? 8000 : 0); });
     r = await api('PUT', `/api/admin/usuarios/${ctx.e3.id}/estado`, { token: ctx.admin.token, body: { nuevoEstado: 'Suspendido' } });
-    check('Suspender una cuenta corta al instante su conexión en tiempo real', r.status === 200 && await desconexion);
+    check('Suspender una cuenta responde 200', r.status === 200, JSON.stringify(r));
+    ctx.checkTR('Suspender una cuenta corta al instante su conexión en tiempo real (Ably revoca sus permisos)', await desconexion);
     const suspendido = await ctx.conectarSocket(ctx.e3.token);
-    check('…y ya no se puede volver a conectar', !suspendido.ok, suspendido.error);
+    ctx.checkTR('…y ya no se puede volver a conectar', !suspendido.ok && suspendido.error === 'sesion-invalida', suspendido.error);
     suspendido.socket.close();
     await api('PUT', `/api/admin/usuarios/${ctx.e3.id}/estado`, { token: ctx.admin.token, body: { nuevoEstado: 'Activo' } });
     for (const s of [ctx.anonimo.socket, ctx.sP2, ctx.sE1, ctx.sE3]) s.close();
