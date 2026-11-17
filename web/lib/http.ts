@@ -47,6 +47,47 @@ export function ruta<C = unknown>(manejador: Manejador<C>): Manejador<C> {
   };
 }
 
+// Ruta pública de consulta: si algo falla, la página recibe `respaldo` (p. ej. una
+// lista vacía) con 500 en lugar de un error, y el detalle queda en el log.
+export function conRespaldo<C = unknown>(respaldo: unknown, manejador: Manejador<C>): Manejador<C> {
+  return ruta(async (req, contexto) => {
+    try {
+      return await manejador(req, contexto);
+    } catch (err) {
+      if (err instanceof ErrorHttp) throw err;
+      console.error(`❌ Error en ${req.method} ${new URL(req.url).pathname}:`, (err as Error).message);
+      return json(respaldo, 500);
+    }
+  });
+}
+
+export type Formulario = { campos: Record<string, unknown>; archivos: File[] };
+
+// Cuerpo con posibles archivos: multipart/form-data (campo "fotos") o, si no, JSON o
+// urlencoded como leerCuerpo. Un campo repetido llega como lista.
+export async function leerFormulario(req: Request, campoArchivos = "fotos"): Promise<Formulario> {
+  if (!(req.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+    return { campos: await leerCuerpo(req), archivos: [] };
+  }
+  let datos: FormData;
+  try {
+    datos = await req.formData();
+  } catch {
+    throw new ErrorHttp(400, "No se pudieron recibir las fotos.");
+  }
+  const campos: Record<string, unknown> = {};
+  const archivos: File[] = [];
+  for (const [clave, valor] of datos.entries()) {
+    if (typeof valor !== "string") {
+      if (clave === campoArchivos) archivos.push(valor);
+      continue;
+    }
+    if (clave in campos) campos[clave] = ([] as unknown[]).concat(campos[clave], valor);
+    else campos[clave] = valor;
+  }
+  return { campos, archivos };
+}
+
 // Cuerpo de la petición en JSON o como formulario (igual que express.json + urlencoded).
 // Sin cuerpo devuelve {}.
 export async function leerCuerpo(req: Request): Promise<Record<string, unknown>> {

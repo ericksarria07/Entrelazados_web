@@ -50,7 +50,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
                    │          │          │          │
                    ▼          ▼          ▼          ▼
             ┌──────────┐ ┌─────────┐ ┌─────────┐ ┌──────────────┐
-            │ Neon     │ │ Ably    │ │ QStash  │ │ Cloudinary   │
+            │ Neon     │ │ Ably    │ │ QStash  │ │ Vercel Blob  │
             │ Postgres │ │ tiempo  │ │ cierre  │ │ fotos + CDN  │
             │          │ │ real    │ │ subasta │ │ de imágenes  │
             └──────────┘ └─────────┘ └─────────┘ └──────────────┘
@@ -68,7 +68,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Acceso a datos | **Drizzle ORM** (esquema y migraciones) + **`pg`** (node-postgres; las rutas escriben su SQL a mano con `$1, $2…`) con `attachDatabasePool` de `@vercel/functions` | Mapea snake_case ↔ camelCase y da tipos. `pg` es el driver que recomienda Neon para Vercel (Fluid compute reutiliza el pool entre peticiones) y permite transacciones interactivas con `FOR UPDATE` (probado con `npm run probar:neon` en `web/`) | `@neondatabase/serverless`: Neon lo recomienda para entornos edge; su driver HTTP no tiene transacciones interactivas |
 | Tiempo real | **Ably** (Pusher como equivalente) | Socket.IO no funciona en Vercel. Ably tiene buen plan gratis, SDK para React y canales privados | SSE desde Route Handlers (las funciones tienen duración máxima); Supabase Realtime (otra plataforma más) |
 | Cierre de subastas | **QStash** (mensaje programado por subasta) + **cierre perezoso** + **Vercel Cron diario** | Cierra a la hora exacta y **no mantiene Neon despierto** | Cron cada minuto: gasta las horas de cómputo gratis de Neon y en Vercel Hobby el cron es diario |
-| Fotos | **Cloudinary** | Miniaturas y WebP/AVIF automáticos, subida firmada directa desde el navegador (esquiva el límite de 4,5 MB de Vercel) | Google Cloud Storage (solo almacenamiento, más configuración); Vercel Blob o Cloudflare R2 (opciones válidas si se quiere solo almacenamiento) |
+| Fotos | **Vercel Blob** (`@vercel/blob`, store `entrelazados-fotos`) | Las fotos siguen llegando al servidor como hoy, así que las páginas no cambian. La página ya las reduce a 1600 px, y 5 fotos caben en el límite de 4,5 MB por petición. Sin cuenta nueva: es parte de Vercel. En tu máquina y en las pruebas se guardan en disco (`web/lib/fotos.ts`) | Cloudinary (miniaturas automáticas, pero cambia la subida y es otra cuenta); Google Cloud Storage; Cloudflare R2 |
 | Sesión | **Cookie httpOnly** con `jose` (o Auth.js) | El token no se puede robar con un XSS | JWT en `localStorage` (actual) |
 | Límites de peticiones | **En memoria** (`web/lib/limites.ts`, sin `express-rate-limit`) | Sin servicio ni paquete nuevo. En Vercel cada instancia cuenta por su lado y empieza de cero al arrancar: el límite es aproximado, y se aceptó así | Upstash Redis (otra cuenta y otra dependencia solo para esto); tabla en Postgres (límite exacto, una consulta más por intento) |
 | Tareas después de responder | **`after()`** de Next.js | Las 14 tareas que hoy se lanzan sin esperar (correos, alertas) se cortarían al congelarse la función | Lanzar sin esperar (actual) |
@@ -125,7 +125,7 @@ Estimaciones en días de trabajo de una persona que conoce el código y sabe Rea
 - [x] Crear la cuenta de Vercel, instalar Vercel CLI e iniciar sesión
 - [ ] Activar 2FA en Vercel y en Cloudflare
 - [x] Crear la cuenta y el proyecto de Neon, con el esquema cargado (PR #13)
-- [ ] Crear cuentas en Ably, Upstash (QStash) y Cloudinary
+- [ ] Crear cuentas en Ably y Upstash (QStash). ✅ Blob store `entrelazados-fotos` creado en Vercel
 - [ ] Buscar un respaldo de la BD y de las fotos de la VM vencida (si existe)
 
 ### Fase 1: Backend moderno, mismas páginas (≈ 26–37 días)
@@ -135,12 +135,12 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 |---|---|---|
 | 1.1 | Crear el proyecto Next.js, copiar `public/`, configurar variables de entorno. ✅ `web/` con Next.js 16, páginas copiadas, `/api/salud` contra Neon, proyecto en Vercel | 1 |
 | 1.2 | Esquema Postgres en Neon (18 tablas, snake_case, Drizzle). ✅ `web/db/esquema.ts` + migraciones de Drizzle aplicadas en Neon y probadas (`npm run probar:neon` en `web/`) | 1–1.5 |
-| 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT`. SQL a mano con `pg`. Avance: grupo cuentas ✅ | 5–8 |
+| 1.3 | Reescribir las 121 consultas (ver sección 3), `unaccent`, conversión de `COUNT`. SQL a mano con `pg`. Avance: cuentas ✅, ofertas, subastas y pujas ✅ | 5–8 |
 | 1.4 | Funciones auxiliares en lugar de los middlewares: sesión, roles, errores, validación. ✅ `web/lib/` (`http`, `sesion`, `limites`, `correo`, `config`, `utilidades`) | 1.5–2 |
-| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅, secciones 01–04 y 11 activas | 4–6 |
+| 1.5 | 16 routers → Route Handlers `/api/*` (los servicios se reutilizan). Avance: cuentas (registro, login, correo, recuperación) y `/api/admin/metricas` ✅; ofertas, subastas, pujas, notificaciones (campana y correo) y `DELETE /api/admin/ofertas/[id]` ✅. Secciones activas: 01–07, 11, 13, 14 y 17 | 4–6 |
 | 1.6 | Tiempo real con Ably (`tiempoReal.js` + `sesion.js`) | 2–3 |
 | 1.7 | Cierre de subastas: QStash + cierre perezoso + Cron diario | 1.5–2.5 |
-| 1.8 | Fotos en Cloudinary con subida firmada | 1.5–2.5 |
+| 1.8 | Fotos en Vercel Blob. ✅ `web/lib/fotos.ts` (Blob en Vercel, disco en las pruebas) | 1 |
 | 1.9 | Límites de peticiones en memoria (login, registro y recuperación ya están; faltan Kan, fotos e IA), `after()` para correos y avisos, Swagger | 1–1.5 |
 | 1.10 | Adaptar las pruebas de la API a Postgres y actualizar GitHub Actions. ✅ Suite portada a `web/pruebas/api/` (32 secciones, SQL en Postgres), job "API en Next.js (Postgres)" en el CI; cada rama de rutas (1.3/1.5) activa sus secciones, en el orden de la suite | 3–5 |
 | 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio agregado en Vercel (rama `migracion-nextjs`) | 1–2 |
@@ -198,7 +198,7 @@ La raíz `ericksv.com` queda libre para un portafolio u otros proyectos.
 | Neon | Free | ~0,5 GB de almacenamiento, suspensión tras minutos sin uso, horas de cómputo limitadas |
 | Ably | Free | Conexiones simultáneas y mensajes por mes |
 | Upstash | Free (QStash) | Mensajes por día |
-| Cloudinary | Free | Créditos mensuales (almacenamiento + descargas + transformaciones) |
+| Vercel Blob | Incluido en Hobby | Almacenamiento y transferencia por mes |
 
 Los planes gratuitos cambian seguido: revisar las páginas de precios antes de empezar cada fase.
 
@@ -208,8 +208,8 @@ Los planes gratuitos cambian seguido: revisar las páginas de precios antes de e
 
 1. **Seguridad:** HTTPS automático, sesión en cookie httpOnly y parches de infraestructura a cargo del proveedor.
 2. **Cero servidores que mantener:** sin VM, PM2 ni cron. Despliegue con `git push`, vistas previas por PR, respaldos y ramas de BD en Neon.
-3. **Escala sola:** Vercel, Ably y Cloudinary absorben los picos. Las subastas cierran a la hora exacta.
-4. **Más rápido:** imágenes optimizadas por Cloudinary, SSR en el Mercado, contenido servido desde el borde.
+3. **Escala sola:** Vercel, Ably y Vercel Blob absorben los picos. Las subastas cierran a la hora exacta.
+4. **Más rápido:** fotos servidas desde la CDN de Vercel Blob, SSR en el Mercado, contenido servido desde el borde.
 5. **Más mantenible:** componentes React en lugar de HTML de 2.000+ líneas, tipos con TypeScript y Drizzle, y un stack con alta demanda laboral.
 
 ## 8. Riesgos
@@ -295,7 +295,7 @@ Hay **CI** (`.github/workflows/pruebas.yml`: unitarias en Node 20 y 22, e integr
 | **Vistas previas por PR** | Integración de Vercel con GitHub: cada PR recibe su URL. La integración Neon ↔ Vercel crea una **rama de la BD por vista previa**, así que las pruebas nunca tocan los datos reales |
 | **Producción solo con pruebas en verde** | **Protección de rama** en `master`: exigir que pasen los checks de CI (y una revisión) antes de fusionar. Vercel despliega producción al fusionar |
 | **Migraciones automáticas** | Paso de CI con `drizzle-kit migrate` contra la BD de producción **antes** del despliegue. Las migraciones deben ser **compatibles hacia atrás** (primero agregar columnas, después quitar las viejas en otra versión) para que la versión anterior siga funcionando si hay rollback |
-| **Variables por entorno** | En Vercel, valores separados para *Production*, *Preview* y *Development*: BD, Ably, Cloudinary (carpeta por entorno), QStash, Gemini. Las vistas previas nunca usan las claves de producción |
+| **Variables por entorno** | En Vercel, valores separados para *Production*, *Preview* y *Development*: BD, Ably, Vercel Blob, QStash, Gemini. Las vistas previas nunca usan las claves de producción |
 | **Tareas programadas solo en producción** | Vercel Cron y los mensajes de QStash apuntan únicamente al dominio de producción |
 | **Prueba de humo** | Después de desplegar, un paso que consulta `GET /api/salud` (responde si la app y la BD contestan). Si falla, se avisa y se hace rollback |
 | **Rollback** | **Instant Rollback** de Vercel: volver a la versión anterior con un clic o con `vercel rollback`, sin reconstruir |
