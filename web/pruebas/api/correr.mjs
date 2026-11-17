@@ -91,6 +91,8 @@ const servidor = spawn(path.join(WEB, 'node_modules', '.bin', 'next'), ['start',
         GEMINI_API_KEY: 'sin-clave',
         EMAIL_USER: '', EMAIL_PASS: '', APP_URL: '', VERIFICAR_CORREO: '1',
         // El cierre de subastas lo controlan las pruebas con la ruta del admin (sección 15)
+        // Canales de Ably solo de esta corrida (no se mezclan con otras ni con producción)
+        ABLY_CANAL_PREFIJO: `pruebas-${process.pid}-${Date.now()}`,
         CIERRE_PEREZOSO: '0',
         CRON_SECRET: 'secreto-cron-pruebas',
         LIMITE_REGISTRO: '40', LIMITE_RECUPERACION: '30', LIMITE_LOGIN: '30', LIMITE_API: '2000',
@@ -119,10 +121,10 @@ try {
         }
     }
 
-    const { ok, fallos, texto } = informe();
+    const { ok, fallos, omitidas, texto } = informe();
     console.log(texto);
     const pendientes = SECCIONES.length - aCorrer.length;
-    console.log(`\nRESULTADO: ${ok} correctas, ${fallos} fallidas · secciones activas ${aCorrer.length}/${SECCIONES.length}${pendientes ? ` (${pendientes} pendientes de migrar)` : ''}`);
+    console.log(`\nRESULTADO: ${ok} correctas, ${fallos} fallidas${omitidas ? `, ${omitidas} omitidas` : ''} · secciones activas ${aCorrer.length}/${SECCIONES.length}${pendientes ? ` (${pendientes} pendientes de migrar)` : ''}`);
     codigo = fallos ? 1 : 0;
 } catch (err) {
     console.error('❌ ' + err.message);
