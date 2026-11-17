@@ -32,7 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      URL: ${{ github.event.inputs.url || github.event.deployment_status.environment_url }}
+      # En producción Vercel reporta la URL propia del despliegue (protegida por Vercel);
+      # se revisa el dominio público, que es lo que ve la gente
+      URL: ${{ github.event.inputs.url || (github.event.deployment_status.environment == 'Production' && 'https://entrelazados.ericksv.com') || github.event.deployment_status.environment_url }}
       ENTORNO: ${{ github.event.deployment_status.environment || 'manual' }}
       BYPASS: ${{ secrets.VERCEL_BYPASS }}
     steps:
