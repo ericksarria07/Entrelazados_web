@@ -12,7 +12,12 @@ export function clienteGemini(): GoogleGenAI | null {
   if (cliente === undefined) {
     const clave = (process.env.GEMINI_API_KEY ?? "").trim();
     // "sin-clave" es lo que pasan las pruebas para dejarlo apagado
-    cliente = clave && clave !== "sin-clave" ? new GoogleGenAI({ apiKey: clave }) : null;
+    // Tiempo máximo por intento y un solo reintento: si Gemini no responde (o el plan
+    // gratis responde 429), se usa el respaldo en segundos en vez de colgar la función
+    cliente =
+      clave && clave !== "sin-clave"
+        ? new GoogleGenAI({ apiKey: clave, httpOptions: { timeout: 20_000, retryOptions: { attempts: 2, maxDelay: 2 } } })
+        : null;
   }
   return cliente;
 }

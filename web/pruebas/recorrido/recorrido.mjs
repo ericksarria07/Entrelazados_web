@@ -268,7 +268,22 @@ try {
         return `${await pg.locator('#previewGrid img').count()} fotos listas`;
     });
 
-    await paso('Proveedor', 'Asistente de precio', 'Pide al asistente un precio sugerido para la categoría (sin Gemini usa la mediana de publicaciones parecidas).', async (pg) => {
+    await paso('Proveedor', 'Completar con IA', 'Con la foto adjunta, "Completar con IA" (Gemini) propone título, descripción, categoría y unidad (la descripción se borra antes para ver que la escribe la IA).', async (pg) => {
+        await pg.click('#btnIaDescribir');
+        await pg.fill('#ofertaDescripcion', '');
+        await pg.waitForFunction(() => /Listo|no está disponible|No se pudo/i.test(document.getElementById('resultadoIA').innerText), null, { timeout: 60000 });
+        const aviso = await pg.locator('#resultadoIA').innerText();
+        if (!/Listo/.test(aviso)) throw new Error(aviso.slice(0, 200));
+        const propuesta = await pg.inputValue('#ofertaTitulo');
+        const descripcion = await pg.inputValue('#ofertaDescripcion');
+        await pg.locator('#ofertaTitulo').scrollIntoViewIfNeeded();
+        return `Propuesta de la IA: "${propuesta}" · ${descripcion.slice(0, 120)}`;
+    }, { esperados: ['/api/ia/publicacion'] });
+
+    await paso('Proveedor', 'Asistente de precio', 'Pide al asistente un precio sugerido para la categoría (con Gemini si hay publicaciones para comparar; si no, avisa que aún no hay datos).', async (pg) => {
+        // Se vuelve a poner el título del recorrido (lo busca un paso posterior)
+        await pg.fill('#ofertaTitulo', 'Cuero vacuno café del recorrido');
+        await pg.fill('#ofertaUnidad', 'por pie²');
         await pg.click('#btnIaPrecio');
         await pg.waitForTimeout(3000);
         return (await pg.locator('#resultadoIA').innerText()).slice(0, 200);
@@ -485,7 +500,7 @@ try {
     });
 
     // 7. Kan
-    await paso('Emprendedor 1', 'Kan, el asistente', 'Se abre el widget de Kan y se le pregunta cómo funcionan las pujas.', async (pg) => {
+    await paso('Emprendedor 1', 'Kan, el asistente', 'Se abre el widget de Kan y se le pregunta cómo funcionan las pujas (respuesta fija, sin gastar IA).', async (pg) => {
         await ir(pg, '/index.html');
         await pg.click('.kan-widget-btn');
         await pg.fill('.kan-input', '¿Cómo funcionan las pujas en las subastas?');
@@ -494,6 +509,18 @@ try {
         const texto = await pg.locator('.kan-chat-window').innerText();
         if (!/puja/i.test(texto)) throw new Error('Kan no respondió');
         return 'Kan respondió';
+    });
+
+    await paso('Emprendedor 1', 'Kan con Gemini', 'Una pregunta abierta, sin respuesta fija: la contesta Gemini con el inventario real del mercado.', async (pg) => {
+        const antes = await pg.locator('.kan-chat-window').innerText();
+        await pg.fill('.kan-input', '¿Qué cuero me recomiendas para hacer billeteras resistentes?');
+        await pg.press('.kan-input', 'Enter');
+        await pg.waitForFunction((n) => document.querySelector('.kan-chat-window').innerText.length > n + 150, antes.length + 60, { timeout: 60000 });
+        await pg.waitForTimeout(1500);
+        const texto = (await pg.locator('.kan-chat-window').innerText()).slice(antes.length);
+        if (/problemas temporales/i.test(texto)) throw new Error('Kan respondió con el mensaje de respaldo (Gemini no contestó)');
+        await pg.evaluate(() => { const w = document.querySelector('.kan-chat-window [class*="mensajes"], .kan-chat-window'); w.scrollTop = w.scrollHeight; });
+        return texto.replace(/\s+/g, ' ').trim().slice(0, 220);
     });
 
     // 8. Panel de admin
