@@ -25,6 +25,9 @@ const nextConfig: NextConfig = {
       comprobante: "/comprobante",
       perfil: "/perfil",
       "perfil-publico": "/perfil-publico",
+      admin: "/admin",
+      reportes: "/reportes",
+      dashboard: "/dashboard",
     };
     return Object.entries(nuevas).map(([vieja, nueva]) => ({
       source: `/${vieja}.html`,
