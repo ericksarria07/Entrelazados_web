@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
     "/api/openapi.json": ["./docs/openapi.yaml"],
   },
 
+  // Páginas que ya pasaron a React (Fase 2): la URL vieja .html redirige a la nueva y
+  // conserva el query string (?token=... de los correos ya enviados).
+  async redirects() {
+    return [{ source: "/verificar.html", destination: "/verificar", permanent: true }];
+  },
+
   // Durante la migración, las páginas son los HTML copiados de Express en public/.
   // Igual que Express (index: 'preview.html'), la raíz "/" muestra preview.html.
   async rewrites() {

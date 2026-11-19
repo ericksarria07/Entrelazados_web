@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&display=swap" rel="stylesheet">
     <script>
         // Sin sesión no hay comprobante: al login
-        (function () { try { if (!localStorage.getItem('token')) window.location.href = 'login.html'; } catch (e) { } })();
+        (function () { try { if (!localStorage.getItem('userId')) window.location.href = 'login.html'; } catch (e) { } })();
     </script>
     <!--
         COMPROBANTE DE UN TRATO

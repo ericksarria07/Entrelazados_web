@@ -11,7 +11,7 @@
    - Lo que el usuario escribe a mano se envía a POST /api/chat/ia (Gemini).
    - Todo texto se muestra escapado: **texto** se convierte en negrita.
    - La conversación se guarda en el navegador y reaparece en cada página hasta
-     cerrar sesión (sesion.js borra localStorage) o que venza el token. Sin
+     cerrar sesión (sesion.js borra localStorage) o que venza la sesión. Sin
      sesión se guarda en sessionStorage (dura lo que la pestaña). Las preguntas
      escritas a mano van con los últimos mensajes, para que Kan los recuerde.
    ========================================================================== */
@@ -150,17 +150,15 @@
     // ---------------------------------------------------------------------
     function leer(almacen, clave) { try { return window[almacen].getItem(clave); } catch (e) { return null; } }
 
-    // Datos de la sesión actual: id del usuario, firma del token (cambia en cada login)
-    // y si el token ya venció (exp del JWT), aunque todavía no haya habido un 401
+    // Datos de la sesión actual: id del usuario, firma (la hora de inicio: cambia en cada
+    // login) y si ya venció, aunque todavía no haya habido un 401. La sesión está en una
+    // cookie httpOnly; login.html guarda sus fechas (sesionInicio, sesionVence).
     function sesionActual() {
-        const token = leer('localStorage', 'token');
-        if (!token) return null;
-        let vencido = false;
-        try {
-            const datos = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            vencido = typeof datos.exp === 'number' && datos.exp * 1000 <= Date.now();
-        } catch (e) { /* token raro: se trata como sesión sin fecha */ }
-        return { usuarioId: String(leer('localStorage', 'userId') || ''), firma: token.slice(-16), vencido };
+        const usuarioId = leer('localStorage', 'userId');
+        if (!usuarioId) return null;
+        const vence = Number(leer('localStorage', 'sesionVence')) || 0;
+        const vencido = vence > 0 && vence * 1000 <= Date.now();
+        return { usuarioId: String(usuarioId), firma: String(leer('localStorage', 'sesionInicio') || ''), vencido };
     }
 
     const almacenActual = () => (sesionActual() ? 'localStorage' : 'sessionStorage');

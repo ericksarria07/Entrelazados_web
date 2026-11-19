@@ -478,7 +478,7 @@ Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya fu
 | Sitio | https://entrelazados.ericksv.com (CNAME en Cloudflare con nube gris, hacia Vercel) |
 | Vercel | proyecto `entrelazados`, *Root Directory* `web`, Node 22, rama de producción `migracion-nextjs` |
 | Variables | `DATABASE_URL` (Neon con pooler) y `JWT_SECRET` en Vercel. Opcionales: `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_HOST`, `EMAIL_PORT`, `APP_URL`, `VERIFICAR_CORREO` y `LIMITE_*`, con el mismo significado que en Express. Sin correo configurado, las cuentas se crean ya confirmadas. `BLOB_READ_WRITE_TOKEN` (production y preview) la agregó el Blob store `entrelazados-fotos`: con ella las fotos van a Vercel Blob; sin ella, a disco (`UPLOADS_DIR`, por defecto una carpeta temporal) servidas en `/uploads/ofertas/`. `CRON_SECRET` protege el cron diario (`web/vercel.json`) y `APP_URL` = `https://entrelazados.ericksv.com` arma los enlaces de los correos (las dos solo en production). `CIERRE_PEREZOSO=0` apaga el cierre perezoso. `ABLY_API_KEY` (production y preview; la llave de pruebas va en `web/.env.local`) enciende el tiempo real; los canales se separan por `ABLY_CANAL_PREFIJO` (por defecto `VERCEL_ENV`). `GEMINI_API_KEY` (production, *Sensitive*; clave gratis de [Google AI Studio](https://aistudio.google.com/apikey), se carga con `vercel env add GEMINI_API_KEY production --sensitive`) enciende la IA: sin ella Kan da sus respuestas fijas, la descripción con IA responde 503 y la sugerencia de precio usa la mediana. `GEMINI_MODELO` = `gemini-3.5-flash-lite` en producción: en el plan gratis los modelos flash grandes (3.6–3.8) respondían 503/504 por alta demanda, y flash-lite contesta en 1–4 s, también con fotos y JSON. Cada llamada a Gemini tiene 20 s como máximo y un solo reintento (`web/lib/gemini.ts`), así que si Gemini falla se usa el respaldo en segundos |
-| Código | Rutas en `web/app/**/route.ts`, con SQL a mano (`pg`). Ayudas en `web/lib/`: `http.ts` (`ruta()`, `ErrorHttp`), `sesion.ts` (`exigirSesion`, `exigirAdmin`), `limites.ts` (en memoria), `correo.ts` (nodemailer + `after()`) |
+| Código | Rutas en `web/app/**/route.ts`, con SQL a mano (`pg`). Ayudas en `web/lib/`: `http.ts` (`ruta()`, `ErrorHttp`), `sesion.ts` (`exigirSesion`, `exigirAdmin`, `leerSesionDesdeCookies`), `limites.ts` (en memoria), `correo.ts` (nodemailer + `after()`). `web/proxy.ts` rechaza escrituras a `/api/*` que vienen de otro sitio |
 | Salud | `GET /api/salud` → `{"estado":"ok","bd":"ok"}` (503 si Neon no contesta) |
 
 Correrla en tu máquina:
@@ -519,6 +519,38 @@ vercel promote <url-del-nuevo>   # cuando esté corregido, vuelve a la versión 
 ```
 
 Después de un rollback, Vercel deja de publicar solo las mezclas nuevas hasta que se haga `promote`. El rollback no deshace migraciones: por eso tienen que ser compatibles hacia atrás.
+
+---
+
+## Páginas en React (Fase 2): en curso
+
+Las páginas pasan de `web/public/*.html` a React **una por una** (detalle y orden en [ROADMAP](ROADMAP.md), sección 13). Mientras tanto conviven las dos: las viejas siguen con `sesion.js` y `tema.js`; las nuevas usan el layout de `web/app/layout.tsx`.
+
+**Sesión en cookie httpOnly** (desde la 2.1)
+
+| Pieza | Cómo |
+|---|---|
+| Login | `POST /api/login` guarda el JWT (8 h) en la cookie `sesion` (`HttpOnly; Secure; SameSite=Lax`). El token **ya no va en el cuerpo**: ningún script de la página puede leerlo. El cuerpo trae `sesion: { inicio, vence }` |
+| Peticiones | El navegador manda la cookie solo en cada `/api/*`. `exigirSesion()` acepta la cookie o `Authorization: Bearer <token>` (pruebas, Swagger, scripts) |
+| Quién entró | `GET /api/sesion` (id, nombre, rol, correo, departamento, `esAdmin`) o 401. En Server Components, `leerSesionDesdeCookies()` |
+| Cerrar sesión | `POST /api/logout` borra la cookie; `cerrarSesion()` de `sesion.js` lo llama y después borra `localStorage` (menos el tema) |
+| CSRF | `SameSite=Lax` y `web/proxy.ts`: un POST/PUT/PATCH/DELETE cuyo `Origin` sea de otro sitio recibe 403 |
+| Páginas viejas | Guardan solo datos que no son secretos (`userId`, `userRol`, `userNombre`, `sesionInicio`, `sesionVence`). "Hay sesión" = hay `userId`. La memoria de Kan se ata a `sesionInicio` |
+
+**Cómo se pasa una página a React**
+
+1. `web/app/<pagina>/page.tsx` (Server Component) y lo interactivo en `_componentes/` con `"use client"`.
+2. El `<style>` de la página va a `<pagina>.module.css` con una clase raíz local; por dentro los nombres siguen globales (`.pagina :global(.tarjeta)`), así el modo oscuro de `public/tema.css` los sigue encontrando.
+3. JSX en lugar de `innerHTML` y `esc()`.
+4. Redirección `/<pagina>.html → /<pagina>` en `web/next.config.ts` (conserva `?token=...` de los correos) y se borra el `.html`.
+5. Se ajusta el recorrido (`npm run recorrido`).
+
+El layout raíz pone la letra (Source Sans 3 con `next/font`), los íconos Tabler (npm, versión fija), los colores base (`app/estilos/base.css`), el modo oscuro (`public/tema.css`) con su script antes de pintar, "Saltar al contenido" y el botón del tema (`componentes/BotonTema.tsx`, misma clave `entrelazados-tema` que las páginas viejas).
+
+| Página | Estado |
+|---|---|
+| `/verificar` | ✅ React (2.1). `/verificar.html` redirige |
+| Las otras 13 | En `web/public/` (2.2 en adelante) |
 
 ---
 

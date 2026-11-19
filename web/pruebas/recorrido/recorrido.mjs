@@ -144,7 +144,14 @@ async function api(metodo, ruta, { token, body } = {}) {
     });
     let data = null;
     try { data = await r.json(); } catch { /* sin JSON */ }
-    return { status: r.status, data };
+    return { status: r.status, data, setCookie: r.headers.getSetCookie() };
+}
+
+// La sesión llega en la cookie httpOnly "sesion"; su valor sirve como Bearer para la API
+async function tokenDeLogin(email) {
+    const r = await api('POST', '/api/login', { body: { email, password: CLAVE } });
+    const linea = r.setCookie.find((c) => c.startsWith('sesion=')) || '';
+    return decodeURIComponent(linea.split(';')[0].slice('sesion='.length)) || null;
 }
 
 async function iniciarSesionUI(pagina, email) {
@@ -179,7 +186,8 @@ async function resultadoRegistro(p, email, rol, nombre, depto) {
     throw new Error(`Sin mensaje de éxito: ${msg}`);
 }
 
-const tokenDe = (p) => p.pagina.evaluate(() => localStorage.getItem('token'));
+// La cookie de sesión del navegador de esa cuenta (httpOnly: la página no la ve, Playwright sí)
+const tokenDe = async (p) => (await p.pagina.context().cookies(BASE)).find((c) => c.name === 'sesion')?.value ?? null;
 
 // ----------------------------------------------------------------- el recorrido
 const cuentas = { prov: correo('proveedor'), emp1: correo('emprendedor1'), emp2: correo('emprendedor2'), admin: correo('admin') };
@@ -430,7 +438,7 @@ try {
     });
 
     // 5. Cierre, trato, calificación, comprobante, perfil público
-    const tokenAdmin = (await api('POST', '/api/login', { body: { email: cuentas.admin, password: CLAVE } })).data?.token;
+    const tokenAdmin = await tokenDeLogin(cuentas.admin);
     await q(`UPDATE subastas SET fecha_fin = now() - interval '1 minute' WHERE subasta_id = $1`, [subastaId]);
     const cierre = await api('POST', '/api/admin/subastas/cerrar-vencidas', { token: tokenAdmin });
 
@@ -618,7 +626,7 @@ try {
     // ------------------------------------------------------------- limpieza
     const limpieza = [];
     try {
-        const tokenAdmin = (await api('POST', '/api/login', { body: { email: cuentas.admin, password: CLAVE } })).data?.token;
+        const tokenAdmin = await tokenDeLogin(cuentas.admin);
         const temporales = await q(`SELECT usuario_id, correo_electronico FROM usuarios WHERE correo_electronico LIKE $1 AND correo_electronico <> $2`, [`${PREFIJO}-%`, cuentas.admin]);
         const fotos = await q(`SELECT f.foto_url FROM fotos_ofertas f JOIN ofertas o ON o.oferta_id = f.oferta_id JOIN usuarios u ON u.usuario_id = o.proveedor_id WHERE u.correo_electronico LIKE $1`, [`${PREFIJO}-%`]);
         for (const u of temporales) {

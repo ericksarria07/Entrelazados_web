@@ -1,12 +1,12 @@
 // 1b. Confirmar el correo (VERIFICAR_CORREO=1)
 // Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
-import { api, check, seccion, q } from '../contexto.mjs';
+import { api, check, iniciarSesion, seccion, q } from '../contexto.mjs';
 
 export default async function correr(ctx) {
     let r;
     seccion('1b. Confirmar el correo (VERIFICAR_CORREO=1)');
-    ctx.login = async (email, password) => api('POST', '/api/login', { body: { email, password } });
+    ctx.login = iniciarSesion;
     const tokenVerif = async (email) => ((await q(`SELECT token_verificacion FROM usuarios WHERE correo_electronico = $1`, [email]))[0] || {}).TokenVerificacion;
     ctx.verificar = async (email) => api('GET', '/api/verificar-correo?token=' + await tokenVerif(email));
     const sinConfirmar = (await q(`SELECT correo_verificado, token_verificacion, expiracion_verificacion > NOW() + interval '23 hour' AS vigente FROM usuarios WHERE correo_electronico = 'prov1@prueba.com'`))[0];

@@ -1,8 +1,10 @@
 /* ==========================================================================
    SESIÓN DE ENTRELAZADOS
-   Agrega automáticamente el token JWT (guardado al iniciar sesión) a todas
-   las peticiones /api del sitio. Si el servidor responde 401 (sesión vencida
-   o inválida) se cierra la sesión y se vuelve a login.html.
+   La sesión vive en la cookie httpOnly "sesion" que pone POST /api/login: el
+   navegador la manda sola en cada petición /api y esta página no puede leerla.
+   Aquí solo se guardan los datos que no son secretos (userId, userRol, userNombre,
+   sesionVence...). Si el servidor responde 401 (sesión vencida o inválida) se
+   cierra la sesión y se vuelve a login.html.
    También muestra el número de mensajes sin leer junto a los enlaces al chat
    (se revisa cada 30 segundos mientras la pestaña está visible, y al instante
    cuando llega un mensaje por tiempo real).
@@ -27,6 +29,21 @@
         }
     }
 
+    // ¿Hay sesión abierta en este navegador? (la cookie no se puede leer: se mira el userId)
+    function haySesion() {
+        try { return !!localStorage.getItem('userId'); } catch (e) { return false; }
+    }
+    window.haySesionEntrelazados = haySesion;
+
+    // Las sesiones anteriores a la cookie guardaban el token aquí: se borra
+    try { localStorage.removeItem('token'); } catch (e) { }
+
+    // Cierra la sesión en el servidor (borra la cookie). keepalive: sigue aunque la página cambie
+    function cerrarEnServidor() {
+        try { return fetchOriginal('/api/logout', { method: 'POST', keepalive: true }).catch(() => { }); }
+        catch (e) { return Promise.resolve(); }
+    }
+
     // Borra la sesión guardada, pero conserva el modo claro/oscuro elegido (tema.js)
     function borrarSesionGuardada() {
         try {
@@ -37,6 +54,7 @@
     }
 
     window.cerrarSesionEntrelazados = function (mensaje) {
+        cerrarEnServidor();
         borrarSesionGuardada();
         if (mensaje) alert(mensaje);
         window.location.href = 'login.html';
@@ -46,15 +64,8 @@
         const url = typeof recurso === 'string' ? recurso : (recurso && recurso.url) || '';
         if (!esApiPropia(url)) return fetchOriginal(recurso, opciones);
 
-        let token = null;
-        try { token = localStorage.getItem('token'); } catch (e) { }
-
-        const opts = Object.assign({}, opciones);
-        const headers = new Headers(opts.headers || (recurso instanceof Request ? recurso.headers : undefined));
-        if (token && !headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token);
-        opts.headers = headers;
-
-        const res = await fetchOriginal(recurso, opts);
+        // La cookie de sesión va sola (mismo sitio)
+        const res = await fetchOriginal(recurso, opciones);
 
         const pagina = window.location.pathname.split('/').pop() || 'preview.html';
         const pidioLogin = new URL(url, window.location.origin).pathname === '/api/login';
@@ -84,9 +95,7 @@
     }
 
     async function actualizarNoLeidos() {
-        let token = null;
-        try { token = localStorage.getItem('token'); } catch (e) { }
-        if (!token || document.hidden) return;
+        if (!haySesion() || document.hidden) return;
         try {
             const res = await window.fetch('/api/chat/no-leidos');
             if (!res.ok) return;
@@ -121,15 +130,15 @@
 
     // Pide a la API el permiso de Ably (y los nombres de los canales). null si no se puede:
     // sin tiempo real configurado (503), token vencido o cuenta suspendida (401/403).
-    async function pedirPermiso(token) {
+    async function pedirPermiso() {
         try {
-            const res = await window.fetch('/api/tiempo-real/token', { headers: { Authorization: 'Bearer ' + token } });
+            const res = await window.fetch('/api/tiempo-real/token');
             return res.ok ? await res.json() : null;
         } catch (e) { return null; }
     }
 
-    async function conectarTiempoReal(token) {
-        const permiso = await pedirPermiso(token);
+    async function conectarTiempoReal() {
+        const permiso = await pedirPermiso();
         if (!permiso) return;   // la página funciona igual, preguntando cada cierto tiempo
         try {
             if (!window.AblyPubSub) await cargarScript(SDK_ABLY);
@@ -139,7 +148,7 @@
             // El permiso dura 1 hora; el SDK pide otro solo. Si la sesión ya no sirve, se deja de insistir.
             authCallback: async (_params, listo) => {
                 if (primero) { listo(null, primero); primero = null; return; }
-                const nuevo = await pedirPermiso(token);
+                const nuevo = await pedirPermiso();
                 if (nuevo) listo(null, nuevo.tokenRequest);
                 else { listo('sesion-invalida', null); cliente.close(); }
             },
@@ -167,10 +176,8 @@
         setInterval(actualizarNoLeidos, INTERVALO_NO_LEIDOS_MS);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizarNoLeidos(); });
 
-        let token = null;
-        try { token = localStorage.getItem('token'); } catch (e) { }
-        if (!token) return;
-        conectarTiempoReal(token);
+        if (!haySesion()) return;
+        conectarTiempoReal();
         cargarScript('notificaciones.js').catch(() => { });
     });
 
@@ -185,7 +192,8 @@
     }[c]));
 
     // Botón "Cerrar sesión" de los menús. En la portada solo se recarga; en las demás, al login.
-    window.cerrarSesion = function () {
+    window.cerrarSesion = async function () {
+        await cerrarEnServidor();
         borrarSesionGuardada();
         const pagina = window.location.pathname.split('/').pop() || 'preview.html';
         if (pagina === 'preview.html') window.location.reload();

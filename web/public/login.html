@@ -406,7 +406,10 @@
                     localStorage.setItem('userRol', data.rol);
                     localStorage.setItem('userId', data.id);
                     localStorage.setItem('userDepartamento', data.departamento || 'Managua');
-                    localStorage.setItem('token', data.token || '');
+                    // La sesión queda en una cookie httpOnly (no se puede leer desde aquí);
+                    // solo se guarda cuándo empezó y cuándo vence
+                    localStorage.setItem('sesionInicio', String((data.sesion && data.sesion.inicio) || ''));
+                    localStorage.setItem('sesionVence', String((data.sesion && data.sesion.vence) || ''));
 
                     alert(`¡Bienvenido de vuelta, ${data.nombre}!`);
 

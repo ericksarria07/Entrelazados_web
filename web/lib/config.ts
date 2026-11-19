@@ -12,7 +12,8 @@ import { correoConfigurado } from "@/lib/correo";
 
 const texto = (nombre: string) => (process.env[nombre] ?? "").trim();
 
-export const duracionSesion = "8h";
+// Duración de la sesión (JWT y cookie): 8 horas, en segundos
+export const duracionSesion = 8 * 60 * 60;
 export const rondasBcrypt = 10;
 
 export function jwtSecreto(): string {

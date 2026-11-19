@@ -147,14 +147,14 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 | 1.11 | Dominio `entrelazados.ericksv.com`, migrar datos, prueba completa. ✅ Dominio en Vercel; sin datos que migrar (la VM venció sin respaldo: se arrancó de cero en Neon); `npm run admin:crear` para la cuenta de administrador; `npm run recorrido` (Playwright) recorre las 14 páginas en producción con capturas y cuentas temporales que borra al final: 38/38 pasos. Gemini encendido en producción (`GEMINI_MODELO=gemini-3.5-flash-lite`, plan gratis): Kan, "Completar con IA" y el precio sugerido responden con IA y tienen su paso en el recorrido. El recorrido es la base de las pruebas E2E de la 2.8 | 1–2 |
 | 1.12 | Proceso de CD: vistas previas por PR, producción al fusionar en `master` solo con pruebas en verde, migraciones automáticas y rollback (ver sección 11). ✅ Rama protegida con los 5 checks; ramas de Neon por vista previa copiadas de `production` (integración Neon ↔ Vercel instalada desde Neon) y sin variables de producción en Preview; migraciones en el build de Vercel (`npm run vercel-build`); prueba de humo `humo.yml` después de cada despliegue (solo avisa); rollback documentado en el README | 1–2 |
 
-En esta fase el JWT se queda en `localStorage`, para no tocar las páginas. Pasa a cookie en la Fase 2.
+En esta fase el JWT se quedó en `localStorage`, para no tocar las páginas. Desde la 2.1 va en una cookie httpOnly.
 
 ### Fase 2: Páginas a React, una por una (≈ 29–40 días) · borrador
 Cada página migrada se despliega sola. El orden va de la más simple a la más compleja. El detalle de cada pieza (qué tiene, qué API usa y cuándo está terminada) está en la **sección 13**.
 
 | # | Página o pieza | Líneas hoy | Días |
 |---|---|---|---|
-| 2.1 | Base común: layout, menú, tema oscuro, sesión en cookie httpOnly, campana, tiempo real y widget de Kan. Primera página: `verificar` | ~1.100 de JS + CSS | 3–4 |
+| 2.1 | ✅ Base común: sesión en cookie httpOnly, protección CSRF, layout raíz (letra, íconos, tema oscuro) y la primera página: `verificar`. El menú, la campana, el tiempo real y Kan llegan con la primera página que los muestra | ~1.100 de JS + CSS | 3–4 |
 | 2.2 | `login`, `unirse`, `restablecer`, `comprobante` | ~1.770 | 2.5–4 |
 | 2.3 | `preview` (portada `/`), `index`, `perfil`, `perfil-publico` | ~2.660 | 3–4 |
 | 2.4 | `admin`, `reportes` (`react-chartjs-2`, ExcelJS) | ~1.410 | 4–6 |
@@ -377,7 +377,10 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 | **B** | Admin, reportes, dashboard y chat en React | ~22–30 |
 | **C** | Mercado y E2E: las 14 páginas en React y ningún `.html` en `public/`. Se puede abrir `migracion-nextjs → master` | ~29–40 |
 
-### 2.1 Base común · `nextjs/layout` · 3–4 días
+### 2.1 Base común · `nextjs/layout` · 3–4 días · ✅ sesión, layout raíz y `verificar`
+
+> **Hecho:** sesión en cookie con `/api/sesion`, `/api/logout` y `proxy.ts`; páginas viejas sin token; layout raíz (letra, íconos con npm, tema sin parpadeo, "Saltar al contenido", `BotonTema`); `/verificar` en React; sección 33 de `test:api` (435/435).
+> **Ajuste:** el menú, el menú de usuario, la campana, `useTiempoReal`, `useNoLeidos` y Kan en React se hacen junto con la **primera página que los muestra** (2.2/2.3). `verificar` no tiene cabecera, así que construirlos antes sería código sin una página para probarlo. Lo mismo para `ProveedorSesion`.
 
 **Sesión (D3)**
 - **`lib/sesion.ts`:** `exigirSesion()` lee la cookie `sesion` y, si no está, `Authorization: Bearer`. El Bearer queda para las pruebas, Swagger y clientes externos. Función nueva `leerSesionDesdeCookies()` para los Server Components.

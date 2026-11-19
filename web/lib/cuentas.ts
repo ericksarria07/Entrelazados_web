@@ -31,7 +31,7 @@ export function puedeEnviar(clave: string): boolean {
 
 // Manda el enlace de confirmación (o lo escribe en el log si el correo no está configurado)
 export function enviarEnlaceVerificacion(email: string, token: string, base: string) {
-  const enlace = `${base}/verificar.html?token=${token}`;
+  const enlace = `${base}/verificar?token=${token}`;
   if (!correoConfigurado()) {
     console.warn(`✉️ Enlace para confirmar el correo de ${email} (correo no configurado): ${enlace}`);
     return;

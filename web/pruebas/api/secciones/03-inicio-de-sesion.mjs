@@ -9,7 +9,7 @@ export default async function correr(ctx) {
     const sesiones = {};
     for (const [k, email, pass] of [['p1', 'prov1@prueba.com', 'Clave123'], ['p2', 'prov2@prueba.com', 'Clave123'], ['e1', 'emp1@prueba.com', 'Clave123'], ['e2', 'emp2@prueba.com', 'Clave123'], ['admin', 'admin@prueba.com', 'Admin123!']]) {
         r = await ctx.login(email, pass);
-        check(`Login ${email}`, r.status === 200 && r.data.token, JSON.stringify(r));
+        check(`Login ${email} (sesión en la cookie, no en el cuerpo)`, r.status === 200 && r.data.token && !r.tokenEnCuerpo, JSON.stringify(r));
         sesiones[k] = r.data;
     }
     r = await ctx.login('prov1@prueba.com', 'Incorrecta1');

@@ -432,7 +432,6 @@
         // Escapa el texto escrito por usuarios antes de insertarlo como HTML (evita XSS)
         const currentAdminId = localStorage.getItem('userId');
         // Token JWT firmado por el servidor al iniciar sesión (ver /api/login)
-        const tokenSesion = localStorage.getItem('token') || '';
 
         // sesion.js ya agrega el token y maneja la sesión vencida (401).
         // Aquí solo se atiende el caso de un usuario que NO es administrador (403).
@@ -454,9 +453,7 @@
         // 1. CARGAR KPIS/MÉTRICAS
         async function cargarMetricas() {
             try {
-                const res = await fetch(`${API_URL}/api/admin/metricas`, {
-                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
-                });
+                const res = await fetch(`${API_URL}/api/admin/metricas`);
                 if (!res.ok) throw new Error("Error al obtener métricas");
                 const data = await res.json();
 
@@ -505,9 +502,7 @@
             if (buscar) params.set('buscar', buscar);
             if (document.getElementById('soloProblemas').checked) params.set('problemas', '1');
             try {
-                const res = await fetch(`${API_URL}/api/admin/usuarios?${params}`, {
-                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
-                });
+                const res = await fetch(`${API_URL}/api/admin/usuarios?${params}`);
                 const datos = await res.json();
                 if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarUsuarios(datos.paginas);
                 const usuarios = datos.datos;
@@ -593,8 +588,7 @@
                 const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}/estado`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + tokenSesion
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ nuevoEstado })
                 });
@@ -611,8 +605,7 @@
 
             try {
                 const res = await fetch(`${API_URL}/api/admin/usuarios/${usuarioId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
+                    method: 'DELETE'
                 });
                 const data = await res.json();
                 alert(data.message);
@@ -664,8 +657,7 @@
 
             try {
                 const res = await fetch(`${API_URL}/api/admin/ofertas/${ofertaId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + tokenSesion }
+                    method: 'DELETE'
                 });
                 const data = await res.json();
                 alert(data.message);
@@ -686,8 +678,7 @@
                 const res = await fetch(`${API_URL}/api/admin/categorias`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + tokenSesion
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ nombreCategoria, descripcion })
                 });

@@ -16,8 +16,11 @@ info:
 
     **Cómo probar las rutas con sesión**
     1. Abre `POST /api/login`, pulsa *Try it out*, escribe tu correo y contraseña y ejecuta.
-    2. Copia el `token` de la respuesta.
-    3. Pulsa el botón **Authorize** (el candado verde), pega el token y acepta.
+    2. Listo: la respuesta guarda la sesión en la cookie httpOnly `sesion` y el navegador la manda
+       sola en las demás rutas. `POST /api/logout` la cierra.
+
+    Fuera del navegador (pruebas, scripts) se puede mandar el mismo token como
+    `Authorization: Bearer <token>` (el valor de la cookie `sesion`) con el botón **Authorize**.
 
     Todas las respuestas son JSON. Los errores esperados responden `{ "message": "..." }` con su
     código HTTP. Cualquier ruta puede responder **429** si se supera un límite de intentos y
@@ -26,7 +29,7 @@ info:
     **Tiempo real (Ably)**
 
     Además de esta API, el servidor avisa al instante a las páginas abiertas por Ably. La página pide
-    un permiso de solo lectura a `GET /api/tiempo-real/token` (con el mismo token de sesión) y se
+    un permiso de solo lectura a `GET /api/tiempo-real/token` (con la misma sesión) y se
     suscribe a los canales que trae la respuesta: el público y, con sesión, el propio.
 
     | Evento | Canal | Datos |
@@ -115,7 +118,9 @@ paths:
     post:
       tags: [Cuentas]
       summary: Iniciar sesión
-      description: Entrega el token de la sesión (8 horas). Solo cuentan los intentos fallidos (10 cada 15 min por IP).
+      description: |
+        Guarda la sesión (8 horas) en la cookie httpOnly `sesion` (`Secure; SameSite=Lax`). El token no va en
+        el cuerpo. Solo cuentan los intentos fallidos (10 cada 15 min por IP).
       requestBody:
         required: true
         content:
@@ -129,6 +134,10 @@ paths:
       responses:
         "200":
           description: Sesión iniciada
+          headers:
+            Set-Cookie:
+              description: "`sesion=<JWT>; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800`"
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -139,7 +148,12 @@ paths:
                   rol: { type: string, example: Proveedor }
                   departamento: { type: string, example: León }
                   estado: { type: string, example: Activo }
-                  token: { type: string, example: eyJhbGciOi... }
+                  sesion:
+                    type: object
+                    description: Inicio y vencimiento de la sesión (segundos desde 1970)
+                    properties:
+                      inicio: { type: integer, example: 1795000000 }
+                      vence: { type: integer, example: 1795028800 }
         "400": { $ref: "#/components/responses/DatosInvalidos" }
         "401": { description: Correo o contraseña incorrectos (mismo mensaje exista o no la cuenta) }
         "403":
@@ -153,6 +167,44 @@ paths:
                   verificacionPendiente: { type: boolean }
         "429": { $ref: "#/components/responses/DemasiadosIntentos" }
 
+  /api/logout:
+    post:
+      tags: [Cuentas]
+      summary: Cerrar sesión
+      description: Borra la cookie `sesion`. No pide sesión (si ya venció, igual se borra).
+      responses:
+        "200":
+          description: Sesión cerrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  message: { type: string, example: Sesión cerrada. }
+  /api/sesion:
+    get:
+      tags: [Cuentas]
+      summary: Quién tiene la sesión abierta
+      description: Datos de la cuenta de la sesión actual. Las páginas lo usan porque no pueden leer la cookie.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Sesión válida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, example: 12 }
+                  nombre: { type: string, example: Curtiembre La Esperanza }
+                  rol: { type: string, example: Proveedor }
+                  email: { type: string, format: email }
+                  departamento: { type: string, example: León }
+                  estado: { type: string, example: Activo }
+                  esAdmin: { type: boolean, example: false }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { description: Cuenta suspendida }
   /api/verificar-correo:
     get:
       tags: [Cuentas]
@@ -273,7 +325,7 @@ paths:
       description: |
         Solo lectura. Con sesión cubre el canal público y el propio; sin sesión, solo el público.
         El SDK de Ably del navegador usa `tokenRequest` para conectarse y lo renueva solo (dura 1 hora).
-      security: [{}, { bearerAuth: [] }]
+      security: [{}, { cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Permiso y nombres de los canales
@@ -370,7 +422,7 @@ paths:
       tags: [Ofertas]
       summary: Publicar un material
       description: Solo proveedores (20 publicaciones con fotos por hora). Abre su subasta de 7 días con precio base = precio.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -401,7 +453,7 @@ paths:
       tags: [Ofertas]
       summary: Editar una publicación
       description: Proveedor dueño o administrador. Si tiene una subasta abierta, esta toma el título y la categoría nuevos (no el precio). Máximo 5 fotos en total.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -429,7 +481,7 @@ paths:
       tags: [Ofertas]
       summary: Eliminar una publicación
       description: Borra la publicación y sus fotos y cancela su subasta abierta. El proveedor no puede si la subasta ya tiene pujas (409).
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200": { $ref: "#/components/responses/OfertaEliminada" }
         "401": { $ref: "#/components/responses/SinSesion" }
@@ -468,7 +520,7 @@ paths:
       tags: [Subastas]
       summary: Crear una subasta
       description: Solo proveedores. A partir de una publicación propia (`ofertaId`) o como lote nuevo (`tituloLote` + `categoriaId`).
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -504,7 +556,7 @@ paths:
       tags: [Subastas]
       summary: Pujar
       description: Solo emprendedores. La validación y el nuevo precio se hacen en un solo UPDATE atómico y el historial en la misma transacción.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -537,7 +589,7 @@ paths:
       tags: [Chat y Kan]
       summary: Personas con quien conversar
       description: Primero las que tienen mensajes sin leer, luego las conversaciones más recientes.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Contactos
@@ -561,7 +613,7 @@ paths:
       tags: [Chat y Kan]
       summary: Mensajes sin leer
       description: El menú de todas las páginas lo consulta cada 30 segundos.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Totales
@@ -579,7 +631,7 @@ paths:
       tags: [Chat y Kan]
       summary: Conversación con una persona
       description: Marca como leídos los mensajes que esa persona te envió.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: destinatarioId, in: query, required: true, schema: { type: integer } }
       responses:
@@ -606,7 +658,7 @@ paths:
       tags: [Chat y Kan]
       summary: Enviar un mensaje
       description: El remitente es siempre el usuario de la sesión.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -633,7 +685,7 @@ paths:
       description: |
         Primero busca una respuesta fija (gratis); si no hay, pregunta a Gemini con las ofertas y subastas
         reales como contexto. Si Gemini falla, responde un mensaje amable. Límite: 10 por minuto y 150 al día por usuario.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -679,7 +731,7 @@ paths:
       tags: [Tratos]
       summary: Mis tratos
       description: Subastas ganadas o vendidas, primero las abiertas. Sin `pagina`, los últimos 50; con `pagina`, una página.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: origen, in: query, description: "`Subasta` deja solo los tratos que salieron de una subasta", schema: { type: string, enum: [Subasta] } }
         - $ref: "#/components/parameters/Pagina"
@@ -705,7 +757,7 @@ paths:
       tags: [Tratos]
       summary: Cambiar el estado de un trato
       description: "Pendiente → EnProceso → Completado; se puede cancelar mientras no esté terminado. La otra parte recibe un aviso."
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -741,7 +793,7 @@ paths:
       tags: [Tratos]
       summary: Calificar a la otra parte
       description: Solo tratos completados, una vez por persona y trato.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -780,7 +832,7 @@ paths:
         Para imprimir o guardar como PDF en `comprobante.html?trato=ID`. Lo pueden ver las dos partes
         del trato y el administrador. Trae el folio, las dos partes con sus datos de contacto y, si el
         trato salió de una subasta, el lote, su precio base y cuántas pujas recibió.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Comprobante
@@ -820,7 +872,7 @@ paths:
       tags: [Perfil y dashboard]
       summary: Perfil completo
       description: Solo el propio perfil, o cualquiera si eres administrador. Incluye los datos del rol.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Perfil
@@ -847,7 +899,7 @@ paths:
     get:
       tags: [Perfil y dashboard]
       summary: Calificaciones que recibió un usuario
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Reputación
@@ -950,7 +1002,7 @@ paths:
       description: |
         Todo lo que muestra el dashboard en una sola llamada (las consultas van en paralelo).
         Los nombres de quienes pujan solo los ve el administrador; `miActividad` depende del rol.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: meses, in: query, schema: { type: integer, enum: [3, 6, 12], default: 6 } }
       responses:
@@ -979,7 +1031,7 @@ paths:
       tags: [Notificaciones]
       summary: Mis notificaciones
       description: Las 30 más recientes y cuántas faltan por leer.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Notificaciones
@@ -996,7 +1048,7 @@ paths:
     put:
       tags: [Notificaciones]
       summary: Marcar todas como leídas
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Marcadas
@@ -1011,7 +1063,7 @@ paths:
     put:
       tags: [Notificaciones]
       summary: Marcar una como leída
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200": { $ref: "#/components/responses/Mensaje" }
         "401": { $ref: "#/components/responses/SinSesion" }
@@ -1023,7 +1075,7 @@ paths:
       tags: [Favoritos y alertas]
       summary: Mis publicaciones guardadas
       description: Con los mismos campos que `GET /api/ofertas` más `FechaGuardado`. Sin `pagina`, las últimas 100; con `pagina`, una página.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - $ref: "#/components/parameters/Pagina"
         - { name: porPagina, in: query, description: "Máximo 50 (por defecto 10)", schema: { type: integer, maximum: 50 } }
@@ -1046,7 +1098,7 @@ paths:
       tags: [Favoritos y alertas]
       summary: Números de mis publicaciones guardadas
       description: Para pintar el corazón lleno en el Mercado.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Lista de OfertaID
@@ -1062,7 +1114,7 @@ paths:
       tags: [Favoritos y alertas]
       summary: Guardar una publicación
       description: No se puede guardar una publicación propia. Si baja de precio, llega una notificación `FavoritoRebajado`.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200": { description: Ya estaba guardada }
         "201": { description: Guardada }
@@ -1072,7 +1124,7 @@ paths:
     delete:
       tags: [Favoritos y alertas]
       summary: Quitar una publicación de favoritos
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Hecho (quitada dice si estaba guardada)
@@ -1089,7 +1141,7 @@ paths:
     get:
       tags: [Favoritos y alertas]
       summary: Mis alertas de búsqueda
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Lista
@@ -1104,7 +1156,7 @@ paths:
         Hace falta la palabra clave o la categoría (el precio máximo es opcional). Máximo 10 alertas por persona.
         Cuando se publica algo que cumple, llega una notificación `AlertaBusqueda` y un correo.
         La palabra clave no distingue mayúsculas ni tildes, y todas sus palabras deben aparecer en el título o la descripción.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -1135,7 +1187,7 @@ paths:
     delete:
       tags: [Favoritos y alertas]
       summary: Borrar una alerta
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200": { $ref: "#/components/responses/Mensaje" }
         "401": { $ref: "#/components/responses/SinSesion" }
@@ -1150,7 +1202,7 @@ paths:
         Proveedores activos con las coordenadas de la cabecera de su departamento. El departamento se
         reconoce sin importar mayúsculas ni tildes (también RACCN, RACCS, Bluefields, Bilwi...).
         Quienes escribieron un departamento que no se reconoce van en `sinUbicacion`.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: categoria, in: query, description: Solo proveedores con publicaciones de esta categoría, schema: { type: integer } }
       responses:
@@ -1188,7 +1240,7 @@ paths:
       description: |
         A partir de una foto del material y/o del título escrito. Necesita Gemini: si no está configurado
         o no responde, devuelve 503 y el proveedor llena el formulario a mano. Nada se guarda.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -1226,7 +1278,7 @@ paths:
         Compara con las publicaciones de la misma categoría (si hay al menos 2, solo las de la misma unidad)
         y con las subastas cerradas. Gemini propone un precio dentro del rango (`fuente: ia`); si no responde,
         se sugiere la mediana (`fuente: estadistica`). Sin publicaciones parecidas, `sugerido` es null.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -1275,7 +1327,7 @@ paths:
         El administrador ve toda la plataforma (`alcance: plataforma`), el proveedor sus ventas (`ventas`)
         y el emprendedor sus compras (`compras`). Los precios por categoría son de todo el mercado.
         Lo usa reportes.html, que lo exporta a Excel y a PDF.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: meses, in: query, schema: { type: integer, enum: [3, 6, 12], default: 6 } }
       responses:
@@ -1291,7 +1343,7 @@ paths:
     get:
       tags: [Administración]
       summary: Contadores de la plataforma
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Contadores
@@ -1317,7 +1369,7 @@ paths:
       tags: [Administración]
       summary: Lista de usuarios
       description: De los más nuevos a los más antiguos.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: buscar, in: query, description: Nombre o correo, schema: { type: string } }
         - { name: problemas, in: query, description: "1 = solo cuentas con el correo inválido o sin confirmar", schema: { type: string, enum: ["1"] } }
@@ -1345,7 +1397,7 @@ paths:
       tags: [Administración]
       summary: Corregir el correo de una cuenta
       description: Por ejemplo `erick@gmail` sin `.com`. La cuenta queda confirmada.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -1365,7 +1417,7 @@ paths:
     put:
       tags: [Administración]
       summary: Dar por confirmado el correo de una cuenta
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200": { $ref: "#/components/responses/Exito" }
         "401": { $ref: "#/components/responses/SinSesion" }
@@ -1379,7 +1431,7 @@ paths:
       tags: [Administración]
       summary: Activar o suspender una cuenta
       description: Una cuenta suspendida pierde el acceso al instante.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -1403,7 +1455,7 @@ paths:
       tags: [Administración]
       summary: Eliminar una cuenta
       description: Borra la cuenta con todos sus registros y fotos en una transacción, y avisa a quienes pujaron en sus subastas abiertas.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Eliminada
@@ -1427,7 +1479,7 @@ paths:
       tags: [Administración]
       summary: Retirar una publicación (moderación)
       description: Aunque su subasta tenga pujas; se avisa a quienes pujaron.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200": { $ref: "#/components/responses/OfertaEliminada" }
         "401": { $ref: "#/components/responses/SinSesion" }
@@ -1439,7 +1491,7 @@ paths:
       tags: [Administración]
       summary: Cerrar ahora las subastas vencidas
       description: Normalmente se cierran solas (al listar subastas, pujar, ver tratos o el dashboard, y con el cron diario). Cada subasta con pujas crea un trato con el ganador.
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Subastas cerradas
@@ -1467,7 +1519,7 @@ paths:
     post:
       tags: [Administración]
       summary: Crear una categoría de materiales
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -1495,7 +1547,12 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: El token que devuelve POST /api/login (dura 8 horas).
+      description: El token de la sesión (el valor de la cookie `sesion`, dura 8 horas). Para pruebas y scripts.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sesion
+      description: La cookie httpOnly que guarda POST /api/login. El navegador la manda sola.
 
   parameters:
     Id:

@@ -1,7 +1,8 @@
 // ==========================================================================
 // AYUDAS COMPARTIDAS POR LAS SECCIONES DE LAS PRUEBAS DE LA API
 //
-//   api()      llamada JSON a la API (con o sin token)
+//   api()      llamada JSON a la API (con o sin token, o con la cookie de sesión)
+//   iniciarSesion()  POST /api/login; el token sale de la cookie "sesion" (data.token)
 //   check()    registra una comprobación (✅ / ❌)
 //   seccion()  título de sección en el informe
 //   q()        consulta directa a la base de PRUEBAS (Postgres)
@@ -45,14 +46,34 @@ export function informe() {
     return { ok, fallos, omitidas, texto: resultados.join('\n') };
 }
 
-export async function api(metodo, ruta, { token, body, headers = {} } = {}) {
+export async function api(metodo, ruta, { token, cookie, body, headers = {} } = {}) {
     const h = { ...headers };
     if (body !== undefined) h['Content-Type'] = 'application/json';
     if (token) h['Authorization'] = 'Bearer ' + token;
+    if (cookie) h['Cookie'] = cookie;
     const r = await fetch(B + ruta, { method: metodo, headers: h, body: body !== undefined ? JSON.stringify(body) : undefined });
     let data = null;
     try { data = await r.json(); } catch { /* respuesta sin JSON */ }
-    return { status: r.status, data };
+    return { status: r.status, data, setCookie: r.headers.getSetCookie() };
+}
+
+// La cookie "sesion" de una respuesta: { valor, atributos } (atributos en minúsculas), o null
+export function cookieSesion(setCookie = []) {
+    const linea = setCookie.find((c) => c.startsWith('sesion='));
+    if (!linea) return null;
+    const [par, ...resto] = linea.split(';');
+    return { valor: decodeURIComponent(par.slice('sesion='.length)), atributos: resto.map((a) => a.trim().toLowerCase()), linea };
+}
+
+// Inicia sesión como la página: la sesión llega en la cookie httpOnly. Para que las secciones
+// sigan usando ctx.p1.token (Bearer), el valor de la cookie se copia a data.token.
+// tokenEnCuerpo dice si la API (todavía) devolvió el token en el JSON.
+export async function iniciarSesion(email, password) {
+    const r = await api('POST', '/api/login', { body: { email, password } });
+    const tokenEnCuerpo = Boolean(r.data && 'token' in r.data);
+    const cookie = cookieSesion(r.setCookie);
+    if (r.status === 200 && r.data && cookie) r.data = { ...r.data, token: cookie.valor };
+    return { ...r, cookie, tokenEnCuerpo };
 }
 
 // ----------------------------------------------------------------- base de pruebas

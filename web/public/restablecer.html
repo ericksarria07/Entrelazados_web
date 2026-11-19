@@ -452,7 +452,9 @@
                 if (res.ok) {
                     // El enlace ya no sirve: se quita de la barra de direcciones y del historial
                     history.replaceState(null, '', 'restablecer.html');
-                    try { localStorage.removeItem('token'); } catch (err) { }
+                    // Con la contraseña nueva, la sesión abierta en este navegador se cierra
+                    fetch('/api/logout', { method: 'POST' }).catch(() => { });
+                    try { localStorage.removeItem('userId'); } catch (err) { }
                     mostrarVista('listo');
                     let segundos = 5;
                     const reloj = setInterval(() => {

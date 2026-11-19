@@ -164,7 +164,7 @@
     <script>
         const API_URL = window.location.origin;
         const perfilId = parseInt(new URLSearchParams(window.location.search).get('id'), 10);
-        const conSesion = !!localStorage.getItem('token');
+        const conSesion = !!localStorage.getItem('userId');
         const miId = Number(localStorage.getItem('userId')) || null;
         const POR_PAGINA = { resenas: 5, publicaciones: 6, subastas: 6 };
         let perfil = null;
