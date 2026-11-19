@@ -1,0 +1,150 @@
+/* Estilos de reportes.html, pasados a CSS Module con scripts/estilos-a-modulo.mjs.
+   Los nombres de clase de adentro son globales (:global) para que el modo oscuro de
+   app/estilos/tema.css los siga encontrando. */
+.pagina {
+}
+
+:global(html[data-tema="oscuro"]) .pagina {
+    background-color: #17110e;
+    color: var(--text-dark);
+}
+
+.pagina :global(.btn-pdf) {
+    background: #a12a1a;
+    color: #fff;
+    border-color: transparent;
+}
+
+.pagina :global(.btn-pdf:hover) {
+    background: #7f1f12;
+}
+
+.pagina :global(.kpi-grid.cuatro) {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.pagina :global(.estado-chip) {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.pagina :global(.estado-chip.Completado), .pagina :global(.estado-chip.Con-ganador) {
+    background: #d3f9d8;
+    color: #1b5e20;
+}
+
+.pagina :global(.estado-chip.EnProceso), .pagina :global(.estado-chip.En-curso) {
+    background: #dbeafe;
+    color: #1e3a8a;
+}
+
+.pagina :global(.estado-chip.Pendiente) {
+    background: #fff3cd;
+    color: #6b4b00;
+}
+
+.pagina :global(.estado-chip.Cancelado), .pagina :global(.estado-chip.Canceladas), .pagina :global(.estado-chip.Sin-pujas) {
+    background: #f1ece7;
+    color: #6b5a50;
+}
+
+.pagina :global(.nota-alcance) {
+    font-size: 13px;
+    color: #f1e8e3;
+    margin-top: 6px;
+    max-width: 640px;
+}
+
+.pagina :global(.encabezado-impresion) {
+    display: none;
+}
+
+/* ---------------------------------------------------------- IMPRIMIR / GUARDAR COMO PDF */
+
+@page {
+    size: A4 portrait;
+    margin: 14mm 12mm;
+}
+
+@media print {
+    .pagina {
+        background: #fff !important;
+        display: block;
+        min-height: 0;
+    }
+    .pagina :global(.amazon-header), .pagina :global(.sub-bar), .pagina :global(footer), .pagina :global(.toolbar), .pagina :global(.btn-vista), .pagina :global(.toast), .pagina :global(#kan-contenedor), .pagina :global(.kan-contenedor), .pagina :global([class*="kan-"]), .pagina :global(.campana-ent), .pagina :global(.panel-notif), .pagina :global(.aviso-notif), .pagina :global(.alerta) {
+        display: none !important;
+    }
+    .pagina :global(.dash-hero) {
+        padding: 0 0 10px;
+        color: #2a1a12;
+    }
+    .pagina :global(.dash-hero h1) {
+        color: #3D170A;
+        font-size: 24px;
+        text-shadow: none;
+    }
+/* Al imprimir, cada gráfica se reemplaza por una imagen que se ajusta al ancho de la hoja */
+    .pagina :global(.grafica canvas.oculto-impresion) {
+        display: none !important;
+    }
+    .pagina :global(.grafica img.imagen-impresion) {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    .pagina :global(.eyebrow), .pagina :global(.hero-sub), .pagina :global(.nota-alcance) {
+        color: #6b5a50 !important;
+        text-shadow: none !important;
+    }
+    .pagina :global(.encabezado-impresion) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #7D381B;
+        padding-bottom: 6px;
+        margin-bottom: 12px;
+        font-size: 12px;
+        color: #6b5a50;
+    }
+    .pagina :global(.encabezado-impresion strong) {
+        font-size: 16px;
+        color: #3D170A;
+    }
+    .pagina :global(.main-content) {
+        padding: 0 !important;
+        max-width: none !important;
+    }
+    .pagina :global(.fila), .pagina :global(.fila-2-1), .pagina :global(.fila-1-1) {
+        display: block !important;
+    }
+    .pagina :global(.card), .pagina :global(.kpi) {
+        box-shadow: none !important;
+        border: 1px solid #ddd2c8 !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 12px;
+    }
+    .pagina :global(.kpi-grid) {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 8px !important;
+    }
+    .pagina :global(.grafica-alta) {
+        height: 260px !important;
+    }
+    .pagina :global(.tabla-wrap) {
+        overflow: visible !important;
+    }
+    .pagina :global(.tabla) {
+        font-size: 11px;
+    }
+    .pagina :global(.tabla tr) {
+        break-inside: avoid;
+    }
+}

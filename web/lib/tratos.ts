@@ -124,7 +124,7 @@ export async function cambiarEstado(
           Completado: "La otra parte marcó el trato como completado. Ya puedes calificarla.",
           Cancelado: "La otra parte canceló el trato." + (motivoLimpio ? ` Motivo: ${motivoLimpio}` : ""),
         }[estado],
-        enlace: "dashboard.html",
+        enlace: "/dashboard",
       },
     ],
     urlBase
@@ -160,7 +160,7 @@ async function avisarPorCorreo(
     asunto: `Trato ${ETIQUETAS[estado]}: ${lote}`,
     titulo: `Trato ${ETIQUETAS[estado]}`,
     parrafos,
-    boton: urlBase ? { texto: "Ver mis tratos", enlace: `${urlBase}/dashboard.html` } : null,
+    boton: urlBase ? { texto: "Ver mis tratos", enlace: `${urlBase}/dashboard` } : null,
   });
 }
 
@@ -216,7 +216,7 @@ export async function calificar(
         referenciaId: tratoId,
         titulo: `Te calificaron con ${"★".repeat(estrellas)}${"☆".repeat(5 - estrellas)}`,
         mensaje: `Por el trato «${lote}».` + (comentarioLimpio ? ` "${comentarioLimpio}"` : ""),
-        enlace: "perfil.html",
+        enlace: "/perfil",
       },
     ],
     urlBase
@@ -224,7 +224,7 @@ export async function calificar(
   return respuesta;
 }
 
-// Datos del comprobante de un trato (comprobante.html). Lo pueden ver las dos partes
+// Datos del comprobante de un trato (/comprobante). Lo pueden ver las dos partes
 // y el administrador; a cualquier otra persona se le responde 404.
 export async function comprobante({ tratoId, usuarioId, esAdmin = false }: { tratoId: number; usuarioId: number; esAdmin?: boolean }) {
   if (!Number.isInteger(tratoId) || tratoId <= 0) throw new ErrorHttp(404, NO_EXISTE);

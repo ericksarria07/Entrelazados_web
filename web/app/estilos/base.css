@@ -1,0 +1,26 @@
+/* ==========================================================================
+   BASE DE LAS PÁGINAS EN REACT (Fase 2)
+   Colores comunes (los mismos de las páginas viejas), reinicio y la letra.
+   El modo oscuro está en app/estilos/tema.css, que se importa después en
+   app/layout.tsx: sus reglas html[data-tema="oscuro"] ganan a estos :root.
+   ========================================================================== */
+:root {
+    --color-principal: #7D381B;
+    --color-secundario: #3D170A;
+    --color-terciario: #993D24;
+    --texto-suave: #6b5b53;
+    --borde: #d6c7bd;
+    --exito: #1e6b2a;
+    --error: #a12a1a;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* --fuente-base la define next/font (Source Sans 3) en app/layout.tsx */
+body {
+    font-family: var(--fuente-base), 'Source Sans 3', sans-serif;
+}

@@ -60,7 +60,7 @@ export default async function correr(ctx) {
     const notifE1 = ctx.esperarEvento(ctx.sE1, 'notificacion:nueva', x => x.tipo === 'PujaSuperada');
     r = await api('POST', '/api/pujas', { token: ctx.e3.token, body: { subastaId: ctx.subRT, montoPuja: 200 } });
     n = await notifE1;
-    ctx.checkTR('A quien iba ganando le llega al instante "Te superaron"', r.status === 200 && n && /C\$200/.test(n.mensaje) && n.enlace === 'mercado.html#tab-auctions', JSON.stringify(n));
+    ctx.checkTR('A quien iba ganando le llega al instante "Te superaron"', r.status === 200 && n && /C\$200/.test(n.mensaje) && n.enlace === '/mercado#tab-auctions', JSON.stringify(n));
 
     await api('POST', '/api/pujas', { token: ctx.e1.token, body: { subastaId: ctx.subRT, montoPuja: 250 } });
     await api('POST', '/api/pujas', { token: ctx.e1.token, body: { subastaId: ctx.subRT, montoPuja: 300 } });

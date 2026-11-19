@@ -1,0 +1,420 @@
+/* Estilos de admin.html, pasados a CSS Module con scripts/estilos-a-modulo.mjs.
+   Los nombres de clase de adentro son globales (:global) para que el modo oscuro de
+   app/estilos/tema.css los siga encontrando. */
+.pagina {
+    --color-bg: #f4f1ea;
+    --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', var(--fuente-base), sans-serif;
+    --font-secundaria: 'Leelawadee', var(--fuente-base), sans-serif;
+    background-color: var(--color-bg);
+    color: #1a1a1a;
+    font-family: var(--font-secundaria);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+:global(html[data-tema="oscuro"]) .pagina {
+    --color-bg: #17110e;
+    background-color: #17110e;
+    color: var(--text-dark);
+}
+
+.pagina :global(h1), .pagina :global(h2), .pagina :global(h3), .pagina :global(.logo) {
+    font-family: var(--font-principal);
+    font-weight: 900;
+}
+
+/* HEADER */
+
+.pagina :global(.amazon-header) {
+    background-color: var(--color-secundario);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.pagina :global(.logo) {
+    font-size: 24px;
+    color: #fff;
+    text-decoration: none;
+}
+
+.pagina :global(.logo span) {
+    color: var(--color-terciario);
+}
+
+.pagina :global(.admin-badge-header) {
+    background-color: #d9480f;
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.pagina :global(.user-btn-nav) {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-principal);
+    padding: 6px 14px;
+    border-radius: 20px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+/* SUB-BARRA */
+
+.pagina :global(.sub-bar) {
+    background-color: #290f06;
+    color: #fff;
+    display: flex;
+    gap: 20px;
+    padding: 8px 24px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.pagina :global(.sub-bar a) {
+    color: #f1e8e3;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pagina :global(.sub-bar a:hover) {
+    color: var(--color-terciario);
+}
+
+/* CONTENEDOR PRINCIPAL */
+
+.pagina :global(.admin-container) {
+    max-width: 1200px;
+    width: 100%;
+    margin: 25px auto;
+    padding: 0 20px 40px;
+    flex: 1;
+}
+
+/* METRICAS / KPIS */
+
+.pagina :global(.metrics-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+    margin-bottom: 30px;
+}
+
+.pagina :global(.metric-card) {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 18px;
+    border: 1px solid #e0d8ce;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.pagina :global(.metric-icon) {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background-color: rgba(125, 56, 27, 0.1);
+    color: var(--color-principal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.pagina :global(.metric-info h4) {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #777;
+    margin-bottom: 2px;
+}
+
+.pagina :global(.metric-info p) {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--color-secundario);
+}
+
+/* PANELES DE TABLAS */
+
+.pagina :global(.panel-section) {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e0d8ce;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.pagina :global(.panel-header) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #f4f1ea;
+    padding-bottom: 10px;
+}
+
+.pagina :global(.panel-title) {
+    font-size: 18px;
+    color: var(--color-secundario);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* TABLAS RESPONSIVAS */
+
+.pagina :global(.table-responsive) {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.pagina :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.pagina :global(th), .pagina :global(td) {
+    padding: 12px 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.pagina :global(th) {
+    background-color: #f9f7f4;
+    color: var(--color-principal);
+    font-weight: 700;
+}
+
+.pagina :global(.badge-status) {
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.pagina :global(.badge-activo) {
+    background: #e6fcf5;
+    color: #0ca678;
+}
+
+.pagina :global(.badge-inactivo) {
+    background: #fff9db;
+    color: #f59f00;
+}
+
+.pagina :global(.badge-suspendido) {
+    background: #ffe3e3;
+    color: #f03e3e;
+}
+
+.pagina :global(.btn-action) {
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pagina :global(.btn-action:hover) {
+    opacity: 0.85;
+}
+
+.pagina :global(.btn-delete) {
+    background-color: #e03131;
+    color: white;
+}
+
+/* FORMULARIO CATEGORÍA */
+
+.pagina :global(.form-grid) {
+    display: grid;
+    grid-template-columns: 1fr 2fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.pagina :global(.form-group label) {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-principal);
+    margin-bottom: 4px;
+}
+
+.pagina :global(.form-control) {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+}
+
+.pagina :global(.btn-submit) {
+    background-color: var(--color-principal);
+    color: white;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.pagina :global(footer) {
+    background-color: var(--color-secundario);
+    color: #fff;
+    padding: 15px 24px;
+    text-align: center;
+    font-size: 12px;
+    margin-top: auto;
+}
+
+/* BÚSQUEDA, PAGINACIÓN Y AVISOS DE CORREO */
+
+.pagina :global(.barra-filtros) {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.pagina :global(.barra-filtros input[type="search"]) {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 10px;
+    border: 1px solid #d6c7bd;
+    border-radius: 6px;
+    font: inherit;
+}
+
+.pagina :global(.barra-filtros label) {
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.pagina :global(.aviso-correos) {
+    background: #fff4e6;
+    border: 1px solid #ffd8a8;
+    color: #8a4b00;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.pagina :global(.aviso-correos[hidden]) {
+    display: none;
+}
+
+.pagina :global(.etiqueta-correo) {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+.pagina :global(.etiqueta-correo.invalido) {
+    background: #ffe3e3;
+    color: #a12a1a;
+}
+
+.pagina :global(.etiqueta-correo.pendiente) {
+    background: #fff3bf;
+    color: #6b4b00;
+}
+
+.pagina :global(.paginacion-admin) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+.pagina :global(.paginacion-admin:empty) {
+    display: none;
+}
+
+.pagina :global(.paginacion-admin button) {
+    padding: 5px 10px;
+    border: 1px solid #d6c7bd;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+}
+
+.pagina :global(.paginacion-admin button:disabled) {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.pagina :global(.btn-correo) {
+    background: #e7f5ff;
+    color: #1864ab;
+}
+
+@media (max-width: 768px) {
+    .pagina :global(.amazon-header) {
+        flex-wrap: wrap;
+        padding: 10px;
+        gap: 10px;
+    }
+    .pagina :global(.amazon-header .logo) {
+        font-size: 22px;
+    }
+    .pagina :global(.amazon-header .nav-user) {
+        margin-left: auto;
+    }
+    .pagina :global(.amazon-header .search-bar) {
+        order: 3;
+        width: 100%;
+        min-width: 100%;
+        display: flex !important;
+    }
+    .pagina :global(.amazon-header .search-category) {
+        max-width: 110px;
+        font-size: 11px;
+        padding: 0 4px;
+    }
+    .pagina :global(.amazon-header .search-input) {
+        min-width: 0;
+    }
+    .pagina :global(.sub-bar) {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+}

@@ -12,14 +12,30 @@ const nextConfig: NextConfig = {
     "/api/openapi.json": ["./docs/openapi.yaml"],
   },
 
-  // Durante la migración, las páginas son los HTML copiados de Express en public/.
-  // Igual que Express (index: 'preview.html'), la raíz "/" muestra preview.html.
-  async rewrites() {
-    return {
-      beforeFiles: [{ source: "/", destination: "/preview.html" }],
-      afterFiles: [],
-      fallback: [],
+  // Páginas que ya pasaron a React (Fase 2): la URL vieja .html redirige a la nueva y
+  // conserva el query string (?token=... de los correos ya enviados).
+  async redirects() {
+    const nuevas: Record<string, string> = {
+      preview: "/",
+      index: "/inicio",
+      verificar: "/verificar",
+      login: "/login",
+      unirse: "/unirse",
+      restablecer: "/restablecer",
+      comprobante: "/comprobante",
+      perfil: "/perfil",
+      "perfil-publico": "/perfil-publico",
+      admin: "/admin",
+      reportes: "/reportes",
+      dashboard: "/dashboard",
+      chat: "/chat",
+      mercado: "/mercado",
     };
+    return Object.entries(nuevas).map(([vieja, nueva]) => ({
+      source: `/${vieja}.html`,
+      destination: nueva,
+      permanent: true,
+    }));
   },
 };
 

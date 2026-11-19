@@ -233,7 +233,7 @@ export function avisarNuevaPublicacion(oferta: OfertaParaAvisos, urlBase: string
           referenciaId: oferta.ofertaId,
           titulo,
           mensaje: `Cumple tu alerta ${describirAlerta(a)}. Precio: ${precio}.`,
-          enlace: `mercado.html?oferta=${oferta.ofertaId}`,
+          enlace: `/mercado?oferta=${oferta.ofertaId}`,
           correo: {
             asunto: `Se publicó «${oferta.titulo}» en EntreLazados`,
             titulo: "Se publicó algo que estabas buscando",
@@ -270,7 +270,7 @@ export function avisarRebaja(
           agrupar: true,
           titulo: `Bajó de precio: ${titulo}`.slice(0, 120),
           mensaje: `Una publicación que guardaste pasó de ${cordobas(precioAnterior)} a ${cordobas(precioNuevo)}.`,
-          enlace: `mercado.html?oferta=${ofertaId}`,
+          enlace: `/mercado?oferta=${ofertaId}`,
         })),
         urlBase
       );

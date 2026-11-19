@@ -30,7 +30,7 @@ export default async function correr(ctx) {
     r = await api('POST', '/api/admin/subastas/cerrar-vencidas', { token: ctx.admin.token });
     n = await ganada;
     check('Cerrar las subastas vencidas responde 200', r.status === 200, JSON.stringify(r));
-    ctx.checkTR('Al cerrar la subasta, el ganador recibe "¡Ganaste!"', n && /C\$350/.test(n.mensaje) && n.enlace === 'chat.html', JSON.stringify(n));
+    ctx.checkTR('Al cerrar la subasta, el ganador recibe "¡Ganaste!"', n && /C\$350/.test(n.mensaje) && n.enlace === '/chat', JSON.stringify(n));
     ctx.checkTR('…y el mensaje automático del chat le llega al instante', (await chatGanador) !== null);
     ctx.checkTR('…y todas las páginas saben que la lista de subastas cambió', (await cambioLista) !== null);
     const cierreNotifs = await q(`SELECT usuario_id, tipo FROM notificaciones WHERE referencia_id = $1 AND tipo IN ('SubastaTerminada', 'SubastaGanada') ORDER BY usuario_id`, [ctx.subRT]);

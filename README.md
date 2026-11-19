@@ -123,7 +123,7 @@ Entrelazados_web/
 │   ├── scripts/probar-neon.ts    # npm run probar:neon (prueba de punta a punta de Neon)
 │   ├── pruebas/api/              # pruebas de integración de la API (npm run test:api), una sección por archivo
 │   ├── neon.ts                   # configuración de Neon (neon env pull escribe web/.env.local)
-│   └── public/                   # copia de las páginas de Express; se pasan a React una por una
+│   └── public/                   # imágenes (las páginas ya son React, en app/)
 └── backend/
     ├── package.json              # dependencias y comandos: npm install, npm start, npm test
     ├── entrelazados-api/
@@ -478,7 +478,7 @@ Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya fu
 | Sitio | https://entrelazados.ericksv.com (CNAME en Cloudflare con nube gris, hacia Vercel) |
 | Vercel | proyecto `entrelazados`, *Root Directory* `web`, Node 22, rama de producción `migracion-nextjs` |
 | Variables | `DATABASE_URL` (Neon con pooler) y `JWT_SECRET` en Vercel. Opcionales: `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_HOST`, `EMAIL_PORT`, `APP_URL`, `VERIFICAR_CORREO` y `LIMITE_*`, con el mismo significado que en Express. Sin correo configurado, las cuentas se crean ya confirmadas. `BLOB_READ_WRITE_TOKEN` (production y preview) la agregó el Blob store `entrelazados-fotos`: con ella las fotos van a Vercel Blob; sin ella, a disco (`UPLOADS_DIR`, por defecto una carpeta temporal) servidas en `/uploads/ofertas/`. `CRON_SECRET` protege el cron diario (`web/vercel.json`) y `APP_URL` = `https://entrelazados.ericksv.com` arma los enlaces de los correos (las dos solo en production). `CIERRE_PEREZOSO=0` apaga el cierre perezoso. `ABLY_API_KEY` (production y preview; la llave de pruebas va en `web/.env.local`) enciende el tiempo real; los canales se separan por `ABLY_CANAL_PREFIJO` (por defecto `VERCEL_ENV`). `GEMINI_API_KEY` (production, *Sensitive*; clave gratis de [Google AI Studio](https://aistudio.google.com/apikey), se carga con `vercel env add GEMINI_API_KEY production --sensitive`) enciende la IA: sin ella Kan da sus respuestas fijas, la descripción con IA responde 503 y la sugerencia de precio usa la mediana. `GEMINI_MODELO` = `gemini-3.5-flash-lite` en producción: en el plan gratis los modelos flash grandes (3.6–3.8) respondían 503/504 por alta demanda, y flash-lite contesta en 1–4 s, también con fotos y JSON. Cada llamada a Gemini tiene 20 s como máximo y un solo reintento (`web/lib/gemini.ts`), así que si Gemini falla se usa el respaldo en segundos |
-| Código | Rutas en `web/app/**/route.ts`, con SQL a mano (`pg`). Ayudas en `web/lib/`: `http.ts` (`ruta()`, `ErrorHttp`), `sesion.ts` (`exigirSesion`, `exigirAdmin`), `limites.ts` (en memoria), `correo.ts` (nodemailer + `after()`) |
+| Código | Rutas en `web/app/**/route.ts`, con SQL a mano (`pg`). Ayudas en `web/lib/`: `http.ts` (`ruta()`, `ErrorHttp`), `sesion.ts` (`exigirSesion`, `exigirAdmin`, `leerSesionDesdeCookies`), `limites.ts` (en memoria), `correo.ts` (nodemailer + `after()`). `web/proxy.ts` rechaza escrituras a `/api/*` que vienen de otro sitio |
 | Salud | `GET /api/salud` → `{"estado":"ok","bd":"ok"}` (503 si Neon no contesta) |
 
 Correrla en tu máquina:
@@ -522,6 +522,50 @@ Después de un rollback, Vercel deja de publicar solo las mezclas nuevas hasta q
 
 ---
 
+## Páginas en React (Fase 2)
+
+Las 15 páginas están en React (detalle y orden en [ROADMAP](ROADMAP.md), sección 13). En `web/public/` ya no quedan páginas `.html`: solo imágenes. Las URLs viejas (`/mercado.html`, `/verificar.html?token=…`, `/index.html` → `/inicio`, `/preview.html` → `/`) redirigen con 308 y conservan el query string, así siguen sirviendo los enlaces de correos y notificaciones ya enviados.
+
+| Página | Qué es | Pieza |
+|---|---|---|
+| `/` | Portada pública (se arma en el servidor) | 2.3 |
+| `/login`, `/unirse`, `/restablecer`, `/verificar`, `/comprobante` | Cuenta | 2.1–2.2 |
+| `/inicio`, `/perfil`, `/perfil-publico?id=` | Inicio con sesión, mi perfil y el perfil que se comparte (los dos últimos, en el servidor) | 2.3 |
+| `/admin`, `/reportes` | Panel de administración; reportes con gráficas, PDF y Excel | 2.4 |
+| `/dashboard` | Panel de control, mis tratos, calificaciones y Excel | 2.5 |
+| `/chat` | Mensajes en vivo y Kan (`/chat?contacto=ID` abre esa conversación) | 2.6 |
+| `/mercado` | Ofertas, subastas con pujas en vivo, mapa, favoritos, alertas y publicar con IA | 2.7 |
+
+**Sesión en cookie httpOnly** (desde la 2.1)
+
+| Pieza | Cómo |
+|---|---|
+| Login | `POST /api/login` guarda el JWT (8 h) en la cookie `sesion` (`HttpOnly; Secure; SameSite=Lax`). El token **no va en el cuerpo**: ningún script de la página puede leerlo. El cuerpo trae `sesion: { inicio, vence }` |
+| Peticiones | El navegador manda la cookie solo en cada `/api/*`. `exigirSesion()` acepta la cookie o `Authorization: Bearer <token>` (pruebas, Swagger, scripts). Desde las páginas se usa `api()` de `lib/cliente/api.ts`: con un 401 cierra la sesión y vuelve a `/login` |
+| Quién entró | En el servidor, `datosDeSesionDesdeCookies()` (con `cache()`: una consulta por petición). `app/(sitio)/layout.tsx` se lo pasa a `ProveedorSitio` y los componentes lo leen con `useUsuario()`. Desde fuera, `GET /api/sesion` |
+| Páginas con sesión | Viven en `app/(sitio)/(con-sesion)/`: su layout manda a `/login` antes de pintar si la cookie venció o la cuenta fue suspendida. `/admin` además exige el rol |
+| Prefetch | Revisar el token usa la hora actual: `leerSesionDesdeCookies()` llama a `connection()` para que solo corra al atender la petición (el prefetch de `<Link>` no guarda "sin sesión"). Entrar y salir hacen una navegación completa |
+| Cerrar sesión | `POST /api/logout` borra la cookie; `cerrarSesion()` (`lib/cliente/sesion.ts`) lo llama y borra `localStorage` (menos el tema) |
+| CSRF | `SameSite=Lax` y `web/proxy.ts`: un POST/PUT/PATCH/DELETE cuyo `Origin` sea de otro sitio recibe 403 |
+| `localStorage` | Solo datos que no son secretos (`userId`, `userRol`, `userNombre`, `sesionInicio`, `sesionVence`). `/login` pregunta a `/api/sesion` antes de saltar al inicio. La memoria de Kan se ata a `sesionInicio` |
+
+**Piezas compartidas** (`web/componentes/sitio/`)
+
+| Pieza | Qué hace |
+|---|---|
+| `ProveedorSitio` | Usuario de la cookie; tiempo real con Ably (`@ably/pubsub-device` de npm): reenvía `puja:nueva`, `subastas:cambio`, `chat:mensaje` y `notificacion:nueva` como eventos `entrelazados:<evento>` que las páginas escuchan con `useEventoTiempoReal()`; mensajes sin leer cada 30 s (`useNoLeidos()`) |
+| `Cabecera`, `Buscador`, `MenuUsuario`, `PiePagina`, `EnlaceAdmin`, `GlobitoChat` | Lo que antes se copiaba en cada HTML |
+| `Campana` | Notificaciones: lista, no leídas, aviso flotante al llegar una nueva |
+| `Kan` | El asistente flotante, con sus preguntas por página y rol (`lib/cliente/kan-contenido.ts`) y su memoria entre páginas |
+
+Ayudas del navegador en `web/lib/cliente/`: `api.ts`, `sesion.ts`, `categorias.ts`, `graficas.ts` (Chart.js 4.4.1, bajo demanda), `excel.ts` (ExcelJS 4.4.0, bajo demanda), `rutas.ts` (enlaces viejos de notificaciones guardadas → rutas nuevas) y `numeros.ts`. El mapa usa Leaflet 1.9.4 de npm, cargado solo en el navegador. Las ventanas del mapa se arman con elementos del DOM; en el resto, JSX escapa el texto (ya no hay `innerHTML` ni `esc()`).
+
+**Estilos.** Se reusa el CSS de siempre como CSS Modules: una clase raíz local (`.pagina`) y, por dentro, los nombres globales (`.pagina :global(.tarjeta)`), así el modo oscuro de `app/estilos/tema.css` los sigue encontrando. Las hojas compartidas son `app/estilos/comun.module.css`, `mercado.module.css` y `panel.module.css`; cada página junta las que usaba (`className={`${comun.pagina} ${estilos.pagina}`}`). `node scripts/estilos-a-modulo.mjs <pagina.html|hoja.css> <salida.module.css>` hace la conversión (body → `.pagina`, `'Source Sans 3'` → `var(--fuente-base)`, imágenes a `/archivo`, y repite en modo oscuro las variables que la página redefine); después se revisa a mano. Las gráficas se redibujan solas al cambiar entre claro y oscuro.
+
+El layout raíz pone la letra (Source Sans 3 con `next/font`), los íconos Tabler (npm, versión fija), los colores base (`app/estilos/base.css`), el modo oscuro (`app/estilos/tema.css`) con su script antes de pintar, "Saltar al contenido" y el botón del tema (`componentes/BotonTema.tsx`).
+
+---
+
 ## Administrador y recorrido completo (`web/`)
 
 **Crear la cuenta de administrador** (registrarse como admin está prohibido a propósito):
@@ -548,6 +592,13 @@ RECORRIDO_URL=http://localhost:3000 npm run recorrido
 | Resultado | Capturas `.jpg` y `resultado.json` en `web/pruebas/recorrido/salida/` (fuera de git) |
 | Requisitos | `DATABASE_URL` de la misma base que la URL probada. Playwright fijo en 1.57.0: es la última versión con Chromium para macOS 13 |
 | Ojo | Cuenta para el límite de 5 registros por hora por conexión: si se corre varias veces seguidas, los registros por formulario se anotan como "límite alcanzado" y las cuentas se crean en la base |
+
+**Pruebas E2E** (`web/pruebas/e2e/`, `@playwright/test` 1.57.0): los 4 flujos clave en un navegador de verdad, con tamaño de celular: el proveedor publica, dos emprendedores pujan (el segundo supera al primero), la subasta cierra y el trato se completa, se califica y se abre el comprobante, y comprador y proveedor se escriben por el chat. Antes de empezar se vacía y se siembra la base de pruebas, y Playwright levanta `next start` en el puerto 3066. No dependen de Gemini, Ably ni Blob, así que el CI las corre en cada push (job "E2E (Playwright)", contra un Postgres desechable; si fallan, sube el informe y las trazas).
+
+```bash
+cd web
+npm run build && npm run e2e      # usa PRUEBAS_DATABASE_URL de .env.local (nunca la de producción)
+```
 
 ## Pruebas de la API en Next.js
 

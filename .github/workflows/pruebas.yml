@@ -10,6 +10,8 @@
 #   3. El lint, la revisión de migraciones (Drizzle) y el build del proyecto Next.js (web/).
 #   4. Las pruebas de integración de la API en Next.js contra un Postgres 18 nuevo y vacío
 #      (solo las secciones ya migradas: ver web/pruebas/api/secciones.mjs).
+#   5. Las pruebas E2E con Playwright (web/pruebas/e2e/): publicar, pujar entre dos cuentas,
+#      cerrar la subasta y chatear, en un navegador de verdad contra otro Postgres desechable.
 # El resultado aparece como ✅ o ❌ junto a cada commit y en el Pull Request.
 # Al ser Linux, también detecta nombres de tablas mal escritos (Usuarios ≠ usuarios),
 # igual que pasaría en la VM.
@@ -140,3 +142,50 @@ jobs:
       - name: Log del servidor (si algo falló)
         if: failure()
         run: cat /tmp/entrelazados_next_pruebas.log || true
+
+  e2e:
+    name: E2E (Playwright)
+    # Fijo en 24.04: Playwright 1.57.0 no soporta la 26.04 de ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          # Contenedor desechable solo para las pruebas: esta clave no protege nada real
+          POSTGRES_PASSWORD: clave_ci
+          POSTGRES_DB: entrelazados_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      PRUEBAS_DATABASE_URL: postgres://postgres:clave_ci@127.0.0.1:5432/entrelazados_e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      # Publicar, pujar entre dos cuentas, cerrar la subasta y chatear (pruebas/e2e/)
+      - name: Pruebas E2E
+        run: npm run e2e
+      - name: Informe y trazas (si algo falló)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-informe
+          path: |
+            web/pruebas/e2e/informe/
+            web/pruebas/e2e/resultados/
+          retention-days: 7

@@ -49,8 +49,9 @@ export default async function correr(ctx) {
     const resenasSuspendido = await api('GET', `/api/usuarios/${ctx.e2.id}/resenas`);
     await q(`UPDATE usuarios SET estado_cuenta = 'Activo' WHERE usuario_id = $1`, [ctx.e2.id]);
     check('Una cuenta suspendida no muestra perfil ni reseñas → 404', r.status === 404 && resenasSuspendido.status === 404);
-    r = await fetch(B + '/perfil-publico.html');
-    check('La página perfil-publico.html existe', r.status === 200 && /api\/usuarios\/\$\{perfilId\}\/publico/.test(await r.text()));
+    // La página (React, Fase 2) se arma en el servidor; la URL vieja .html redirige y conserva ?id=
+    r = await fetch(B + `/perfil-publico.html?id=${ctx.p3.id}`);
+    check('/perfil-publico.html?id= redirige a /perfil-publico y el servidor arma el perfil', r.status === 200 && r.url.endsWith(`/perfil-publico?id=${ctx.p3.id}`) && /Calificaciones y reseñas/.test(await r.text()), r.url);
 
     // Subastas de un proveedor
     r = await api('GET', `/api/subastas?proveedorId=${ctx.p3.id}&pagina=1&porPagina=50`);
@@ -76,9 +77,7 @@ export default async function correr(ctx) {
     r = await api('GET', '/api/favoritos', { token: ctx.e1.token });
     check('…y sin ?pagina sigue respondiendo la lista', Array.isArray(r.data) && r.data.length === 2);
 
-    // mercado.html quedó dividido en archivos
-    const htmlMercado = await (await fetch(B + '/mercado.html')).text();
-    const archivosMercado = ['mercado.css', 'mercado.js', 'mercado-publicar.js', 'mercado-favoritos.js', 'mercado-mapa.js'];
-    const servidos = await Promise.all(archivosMercado.map(a => fetch(B + '/' + a).then(x => x.status)));
-    check('mercado.html carga su CSS y sus 4 scripts, y el servidor los entrega', archivosMercado.every(a => htmlMercado.includes(`"${a}"`)) && servidos.every(st => st === 200), JSON.stringify(servidos));
+    // El Mercado pasó a React (Fase 2): la URL vieja redirige (308) y conserva el query string
+    r = await fetch(B + '/mercado.html?oferta=5#tab-auctions', { redirect: 'manual' });
+    check('/mercado.html redirige (308) a /mercado conservando ?oferta=', r.status === 308 && r.headers.get('location')?.endsWith('/mercado?oferta=5'), `${r.status} ${r.headers.get('location')}`);
 }

@@ -1,13 +1,16 @@
-// POST /api/login: entrega el token de sesión (JWT de 8 h) y los datos que guarda sesion.js.
+// POST /api/login: guarda la sesión (JWT de 8 h) en la cookie httpOnly "sesion" y devuelve
+// los datos que guarda la página (id, nombre, rol...) y cuándo vence. El token ya no va en el
+// cuerpo: JavaScript de la página no puede leerlo (ROADMAP 2.1).
 // Solo los intentos fallidos gastan el límite de LIMITE_LOGIN.
 import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
 import { after } from "next/server";
 import { rondasBcrypt } from "@/lib/config";
 import { esHashBcrypt } from "@/lib/cuentas";
 import { obtenerPool } from "@/lib/db";
 import { ErrorHttp, json, leerCuerpo, ruta } from "@/lib/http";
 import { ipDe, limite } from "@/lib/limites";
-import { firmarToken } from "@/lib/sesion";
+import { COOKIE_SESION, fechasDelToken, firmarToken, opcionesCookieSesion } from "@/lib/sesion";
 import { REGEX_EMAIL, textoLimpio } from "@/lib/utilidades";
 
 export const POST = ruta(async (req) => {
@@ -78,12 +81,14 @@ async function iniciarSesion(req: Request) {
     );
   }
 
+  const token = firmarToken(usuario);
+  (await cookies()).set(COOKIE_SESION, token, opcionesCookieSesion());
   return json({
     id: usuario.usuario_id,
     nombre: usuario.nombre_razon_social || "Usuario",
     rol: usuario.tipo_rol,
     departamento: usuario.nombre_departamento || "Managua",
     estado: usuario.estado_cuenta || "Activo",
-    token: firmarToken(usuario),
+    sesion: fechasDelToken(token),
   });
 }

@@ -1,0 +1,428 @@
+/* Estilos de perfil-publico.html, pasados a CSS Module con scripts/estilos-a-modulo.mjs.
+   Los nombres de clase de adentro son globales (:global) para que el modo oscuro de
+   app/estilos/tema.css los siga encontrando. */
+.pagina {
+}
+
+:global(html[data-tema="oscuro"]) .pagina {
+    background-color: #17110e;
+    color: var(--text-dark);
+}
+
+.pagina :global(#app) {
+    max-width: 1000px;
+}
+
+.pagina :global(.tarjeta) {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-top: 3px solid var(--color-principal);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 22px;
+    margin-bottom: 18px;
+}
+
+.pagina :global(.tarjeta h2) {
+    font-size: 17px;
+    color: var(--color-secundario);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.pagina :global(.tarjeta h2 small) {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-family: var(--font-secundaria);
+}
+
+/* CABECERA DEL PERFIL */
+
+.pagina :global(.perfil-cabecera) {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.pagina :global(.perfil-avatar) {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--color-principal);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-principal);
+    font-size: 32px;
+    font-weight: 900;
+    border: 3px solid var(--bg-card);
+    box-shadow: 0 0 0 2px var(--color-principal);
+}
+
+.pagina :global(.perfil-datos) {
+    flex: 1;
+    min-width: 220px;
+}
+
+.pagina :global(.perfil-datos h1) {
+    font-size: 26px;
+    color: var(--color-secundario);
+    line-height: 1.15;
+    margin-bottom: 4px;
+}
+
+.pagina :global(.perfil-sub) {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.pagina :global(.perfil-meta) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.pagina :global(.perfil-meta span) {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pagina :global(.badge-rol) {
+    background: var(--color-principal);
+    color: #fff;
+}
+
+.pagina :global(.perfil-acciones) {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.pagina :global(.perfil-acciones a), .pagina :global(.perfil-acciones button) {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pagina :global(.aviso-propio) {
+    margin-top: 14px;
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-main);
+    border: 1px dashed var(--border-color);
+    color: var(--text-dark);
+}
+
+.pagina :global(.aviso-propio a) {
+    color: var(--color-principal);
+    font-weight: 700;
+}
+
+/* NÚMEROS */
+
+.pagina :global(.cifras) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.pagina :global(.cifra) {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.pagina :global(.cifra strong) {
+    display: block;
+    font-family: var(--font-principal);
+    font-size: 26px;
+    color: var(--color-terciario);
+    line-height: 1.1;
+}
+
+.pagina :global(.cifra span) {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.pagina :global(.sobre p) {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-dark);
+    white-space: pre-line;
+}
+
+.pagina :global(.sobre dl) {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 14px;
+    font-size: 14px;
+    margin-top: 12px;
+}
+
+.pagina :global(.sobre dt) {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.pagina :global(.sobre dd) {
+    color: var(--text-dark);
+}
+
+/* REPUTACIÓN */
+
+.pagina :global(.reputacion) {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    gap: 24px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.pagina :global(.promedio-grande) {
+    text-align: center;
+}
+
+.pagina :global(.promedio-grande strong) {
+    display: block;
+    font-family: var(--font-principal);
+    font-size: 46px;
+    color: var(--color-secundario);
+    line-height: 1;
+}
+
+.pagina :global(.promedio-grande .estrellas-fijas) {
+    color: #c98500;
+    font-size: 18px;
+    letter-spacing: 1px;
+}
+
+.pagina :global(.promedio-grande span) {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.pagina :global(.barras) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pagina :global(.barra) {
+    display: grid;
+    grid-template-columns: 34px 1fr 30px;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.pagina :global(.barra-fondo) {
+    height: 9px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.pagina :global(.barra-relleno) {
+    height: 100%;
+    background: #e0a100;
+    border-radius: 6px;
+}
+
+.pagina :global(.resenas) {
+    margin-top: 18px;
+    border-top: 1px solid var(--border-color);
+}
+
+.pagina :global(.resena) {
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.pagina :global(.resena:last-child) {
+    border-bottom: none;
+}
+
+.pagina :global(.resena-cabeza) {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.pagina :global(.resena-cabeza strong) {
+    color: var(--text-dark);
+}
+
+.pagina :global(.resena-cabeza time) {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.pagina :global(.resena .estrellas-fijas) {
+    color: #c98500;
+}
+
+.pagina :global(.resena p) {
+    font-size: 14px;
+    color: var(--text-dark);
+    line-height: 1.5;
+}
+
+.pagina :global(.resena p.sin-comentario) {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* PUBLICACIONES Y SUBASTAS */
+
+.pagina :global(.rejilla) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 14px;
+}
+
+.pagina :global(.mini) {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-card);
+    transition: box-shadow .2s ease, transform .15s ease;
+}
+
+.pagina :global(.mini:hover) {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.pagina :global(.mini-foto) {
+    aspect-ratio: 4 / 3;
+    background: var(--bg-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-principal);
+    font-size: 38px;
+}
+
+.pagina :global(.mini-foto img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pagina :global(.mini-cuerpo) {
+    padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.pagina :global(.mini-cuerpo h3) {
+    font-size: 14px;
+    color: var(--color-secundario);
+    line-height: 1.3;
+    font-family: var(--font-secundaria);
+    font-weight: 700;
+}
+
+.pagina :global(.mini-precio) {
+    font-family: var(--font-principal);
+    font-size: 17px;
+    font-weight: 900;
+    color: var(--color-terciario);
+    margin-top: auto;
+}
+
+.pagina :global(.mini-precio small) {
+    font-family: var(--font-secundaria);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.pagina :global(.mini-nota) {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.pagina :global(.vacio-tarjeta) {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 16px;
+    font-size: 14px;
+}
+
+.pagina :global(.error-perfil) {
+    text-align: center;
+    padding: 50px 20px;
+}
+
+.pagina :global(.error-perfil i) {
+    font-size: 46px;
+    color: var(--color-principal);
+}
+
+.pagina :global(.error-perfil h1) {
+    font-size: 22px;
+    color: var(--color-secundario);
+    margin: 10px 0 6px;
+}
+
+.pagina :global(.error-perfil p) {
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.pagina :global(.cargando) {
+    color: #f1e8e3;
+    text-align: center;
+    padding: 40px;
+}
+
+@media (max-width: 640px) {
+    .pagina :global(.reputacion) {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+    .pagina :global(.perfil-avatar) {
+        width: 64px;
+        height: 64px;
+        font-size: 24px;
+    }
+    .pagina :global(.perfil-datos h1) {
+        font-size: 22px;
+    }
+    .pagina :global(.tarjeta) {
+        padding: 16px;
+    }
+}

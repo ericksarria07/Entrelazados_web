@@ -15,16 +15,22 @@
     "probar:neon": "node --env-file=.env.local scripts/probar-neon.ts",
     "test:api": "node --env-file-if-exists=.env.local pruebas/api/correr.mjs",
     "admin:crear": "node --env-file=.env.local scripts/crear-admin.ts",
-    "recorrido": "node --env-file=.env.local pruebas/recorrido/recorrido.mjs"
+    "recorrido": "node --env-file=.env.local pruebas/recorrido/recorrido.mjs",
+    "e2e": "node --env-file-if-exists=.env.local node_modules/.bin/playwright test"
   },
   "dependencies": {
+    "@ably/pubsub-device": "3.1.0",
     "@ably/pubsub-server": "^3.1.0",
     "@google/genai": "^3.4.0",
+    "@tabler/icons-webfont": "3.50.0",
     "@vercel/blob": "^2.9.0",
     "@vercel/functions": "^3.11.3",
     "bcryptjs": "^3.0.3",
+    "chart.js": "4.4.1",
     "drizzle-orm": "^0.45.4",
+    "exceljs": "4.4.0",
     "jsonwebtoken": "^9.0.3",
+    "leaflet": "1.9.4",
     "next": "16.4.6",
     "nodemailer": "^10.6.0",
     "pg": "^8.23.1",
@@ -33,9 +39,10 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@ably/pubsub-device": "^3.1.0",
     "@neon/config": "^1.14.0",
+    "@playwright/test": "1.57.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/leaflet": "1.9.12",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",

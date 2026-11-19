@@ -52,7 +52,7 @@ export default async function correr(ctx) {
     check('…la descripción se guarda limpia', (await q(`SELECT descripcion FROM ofertas WHERE oferta_id = $1`, [ctx.ofCafe]))[0].Descripcion === 'Ideal para botas y cinturones.');
     await pausa(500);
     const alertaRecibidaE1 = await avisos(ctx.e1, 'AlertaBusqueda', ctx.ofCafe);
-    check('La alerta de "Café" (sin tilde en el título) avisa con enlace a la publicación', alertaRecibidaE1.length === 1 && alertaRecibidaE1[0].Enlace === `mercado.html?oferta=${ctx.ofCafe}` && /Cuero vacuno CAFE/.test(alertaRecibidaE1[0].Titulo), JSON.stringify(alertaRecibidaE1));
+    check('La alerta de "Café" (sin tilde en el título) avisa con enlace a la publicación', alertaRecibidaE1.length === 1 && alertaRecibidaE1[0].Enlace === `/mercado?oferta=${ctx.ofCafe}` && /Cuero vacuno CAFE/.test(alertaRecibidaE1[0].Titulo), JSON.stringify(alertaRecibidaE1));
     check('…también a quien buscaba "cuero"', (await avisos(ctx.e3, 'AlertaBusqueda', ctx.ofCafe)).length === 1);
     check('…pero no a quien solo quería hasta C$100', (await avisos(ctx.e2, 'AlertaBusqueda', ctx.ofCafe)).length === 0);
     check('…ni al proveedor que publicó (aunque tenga una alerta que cumple)', (await avisos(ctx.p3, 'AlertaBusqueda', ctx.ofCafe)).length === 0);

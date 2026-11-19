@@ -58,7 +58,7 @@ export async function avisarCancelacion(avisos: AvisoCancelacion[], motivo: stri
       referenciaId: a.subastaId,
       titulo: `Se canceló la subasta «${a.lote}»`,
       mensaje: `Fue cancelada ${motivo}. Tu puja ya no tiene efecto y no tienes nada que pagar.`,
-      enlace: "mercado.html#tab-auctions",
+      enlace: "/mercado#tab-auctions",
     })),
     urlBase
   );
@@ -80,7 +80,7 @@ export async function avisarCancelacion(avisos: AvisoCancelacion[], motivo: stri
               `La subasta «${a.lote}» fue cancelada ${motivo}.`,
               "Tu puja ya no tiene efecto y no tienes nada que pagar. Puedes buscar otros lotes en el Mercado.",
             ],
-            boton: urlBase ? { texto: "Ir al Mercado", enlace: `${urlBase}/mercado.html` } : null,
+            boton: urlBase ? { texto: "Ir al Mercado", enlace: `${urlBase}/mercado` } : null,
           })
         );
       for (const r of await Promise.allSettled(envios)) {

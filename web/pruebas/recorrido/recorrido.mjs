@@ -144,14 +144,21 @@ async function api(metodo, ruta, { token, body } = {}) {
     });
     let data = null;
     try { data = await r.json(); } catch { /* sin JSON */ }
-    return { status: r.status, data };
+    return { status: r.status, data, setCookie: r.headers.getSetCookie() };
+}
+
+// La sesión llega en la cookie httpOnly "sesion"; su valor sirve como Bearer para la API
+async function tokenDeLogin(email) {
+    const r = await api('POST', '/api/login', { body: { email, password: CLAVE } });
+    const linea = r.setCookie.find((c) => c.startsWith('sesion=')) || '';
+    return decodeURIComponent(linea.split(';')[0].slice('sesion='.length)) || null;
 }
 
 async function iniciarSesionUI(pagina, email) {
-    await ir(pagina, '/login.html');
+    await ir(pagina, '/login');
     await pagina.fill('#login-email', email);
     await pagina.fill('#login-password', CLAVE);
-    await Promise.all([pagina.waitForURL(/index\.html|admin\.html/, { timeout: 30000 }), pagina.click('#btn-submit-login')]);
+    await Promise.all([pagina.waitForURL(/\/(inicio|admin)(\?|$)/, { timeout: 30000 }), pagina.click('#btn-submit-login')]);
     await pagina.waitForLoadState('networkidle');
 }
 
@@ -179,7 +186,8 @@ async function resultadoRegistro(p, email, rol, nombre, depto) {
     throw new Error(`Sin mensaje de éxito: ${msg}`);
 }
 
-const tokenDe = (p) => p.pagina.evaluate(() => localStorage.getItem('token'));
+// La cookie de sesión del navegador de esa cuenta (httpOnly: la página no la ve, Playwright sí)
+const tokenDe = async (p) => (await p.pagina.context().cookies(BASE)).find((c) => c.name === 'sesion')?.value ?? null;
 
 // ----------------------------------------------------------------- el recorrido
 const cuentas = { prov: correo('proveedor'), emp1: correo('emprendedor1'), emp2: correo('emprendedor2'), admin: correo('admin') };
@@ -197,8 +205,8 @@ try {
         return await pg.title();
     });
 
-    await paso('Proveedor', 'Registro de proveedor', 'Se llena unirse.html como Proveedor y se envía.', async (pg, p) => {
-        await ir(pg, '/unirse.html');
+    await paso('Proveedor', 'Registro de proveedor', 'Se llena /unirse como Proveedor y se envía.', async (pg, p) => {
+        await ir(pg, '/unirse');
         await pg.click('#optProveedor');
         await pg.fill('#nombreNegocio', 'Curtiembre Recorrido');
         await pg.fill('#correo', cuentas.prov);
@@ -213,8 +221,8 @@ try {
         return resultadoRegistro(p, cuentas.prov, 'Proveedor', 'Curtiembre Recorrido', 'León');
     });
 
-    await paso('Emprendedor 1', 'Registro de emprendedor', 'Se llena unirse.html como Emprendedor y se envía.', async (pg, p) => {
-        await ir(pg, '/unirse.html');
+    await paso('Emprendedor 1', 'Registro de emprendedor', 'Se llena /unirse como Emprendedor y se envía.', async (pg, p) => {
+        await ir(pg, '/unirse');
         await pg.click('#optEmprendedor');
         await pg.fill('#nombreNegocio', 'Zapatería Recorrido');
         await pg.fill('#correo', cuentas.emp1);
@@ -234,7 +242,7 @@ try {
     await paso('Emprendedor 1', 'Login sin confirmar el correo', 'Con la verificación de correo activa, entrar antes de confirmar avisa y ofrece reenviar el enlace.', async (pg, p) => {
         const [u] = await q(`SELECT correo_verificado FROM usuarios WHERE correo_electronico = $1`, [cuentas.emp1]);
         if (u?.correo_verificado) return 'No aplica en esta corrida: la cuenta se creó ya confirmada (límite de registros por hora).';
-        await ir(pg, '/login.html');
+        await ir(pg, '/login');
         await pg.fill('#login-email', cuentas.emp1);
         await pg.fill('#login-password', CLAVE);
         await pg.click('#btn-submit-login');
@@ -254,7 +262,7 @@ try {
     });
 
     await paso('Proveedor', 'Formulario de publicación', 'Abre "Publicar material", llena los datos y adjunta 2 fotos.', async (pg) => {
-        await ir(pg, '/mercado.html');
+        await ir(pg, '/mercado');
         await pg.click('#btn-publicar-modal');
         await pg.waitForSelector('#modalOferta', { state: 'visible' });
         await pg.fill('#ofertaTitulo', 'Cuero vacuno café del recorrido');
@@ -300,12 +308,12 @@ try {
         const [s] = await q(`SELECT subasta_id FROM subastas WHERE oferta_id = $1`, [ofertaId]);
         subastaId = s.subasta_id;
         if (o.fotos !== 2) throw new Error(`Se esperaban 2 fotos y hay ${o.fotos}`);
-        await pg.locator(`.btn-fav[data-fav="${ofertaId}"], [onclick*="abrirModalEdicion(${ofertaId})"]`).first().scrollIntoViewIfNeeded().catch(() => {});
+        await pg.locator(`[data-oferta="${ofertaId}"]`).first().scrollIntoViewIfNeeded().catch(() => {});
         return `${msg.slice(0, 80)} · oferta #${ofertaId}, subasta #${subastaId}, 2 fotos`;
     });
 
     await paso('Proveedor', 'Editar la publicación', 'Abre "Editar" y baja el precio a C$480.', async (pg, p) => {
-        await pg.click(`[onclick="abrirModalEdicion(${ofertaId})"]`);
+        await pg.locator(`[data-oferta="${ofertaId}"] button:has-text("Editar")`).first().click();
         await pg.waitForSelector('#modalOferta', { state: 'visible' });
         await pg.fill('#ofertaPrecio', '480');
         await pg.click('#btnGuardarOferta');
@@ -316,7 +324,7 @@ try {
     });
 
     await paso('Proveedor', 'Búsqueda sin acentos', 'En el Mercado, buscar "VACUNO CAFE" (sin tilde, en mayúsculas) encuentra "vacuno café".', async (pg) => {
-        await ir(pg, '/mercado.html');
+        await ir(pg, '/mercado');
         await pg.fill('#searchInput', 'VACUNO CAFE');
         await pg.press('#searchInput', 'Enter');
         await pg.waitForTimeout(2500);
@@ -326,7 +334,7 @@ try {
     });
 
     await paso('Proveedor', 'Mapa de proveedores', 'La pestaña Mapa muestra a los proveedores por departamento.', async (pg) => {
-        await pg.click(".tab[onclick*=\"'map'\"]");
+        await pg.click('.tab:has-text("Mapa")');
         await pg.waitForTimeout(3500);
         return (await pg.locator('#mapa-resumen').innerText().catch(() => '')).slice(0, 160);
     });
@@ -338,10 +346,10 @@ try {
     });
 
     await paso('Emprendedor 1', 'Guardar en favoritos', 'Toca el corazón de la publicación y la ve en la pestaña Favoritos.', async (pg) => {
-        await ir(pg, '/mercado.html');
+        await ir(pg, '/mercado');
         await pg.click(`.btn-fav[data-fav="${ofertaId}"]`);
         await pg.waitForTimeout(1500);
-        await pg.click(".tab[onclick*=\"'favorites'\"]");
+        await pg.click('.tab:has-text("Favoritos")');
         await pg.waitForTimeout(2500);
         const texto = await pg.locator('#contenedor-favoritos').innerText();
         if (!/recorrido/i.test(texto)) throw new Error('No aparece en Favoritos');
@@ -357,8 +365,8 @@ try {
 
     await paso('Emprendedor 2', 'Subastas abiertas', 'El emprendedor 2 entra y deja abierta la pestaña Subastas.', async (pg) => {
         await iniciarSesionUI(pg, cuentas.emp2);
-        await ir(pg, '/mercado.html');
-        await pg.click(".tab[onclick*=\"'auctions'\"]");
+        await ir(pg, '/mercado');
+        await pg.click('.tab:has-text("Subastas")');
         await pg.waitForSelector(`#subasta-input-${subastaId}`, { timeout: 15000 });
         await pg.waitForTimeout(2000);
         return (await pg.locator('#indicador-en-vivo').innerText().catch(() => '')).trim() || 'Subastas cargadas';
@@ -366,13 +374,13 @@ try {
 
     const pujar = async (pg, monto) => {
         await pg.fill(`#subasta-input-${subastaId}`, String(monto));
-        await pg.click(`[onclick^="ejecutarPujaReal(${subastaId}"]`);
+        await pg.click(`.auction-card:has(#subasta-input-${subastaId}) button.cta`);
         await pg.waitForTimeout(3000);
     };
 
     await paso('Emprendedor 1', 'Pujar', 'El emprendedor 1 puja C$550 en la subasta.', async (pg, p) => {
-        await ir(pg, '/mercado.html');
-        await pg.click(".tab[onclick*=\"'auctions'\"]");
+        await ir(pg, '/mercado');
+        await pg.click('.tab:has-text("Subastas")');
         await pg.waitForSelector(`#subasta-input-${subastaId}`, { timeout: 15000 });
         await pujar(pg, 550);
         if (!/aceptada/i.test(p.dialogos.join(' '))) throw new Error(`Sin confirmación: ${p.dialogos.join(' ')}`);
@@ -403,12 +411,12 @@ try {
 
     // 4. Chat en vivo
     await paso('Proveedor', 'Chat abierto (proveedor)', 'El proveedor abre el chat y espera.', async (pg) => {
-        await ir(pg, '/chat.html');
+        await ir(pg, '/chat');
         return 'Chat abierto';
     });
 
     await paso('Emprendedor 1', 'Enviar un mensaje', 'El emprendedor 1 abre la conversación con el proveedor y le escribe.', async (pg) => {
-        await ir(pg, '/chat.html');
+        await ir(pg, '/chat');
         const provId = (await q(`SELECT usuario_id FROM usuarios WHERE correo_electronico = $1`, [cuentas.prov]))[0].usuario_id;
         await pg.click(`#contacto-${provId}`);
         await pg.fill('#chat-text', '¡Hola! ¿El cuero café tiene 1.8 mm de grosor?');
@@ -430,13 +438,13 @@ try {
     });
 
     // 5. Cierre, trato, calificación, comprobante, perfil público
-    const tokenAdmin = (await api('POST', '/api/login', { body: { email: cuentas.admin, password: CLAVE } })).data?.token;
+    const tokenAdmin = await tokenDeLogin(cuentas.admin);
     await q(`UPDATE subastas SET fecha_fin = now() - interval '1 minute' WHERE subasta_id = $1`, [subastaId]);
     const cierre = await api('POST', '/api/admin/subastas/cerrar-vencidas', { token: tokenAdmin });
 
     await paso('Emprendedor 2', 'Ganar la subasta', 'Al cerrar la subasta, el ganador ve el trato en su dashboard.', async (pg) => {
         if (cierre.status !== 200 || !cierre.data?.cerradas?.some((c) => c.subastaId === subastaId)) throw new Error(`Cierre: ${JSON.stringify(cierre)}`);
-        await ir(pg, '/dashboard.html');
+        await ir(pg, '/dashboard');
         await pg.waitForTimeout(2500);
         const trato = pg.locator('[data-trato]').first();
         await trato.scrollIntoViewIfNeeded();
@@ -444,16 +452,16 @@ try {
     });
 
     await paso('Proveedor', 'Completar el trato', 'El proveedor marca el trato como completado desde su dashboard.', async (pg, p) => {
-        await ir(pg, '/dashboard.html');
+        await ir(pg, '/dashboard');
         await pg.waitForTimeout(2500);
-        await pg.locator(`[onclick*="cambiarEstadoTrato"][onclick*="'Completado'"]`).first().click();
+        await pg.locator('.trato-acciones button:has-text("ompletado")').first().click();
         await pg.waitForTimeout(3000);
         return (p.dialogos.join(' ') || 'Completado').slice(0, 120);
     });
 
     await paso('Emprendedor 2', 'Calificar al proveedor', 'El ganador da 5 estrellas con un comentario.', async (pg, p) => {
         p.respuestaPrompt = 'Excelente cuero, entrega puntual';
-        await ir(pg, '/dashboard.html');
+        await ir(pg, '/dashboard');
         await pg.waitForTimeout(2500);
         await pg.locator('.trato-estrellas .estrella').first().click();
         await pg.waitForTimeout(3000);
@@ -464,27 +472,27 @@ try {
 
     await paso('Emprendedor 2', 'Comprobante del trato', 'El comprobante para imprimir o guardar como PDF.', async (pg) => {
         const [t] = await q(`SELECT trato_id FROM tratos_cerrados WHERE origen_id = $1 AND tipo_origen = 'Subasta'`, [subastaId]);
-        await ir(pg, `/comprobante.html?trato=${t.trato_id}`);
+        await ir(pg, `/comprobante?trato=${t.trato_id}`);
         await pg.waitForTimeout(2000);
         return (await pg.locator('body').innerText()).match(/EL-\d+/)?.[0] || '';
     });
 
     await paso('Visitante', 'Perfil público del proveedor', 'Sin sesión: el perfil público con su calificación y reseñas.', async (pg) => {
         const provId = (await q(`SELECT usuario_id FROM usuarios WHERE correo_electronico = $1`, [cuentas.prov]))[0].usuario_id;
-        await ir(pg, `/perfil-publico.html?id=${provId}`);
+        await ir(pg, `/perfil-publico?id=${provId}`);
         await pg.waitForTimeout(2000);
         return (await pg.locator('body').innerText()).match(/★[^\n]*|5[.,]0[^\n]*/)?.[0]?.slice(0, 80) || '';
     });
 
     // 6. Dashboard y reportes
     await paso('Proveedor', 'Dashboard del proveedor', 'Estadísticas, gráficas y su actividad (1 subasta vendida).', async (pg) => {
-        await ir(pg, '/dashboard.html');
+        await ir(pg, '/dashboard');
         await pg.waitForTimeout(3000);
         return '';
     });
 
     await paso('Proveedor', 'Reportes', 'El reporte de ventas del proveedor carga con sus gráficas.', async (pg) => {
-        await ir(pg, '/reportes.html');
+        await ir(pg, '/reportes');
         await pg.waitForTimeout(4000);
         const texto = await pg.locator('body').innerText();
         if (/No se pudo cargar/i.test(texto)) throw new Error('El reporte no cargó');
@@ -501,7 +509,7 @@ try {
 
     // 7. Kan
     await paso('Emprendedor 1', 'Kan, el asistente', 'Se abre el widget de Kan y se le pregunta cómo funcionan las pujas (respuesta fija, sin gastar IA).', async (pg) => {
-        await ir(pg, '/index.html');
+        await ir(pg, '/inicio');
         await pg.click('.kan-widget-btn');
         await pg.fill('.kan-input', '¿Cómo funcionan las pujas en las subastas?');
         await pg.press('.kan-input', 'Enter');
@@ -524,7 +532,7 @@ try {
     });
 
     await paso('Emprendedor 1', 'Kan sigue al cambiar de página', 'Se va al Mercado: la ventana de Kan sigue abierta con la conversación de la portada.', async (pg) => {
-        await ir(pg, '/mercado.html');
+        await ir(pg, '/mercado');
         await pg.waitForSelector('.kan-chat-window.active', { timeout: 10000 });
         const texto = await pg.locator('.kan-chat-window').innerText();
         if (!/billeteras resistentes/i.test(texto)) throw new Error('La conversación no se conservó');
@@ -544,7 +552,12 @@ try {
     });
 
     await paso('Emprendedor 1', 'Cerrar sesión borra a Kan', 'Cierra sesión y vuelve a entrar: el chat de Kan empieza de nuevo, sin la conversación anterior.', async (pg) => {
-        await Promise.all([pg.waitForURL(/login\.html/, { timeout: 20000 }), pg.evaluate(() => window.cerrarSesion())]);
+        await Promise.all([pg.waitForURL(/\/login(\?|$)/, { timeout: 20000 }), (async () => {
+            // Kan abierto tapa la cabecera en el celular: se cierra primero, como lo haría una persona
+            if (await pg.locator('.kan-chat-window.active').count()) await pg.click('.kan-close-btn');
+            await pg.click('.user-btn-nav');
+            await pg.click('.logout-item');
+        })()]);
         await iniciarSesionUI(pg, cuentas.emp1);
         await pg.click('.kan-widget-btn');
         await pg.waitForSelector('.kan-chat-window.active');
@@ -564,7 +577,7 @@ try {
         await pg.fill('#buscarUsuario', PREFIJO);
         await pg.waitForTimeout(2500);
         const empId = (await q(`SELECT usuario_id FROM usuarios WHERE correo_electronico = $1`, [cuentas.emp1]))[0].usuario_id;
-        await pg.locator(`select[onchange^="cambiarEstadoUsuario(${empId}"]`).selectOption('Suspendido');
+        await pg.locator(`select[aria-label="Cambiar estado del usuario #${empId}"]`).selectOption('Suspendido');
         await pg.waitForTimeout(2500);
         const [u] = await q(`SELECT estado_cuenta FROM usuarios WHERE usuario_id = $1`, [empId]);
         if (u.estado_cuenta !== 'Suspendido') throw new Error(`Quedó ${u.estado_cuenta}`);
@@ -573,7 +586,7 @@ try {
 
     await paso('Emprendedor 1', 'Cuenta suspendida', 'Al recargar, la cuenta suspendida ya no puede usar la API (403).', async (pg) => {
         const r = await api('GET', '/api/notificaciones', { token: await tokenDe(emp1) });
-        await ir(pg, '/dashboard.html', 'load');
+        await ir(pg, '/dashboard', 'load');
         await pg.waitForTimeout(3000);
         if (r.status !== 403) throw new Error(`Respondió ${r.status}`);
         return 'La API responde 403: "Tu cuenta ha sido suspendida"';
@@ -582,7 +595,7 @@ try {
     await paso('Admin', 'Crear una categoría', 'El admin crea una categoría nueva.', async (pg, p) => {
         await pg.fill('#catNombre', `Categoría ${PREFIJO}`);
         await pg.fill('#catDesc', 'Creada por el recorrido (se borra al final)');
-        await pg.click('form[onsubmit^="crearCategoria"] button[type="submit"]');
+        await pg.click('form:has(#catNombre) button[type="submit"]');
         await pg.waitForTimeout(2500);
         const [c] = await q(`SELECT categoria_id FROM categorias_materiales WHERE nombre_categoria = $1`, [`Categoría ${PREFIJO}`]);
         if (!c) throw new Error('No se creó');
@@ -592,7 +605,7 @@ try {
 
     // 9. Recuperar contraseña y confirmar correo
     await paso('Visitante', 'Recuperar la contraseña', 'Pedir el enlace responde lo mismo exista o no la cuenta.', async (pg) => {
-        await ir(pg, '/restablecer.html');
+        await ir(pg, '/restablecer');
         const campo = pg.locator('input[type="email"]').first();
         await campo.fill(cuentas.emp2);
         await campo.press('Enter');
@@ -600,7 +613,7 @@ try {
         return (await pg.locator('body').innerText()).match(/Si el correo[^.]*\./)?.[0] || '';
     });
 
-    await paso('Visitante', 'Enlace de confirmación vencido', 'verificar.html con un enlace inválido explica qué hacer.', async (pg) => {
+    await paso('Visitante', 'Enlace de confirmación vencido', 'La vieja verificar.html con un enlace inválido redirige a /verificar y explica qué hacer.', async (pg) => {
         await ir(pg, `/verificar.html?token=${'a'.repeat(64)}`);
         await pg.waitForTimeout(2000);
         return (await pg.locator('body').innerText()).match(/no es válido[^.]*\./)?.[0] || '';
@@ -618,7 +631,7 @@ try {
     // ------------------------------------------------------------- limpieza
     const limpieza = [];
     try {
-        const tokenAdmin = (await api('POST', '/api/login', { body: { email: cuentas.admin, password: CLAVE } })).data?.token;
+        const tokenAdmin = await tokenDeLogin(cuentas.admin);
         const temporales = await q(`SELECT usuario_id, correo_electronico FROM usuarios WHERE correo_electronico LIKE $1 AND correo_electronico <> $2`, [`${PREFIJO}-%`, cuentas.admin]);
         const fotos = await q(`SELECT f.foto_url FROM fotos_ofertas f JOIN ofertas o ON o.oferta_id = f.oferta_id JOIN usuarios u ON u.usuario_id = o.proveedor_id WHERE u.correo_electronico LIKE $1`, [`${PREFIJO}-%`]);
         for (const u of temporales) {
