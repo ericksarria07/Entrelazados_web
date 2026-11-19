@@ -209,7 +209,7 @@ paths:
     get:
       tags: [Cuentas]
       summary: Confirmar el correo
-      description: Lo llama verificar.html con el token del enlace del correo. Cada enlace sirve una sola vez.
+      description: Lo llama /verificar con el token del enlace del correo. Cada enlace sirve una sola vez.
       parameters:
         - $ref: "#/components/parameters/TokenEnlace"
       responses:
@@ -829,7 +829,7 @@ paths:
       tags: [Tratos]
       summary: Datos del comprobante de un trato
       description: |
-        Para imprimir o guardar como PDF en `comprobante.html?trato=ID`. Lo pueden ver las dos partes
+        Para imprimir o guardar como PDF en `/comprobante?trato=ID`. Lo pueden ver las dos partes
         del trato y el administrador. Trae el folio, las dos partes con sus datos de contacto y, si el
         trato salió de una subasta, el lote, su precio base y cuántas pujas recibió.
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
@@ -930,7 +930,7 @@ paths:
       tags: [Perfil y dashboard]
       summary: Perfil público de un proveedor o emprendedor
       description: >-
-        No pide sesión: es la página que se puede compartir (`perfil-publico.html?id=`). Nunca trae correo,
+        No pide sesión: es la página que se puede compartir (`/perfil-publico?id=`). Nunca trae correo,
         teléfono, dirección ni RUC. Administradores, cuentas suspendidas o inexistentes → 404.
       responses:
         "200":
@@ -1326,7 +1326,7 @@ paths:
       description: |
         El administrador ve toda la plataforma (`alcance: plataforma`), el proveedor sus ventas (`ventas`)
         y el emprendedor sus compras (`compras`). Los precios por categoría son de todo el mercado.
-        Lo usa reportes.html, que lo exporta a Excel y a PDF.
+        Lo usa /reportes, que lo exporta a Excel y a PDF.
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: meses, in: query, schema: { type: integer, enum: [3, 6, 12], default: 6 } }
@@ -1768,7 +1768,7 @@ components:
           enum: [PujaSuperada, PujaRecibida, SubastaGanada, SubastaTerminada, SubastaCancelada, TratoActualizado, CalificacionRecibida, AlertaBusqueda, FavoritoRebajado]
         titulo: { type: string, example: "Te superaron en «Cuero café»" }
         mensaje: { type: string, example: "Alguien ofreció C$540.00. Puja de nuevo antes de que cierre la subasta." }
-        enlace: { type: [string, "null"], example: "mercado.html#tab-auctions" }
+        enlace: { type: [string, "null"], example: "/mercado#tab-auctions" }
         referenciaId: { type: [integer, "null"], description: SubastaID o TratoID }
         leida: { type: boolean }
         fecha: { type: string, format: date-time }

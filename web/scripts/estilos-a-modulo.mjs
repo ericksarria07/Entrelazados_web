@@ -2,6 +2,7 @@
 // PASA EL <style> DE UNA PÁGINA VIEJA A UN CSS MODULE (Fase 2)
 //
 //   node scripts/estilos-a-modulo.mjs public/login.html app/login/login.module.css
+//   node scripts/estilos-a-modulo.mjs public/mercado.css app/estilos/mercado.module.css
 //
 // Reglas (ver README, "Cómo se pasa una página a React"):
 //   - body / html  → la clase raíz local .pagina (que envuelve toda la página)
@@ -32,7 +33,10 @@ const BASE = {
 const RAIZ = ".pagina";
 
 const html = fs.readFileSync(entrada, "utf8");
-const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
+// Una hoja .css compartida se pasa entera; de una página .html, sus <style>
+const css = entrada.endsWith(".css")
+  ? html
+  : [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
 const raizAst = postcss.parse(css);
 const raiz = postcss.rule({ selector: RAIZ });
 
@@ -82,9 +86,19 @@ raizAst.walkRules((regla) => {
   regla.selectors = sels.map(globalizar);
 });
 
-// En modo oscuro tema.css pinta el fondo de <body>: aquí lo hace la raíz
+// En modo oscuro tema.css pinta el fondo de <body>: aquí lo hace la raíz. Y las variables
+// que la página define en .pagina taparían las que tema.css cambia en <html>: se repiten
+// con el valor oscuro.
+const variablesOscuras = {};
+postcss.parse(fs.readFileSync(new URL("../public/tema.css", import.meta.url), "utf8")).walkRules((r) => {
+  if (r.selector.trim() === 'html[data-tema="oscuro"]') r.walkDecls(/^--/, (d) => (variablesOscuras[d.prop] = d.value));
+});
+const repetidas = raiz.nodes
+  .filter((d) => d.type === "decl" && variablesOscuras[d.prop])
+  .map((d) => `${d.prop}: ${variablesOscuras[d.prop]};`)
+  .join(" ");
 const oscuro = postcss.parse(
-  `:global(html[data-tema="oscuro"]) ${RAIZ} { background-color: #17110e; color: var(--text-dark); }`
+  `:global(html[data-tema="oscuro"]) ${RAIZ} { ${repetidas} background-color: #17110e; color: var(--text-dark); }`
 );
 raizAst.prepend(oscuro);
 raizAst.prepend(raiz);

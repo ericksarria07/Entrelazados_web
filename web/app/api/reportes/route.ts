@@ -1,4 +1,4 @@
-// GET /api/reportes?meses=3|6|12 (con sesión; lo usa reportes.html) (de rutas/reportes.js)
+// GET /api/reportes?meses=3|6|12 (con sesión; lo usa /reportes) (de rutas/reportes.js)
 //
 // Lo que cada quien ve:
 //   administrador  → toda la plataforma

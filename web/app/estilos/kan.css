@@ -1,6 +1,6 @@
 /* ==========================================================================
    KAN, EL ASISTENTE FLOTANTE (componente compartido)
-   Lo usan index, mercado, dashboard y admin junto con kan.js.
+   Lo usan inicio, mercado, dashboard, reportes y admin (componentes/sitio/Kan.tsx).
    Usa las variables de color de cada página (--color-principal, etc.).
    ========================================================================== */
 .kan-widget-btn {

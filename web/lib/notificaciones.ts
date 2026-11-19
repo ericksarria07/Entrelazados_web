@@ -7,7 +7,7 @@
 //   await enviarNotificaciones([{
 //       usuarioId: 12, tipo: 'PujaSuperada',
 //       titulo: 'Te superaron en una subasta', mensaje: 'Alguien ofreció C$540...',
-//       enlace: 'mercado.html#tab-auctions', referenciaId: 8,
+//       enlace: '/mercado#tab-auctions', referenciaId: 8,
 //       agrupar: true,     // si ya hay uno igual SIN LEER, se actualiza en vez de crear otro
 //       correo: { asunto, titulo, parrafos, textoBoton }   // opcional
 //   }], urlPublica(req));

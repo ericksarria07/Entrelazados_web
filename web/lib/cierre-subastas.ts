@@ -157,7 +157,7 @@ async function notificarCierre(cerradas: SubastaCerrada[], participantes: Map<nu
           referenciaId: x.subastaId,
           titulo: `¡Ganaste «${x.lote}»! 🎉`,
           mensaje: `Tu puja de ${cordobas(x.monto)} fue la más alta. El proveedor ya te escribió por el chat para coordinar el pago y la entrega.`,
-          enlace: "chat.html",
+          enlace: "/chat",
         },
         {
           usuarioId: x.proveedorId,
@@ -165,7 +165,7 @@ async function notificarCierre(cerradas: SubastaCerrada[], participantes: Map<nu
           referenciaId: x.subastaId,
           titulo: `Tu subasta «${x.lote}» tiene ganador`,
           mensaje: `Terminó con una puja de ${cordobas(x.monto)}. Coordina el pago y la entrega desde el chat.`,
-          enlace: "dashboard.html",
+          enlace: "/dashboard",
         }
       );
       for (const otro of (participantes.get(x.subastaId) || []).filter((id) => id !== x.ganadorId)) {
@@ -175,7 +175,7 @@ async function notificarCierre(cerradas: SubastaCerrada[], participantes: Map<nu
           referenciaId: x.subastaId,
           titulo: `Terminó la subasta «${x.lote}»`,
           mensaje: `Ganó una puja de ${cordobas(x.monto)}. Puedes buscar otros lotes en el Mercado.`,
-          enlace: "mercado.html#tab-auctions",
+          enlace: "/mercado#tab-auctions",
         });
       }
     } else {
@@ -185,7 +185,7 @@ async function notificarCierre(cerradas: SubastaCerrada[], participantes: Map<nu
         referenciaId: x.subastaId,
         titulo: `Tu subasta «${x.lote}» terminó sin pujas`,
         mensaje: "Puedes volver a publicar el material desde el Mercado para abrir una nueva subasta.",
-        enlace: "mercado.html",
+        enlace: "/mercado",
       });
     }
   }
@@ -202,8 +202,8 @@ async function avisarPorCorreo(cerradas: SubastaCerrada[], urlBase: string | nul
     [ids]
   );
   const porId = new Map(rows.map((u) => [u.usuario_id, u]));
-  const enlaceChat = urlBase ? { texto: "Abrir el chat", enlace: `${urlBase}/chat.html` } : null;
-  const enlaceDashboard = urlBase ? { texto: "Ver mi dashboard", enlace: `${urlBase}/dashboard.html` } : null;
+  const enlaceChat = urlBase ? { texto: "Abrir el chat", enlace: `${urlBase}/chat` } : null;
+  const enlaceDashboard = urlBase ? { texto: "Ver mi dashboard", enlace: `${urlBase}/dashboard` } : null;
 
   for (const x of cerradas) {
     const proveedor = porId.get(x.proveedorId);

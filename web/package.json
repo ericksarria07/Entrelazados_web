@@ -18,6 +18,7 @@
     "recorrido": "node --env-file=.env.local pruebas/recorrido/recorrido.mjs"
   },
   "dependencies": {
+    "@ably/pubsub-device": "3.1.0",
     "@ably/pubsub-server": "^3.1.0",
     "@google/genai": "^3.4.0",
     "@tabler/icons-webfont": "3.50.0",
@@ -34,7 +35,6 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@ably/pubsub-device": "^3.1.0",
     "@neon/config": "^1.14.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",

@@ -2,9 +2,9 @@
 // SESIÓN EN EL NAVEGADOR (páginas React)
 //
 // La sesión de verdad es la cookie httpOnly "sesion" (no se puede leer desde aquí).
-// Mientras convivan con las páginas viejas, se guardan en localStorage los mismos
-// datos que guardaba login.html, que no son secretos: sesion.js, kan.js y las
-// páginas viejas los usan para saber quién entró.
+// Las páginas con sesión reciben los datos del servidor (ProveedorSitio). En
+// localStorage quedan los que guardaba login.html, que no son secretos: con ellos
+// /login sabe si ya hay sesión y Kan ata su memoria a la sesión.
 // ==========================================================================
 
 export type DatosLogin = {
@@ -21,7 +21,7 @@ export const esRolAdmin = (rol: string | null | undefined) => {
 };
 
 // Página de inicio según el rol (igual que login.html)
-export const inicioSegunRol = (rol: string | null | undefined) => (esRolAdmin(rol) ? "/admin.html" : "/index.html");
+export const inicioSegunRol = (rol: string | null | undefined) => (esRolAdmin(rol) ? "/admin" : "/inicio");
 
 export function guardarSesion(email: string, d: DatosLogin) {
   try {

@@ -17,6 +17,8 @@
 }
 
 :global(html[data-tema="oscuro"]) .pagina {
+    --texto-suave: #c4b5ab;
+    --borde: #4a3a31;
     background-color: #17110e;
     color: var(--text-dark);
 }

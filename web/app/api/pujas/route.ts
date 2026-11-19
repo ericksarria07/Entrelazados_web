@@ -82,7 +82,7 @@ export const POST = ruta(async (req) => {
       tipo: "PujaRecibida",
       titulo: `Nueva puja en «${lote}»`,
       mensaje: `Tu lote ya va en ${cordobas(montoPuja)} (${totalPujas} puja${totalPujas === 1 ? "" : "s"}).`,
-      enlace: "mercado.html#tab-auctions",
+      enlace: "/mercado#tab-auctions",
       referenciaId: subasta.subasta_id,
       agrupar: true,
     },
@@ -93,7 +93,7 @@ export const POST = ruta(async (req) => {
       tipo: "PujaSuperada",
       titulo: `Te superaron en «${lote}»`,
       mensaje: `Alguien ofreció ${cordobas(montoPuja)}. Puja de nuevo antes de que cierre la subasta.`,
-      enlace: "mercado.html#tab-auctions",
+      enlace: "/mercado#tab-auctions",
       referenciaId: subasta.subasta_id,
       agrupar: true,
       correo: {

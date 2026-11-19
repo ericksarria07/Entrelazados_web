@@ -12,9 +12,11 @@
 //   exigirRoles(usuario, 'proveedor');                // el admin siempre pasa
 //   const admin = await exigirAdmin(req);
 //   const usuario = await leerSesionDesdeCookies();   // Server Components: Usuario | null
+//   const datos = await datosDeSesionDesdeCookies();  // páginas: nombre, correo, departamento...
 // ==========================================================================
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { duracionSesion, jwtSecreto } from "@/lib/config";
 import { obtenerPool } from "@/lib/db";
 import { ErrorHttp } from "@/lib/http";
@@ -112,6 +114,56 @@ export async function leerSesionDesdeCookies(): Promise<Usuario | null> {
     throw err;
   }
 }
+
+// Lo que una página necesita saber de quien entró (lo mismo que GET /api/sesion)
+export type DatosSesion = {
+  id: number;
+  nombre: string;
+  rol: string;
+  email: string;
+  departamento: string;
+  estado: string;
+  esAdmin: boolean;
+  // Inicio y vencimiento del token (segundos): la memoria de Kan se ata al inicio
+  inicio: number;
+  vence: number;
+};
+
+export async function datosDeSesion(usuario: Usuario, token?: string | null): Promise<DatosSesion | null> {
+  const {
+    rows: [fila],
+  } = await obtenerPool().query(
+    `SELECT u.usuario_id, u.tipo_rol, u.estado_cuenta, u.correo_electronico,
+            p.nombre_razon_social, d.nombre_departamento
+     FROM usuarios u
+     LEFT JOIN perfiles_usuarios p ON u.usuario_id = p.usuario_id
+     LEFT JOIN departamentos d ON p.departamento_id = d.departamento_id
+     WHERE u.usuario_id = $1`,
+    [usuario.id]
+  );
+  if (!fila) return null;
+  const { inicio, vence } = token ? fechasDelToken(token) : { inicio: 0, vence: 0 };
+  return {
+    id: fila.usuario_id,
+    nombre: fila.nombre_razon_social || "Usuario",
+    rol: fila.tipo_rol,
+    email: fila.correo_electronico,
+    departamento: fila.nombre_departamento || "Managua",
+    estado: fila.estado_cuenta || "Activo",
+    esAdmin: usuario.esAdmin,
+    inicio,
+    vence,
+  };
+}
+
+// Páginas (Server Components): los datos de quien entró, o null si no hay sesión válida.
+// Lee la cookie: con Cache Components va dentro de <Suspense>. cache(): el layout y la
+// página que lo pidan en la misma petición comparten una sola consulta.
+export const datosDeSesionDesdeCookies = cache(async (): Promise<DatosSesion | null> => {
+  const token = (await cookies()).get(COOKIE_SESION)?.value ?? null;
+  const usuario = await leerSesionDesdeCookies();
+  return usuario ? datosDeSesion(usuario, token) : null;
+});
 
 export function exigirRoles(usuario: Usuario, ...roles: string[]): void {
   if (usuario.esAdmin || roles.includes(usuario.rol)) return;

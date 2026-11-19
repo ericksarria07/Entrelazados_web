@@ -16,7 +16,7 @@ const RESPUESTAS_ADMIN = [
   {
     frases: ["reporte", "usuarios de hoy", "métricas"],
     respuesta:
-      "Puedes consultar las estadísticas globales y la lista completa de usuarios registrados ingresando a tu Panel de Administración (`admin.html`).",
+      "Puedes consultar las estadísticas globales y la lista completa de usuarios registrados ingresando a tu Panel de Administración (`/admin`).",
   },
   {
     frases: ["modero", "elimino", "lote", "publicación"],

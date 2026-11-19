@@ -1,0 +1,50 @@
+/* Campana de notificaciones (antes en public/notificaciones.js). Global: el panel y el
+   aviso flotante van fijos sobre la página. */
+.campana-ent { position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); color: #fff;
+    font-size: 21px; margin-right: 10px; transition: background .2s; }
+.campana-ent:hover, .campana-ent[aria-expanded="true"] { background: rgba(255,255,255,0.2); }
+.campana-ent:focus-visible { outline: 2px solid #ffd27a; outline-offset: 2px; }
+.campana-ent .campana-num { position: absolute; top: -6px; right: -6px; min-width: 19px; height: 19px; padding: 0 5px;
+    border-radius: 10px; background: #c92a2a; color: #fff; font: 700 11px/19px 'Segoe UI', Arial, sans-serif;
+    text-align: center; box-shadow: 0 0 0 2px var(--color-secundario, #3D170A); }
+.campana-ent.sacudir i { animation: campana-sacudir .7s ease; transform-origin: 50% 10%; }
+@keyframes campana-sacudir { 0%,100% { transform: rotate(0) } 20% { transform: rotate(16deg) } 40% { transform: rotate(-14deg) }
+    60% { transform: rotate(9deg) } 80% { transform: rotate(-5deg) } }
+
+.panel-notif { position: fixed; z-index: 3000; width: min(380px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 90px));
+    display: none; flex-direction: column; background: #fff; color: #2B1A12; border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(43,26,18,.25); border: 1px solid #eadfd5; overflow: hidden;
+    font-family: 'Segoe UI', Arial, sans-serif; }
+.panel-notif.abierto { display: flex; }
+.panel-notif-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 12px 14px; border-bottom: 1px solid #f0e6dd; background: #FBF7F2; }
+.panel-notif-cab strong { font-size: 15px; color: #3D170A; }
+.panel-notif-cab button { background: none; border: none; color: #7D381B; font-size: 12.5px; font-weight: 600;
+    cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+.panel-notif-cab button:hover { background: #f3e9df; }
+.panel-notif-cab button:disabled { color: #b8a99c; cursor: default; background: none; }
+.panel-notif-lista { overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+.item-notif { display: flex; gap: 11px; padding: 12px 14px; cursor: pointer; text-align: left; width: 100%; background: #fff;
+    border: 0; border-bottom: 1px solid #f5eee8; border-left: 3px solid transparent; font: inherit; color: inherit; }
+.item-notif:hover, .item-notif:focus-visible { background: #FBF7F2; outline: none; }
+.item-notif.no-leida { background: #FFF8EC; border-left-color: #C8862A; }
+.item-notif .icono { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #F5EFE9; color: #7D381B;
+    display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.item-notif .texto { min-width: 0; flex: 1; }
+.item-notif .titulo { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.item-notif .mensaje { font-size: 12.5px; color: #5c4a3f; margin-top: 2px; line-height: 1.35; }
+.item-notif .cuando { font-size: 11.5px; color: #9a887b; margin-top: 4px; }
+.panel-notif-vacio { padding: 32px 18px; text-align: center; color: #8a786b; font-size: 13.5px; }
+.panel-notif-vacio i { display: block; font-size: 34px; margin-bottom: 8px; color: #c9b6a6; }
+
+.aviso-notif { position: fixed; z-index: 3100; right: 16px; top: 76px; width: min(340px, calc(100vw - 32px));
+    display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; cursor: pointer;
+    background: #3D170A; color: #fff; box-shadow: 0 10px 28px rgba(0,0,0,.3); font-family: 'Segoe UI', Arial, sans-serif;
+    transform: translateY(-12px); opacity: 0; transition: transform .25s ease, opacity .25s ease; }
+.aviso-notif.visible { transform: none; opacity: 1; }
+.aviso-notif i { font-size: 20px; color: #ffd27a; margin-top: 1px; }
+.aviso-notif .titulo { font-weight: 600; font-size: 13.5px; }
+.aviso-notif .mensaje { font-size: 12.5px; opacity: .85; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .campana-ent.sacudir i { animation: none; } .aviso-notif { transition: none; } }
