@@ -149,28 +149,28 @@ Objetivo: el sitio **funciona en Vercel** y se ve igual. Las páginas HTML actua
 
 En esta fase el JWT se queda en `localStorage`, para no tocar las páginas. Pasa a cookie en la Fase 2.
 
-### Fase 2: Páginas a React, una por una (≈ 25–35 días)
-Cada página migrada se despliega sola. El orden va de la más simple a la más compleja:
+### Fase 2: Páginas a React, una por una (≈ 29–40 días) · borrador
+Cada página migrada se despliega sola. El orden va de la más simple a la más compleja. El detalle de cada pieza (qué tiene, qué API usa y cuándo está terminada) está en la **sección 13**.
 
 | # | Página o pieza | Líneas hoy | Días |
 |---|---|---|---|
-| 2.1 | Layout común: menú, tema oscuro, sesión (pasa a cookie httpOnly), campana, widget de Kan | ~940 de JS + CSS | 3–4 |
-| 2.2 | `login`, `unirse`, `restablecer`, `verificar`, `comprobante` | ~1.950 | 2.5–4 |
-| 2.3 | `perfil`, `index`, `preview` | ~2.200 | 3–4 |
-| 2.4 | `reportes`, `admin` (`react-chartjs-2`, SheetJS) | ~1.400 | 4–6 |
-| 2.5 | `dashboard` | 1.206 | 3–4 |
+| 2.1 | Base común: layout, menú, tema oscuro, sesión en cookie httpOnly, campana, tiempo real y widget de Kan. Primera página: `verificar` | ~1.100 de JS + CSS | 3–4 |
+| 2.2 | `login`, `unirse`, `restablecer`, `comprobante` | ~1.770 | 2.5–4 |
+| 2.3 | `preview` (portada `/`), `index`, `perfil`, `perfil-publico` | ~2.660 | 3–4 |
+| 2.4 | `admin`, `reportes` (`react-chartjs-2`, ExcelJS) | ~1.410 | 4–6 |
+| 2.5 | `dashboard` | 1.223 | 3–4 |
 | 2.6 | `chat` | 1.260 | 3–4 |
-| 2.7 | `mercado` (`react-leaflet`, subastas en vivo, formulario con IA) | 2.379 | 5–7 |
-| 2.8 | Pruebas E2E con Playwright para los flujos clave: publicar, pujar, cerrar, chatear | | 2–3 |
-| 2.9 | *(Opcional)* Kan y el asistente de IA con **Vercel AI SDK**: respuestas en streaming, historial y salidas tipadas (ver sección 10). No incluido en el total | ~600 (`kan.js` + `asistenteIA.js` + widget) | 2.5–4 (+1–2 con herramientas) |
+| 2.7 | `mercado`, en dos PRs: ofertas y subastas en vivo (2.7a); publicar con IA y mapa con `react-leaflet` (2.7b) | ~2.490 | 5–7 |
+| 2.8 | Pruebas E2E con `@playwright/test`: publicar, pujar, cerrar y chatear | | 2–3 |
+| 2.9 | *(Opcional)* Kan y el asistente de IA con **Vercel AI SDK**: streaming y salidas tipadas (ver sección 10). No incluido en el total | ~600 | 2.5–4 |
 
 ### Total
 | | Días |
 |---|---|
 | Fase 1 | 26–37 |
-| Fase 2 | 25–35 |
+| Fase 2 | 29–40 |
 | QA, despliegue y corrección de errores | 4–9 |
-| **Total** | **≈ 55–81 días (3–4 meses, una persona)** |
+| **Total** | **≈ 59–86 días (3–4 meses, una persona)** |
 
 ---
 
@@ -333,3 +333,175 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 - [ ] Carpeta Express (`backend/entrelazados-api`) eliminada o archivada
 
 **Cierre:** *pull request* `migracion-nextjs → master` con merge commit, cambiar en Vercel la *Production Branch* a `master`, etiqueta `v2.0` y borrar la rama.
+
+---
+
+## 13. Detalle de la Fase 2 (borrador)
+
+> **Borrador.** Las decisiones las tomó el autor el 2026-11-17 y pueden cambiar después de hablarlas con el equipo (issue #31). Antes de empezar cada pieza se revisa si algo cambió.
+
+### Decisiones
+
+| # | Tema | Elegido | Estado |
+|---|---|---|---|
+| D1 | Estilos | Se reusa el CSS actual: los `.css` compartidos como globales y el `<style>` de cada página como CSS Module | Decidido |
+| D2 | URLs | Sin `.html` (`/mercado`), con redirección 308 que conserva el query string | Decidido |
+| D3 | Sesión | Cookie httpOnly desde la 2.1, para todo el sitio | Decidido |
+| D4 | Kan con AI SDK | Al final, como 2.9 opcional | Decidido |
+| P1 | Datos | Server Components para la carga inicial; `fetch` a `/api/*` en componentes cliente para lo interactivo; sin librería extra | Propuesta |
+| P2 | `.html` viejos | Se borran en el PR que los reemplaza | Propuesta |
+| P3 | Librerías de CDN | Por npm y con versión fija (Tabler Icons, Chart.js, ExcelJS, Leaflet, Ably) | Propuesta |
+| P4 | `perfil-publico` | En la 2.3 | Propuesta |
+
+### Patrón para cada página
+1. `app/(sitio)/<pagina>/page.tsx`: Server Component con la carga inicial, que lee la sesión de la cookie.
+2. Lo interactivo va en componentes `"use client"`, en `app/(sitio)/<pagina>/_componentes/`.
+3. El `<style>` de la página pasa a `page.module.css`.
+4. JSX en lugar de `innerHTML` y `esc()`: React escapa solo.
+5. Se agrega la redirección `/<pagina>.html → /<pagina>` en `next.config.ts` y se borra el `.html`.
+6. Se ajusta el recorrido (`pruebas/recorrido/recorrido.mjs`). Se conservan los `id` actuales para tocar lo mínimo.
+
+### Dependencias e hitos
+
+```
+2.1 Base ──┬─▶ 2.2 Cuenta ─▶ 2.3 Perfil y portada ─────────▶ HITO A
+           ├─▶ 2.4 Admin y reportes ─┬─▶ 2.5 Dashboard ─┐
+           └─▶ 2.6 Chat ─────────────┴──────────────────┴─▶ HITO B
+                                        2.7 Mercado ─▶ 2.8 E2E ─▶ HITO C
+                         2.9 Kan con streaming (opcional, después de 2.6)
+```
+
+| Hito | Qué se cumple | Días acumulados |
+|---|---|---|
+| **A** | Login, registro y páginas públicas en React; sesión en cookie | ~9–12 |
+| **B** | Admin, reportes, dashboard y chat en React | ~22–30 |
+| **C** | Mercado y E2E: las 14 páginas en React y ningún `.html` en `public/`. Se puede abrir `migracion-nextjs → master` | ~29–40 |
+
+### 2.1 Base común · `nextjs/layout` · 3–4 días
+
+**Sesión (D3)**
+- **`lib/sesion.ts`:** `exigirSesion()` lee la cookie `sesion` y, si no está, `Authorization: Bearer`. El Bearer queda para las pruebas, Swagger y clientes externos. Función nueva `leerSesionDesdeCookies()` para los Server Components.
+- **`POST /api/login`:** pone la cookie (`HttpOnly; Secure; SameSite=Lax`) y deja de devolver el token.
+- **Rutas nuevas:** `POST /api/logout` (borra la cookie) y `GET /api/sesion` (el usuario actual, o 401).
+- **`proxy.ts`:** rechaza con 403 las escrituras a `/api/*` cuyo `Origin` sea de otro sitio (protección CSRF).
+- **Páginas viejas, mientras convivan:**
+  - `sesion.js` deja de manejar el token y "Cerrar sesión" llama a `/api/logout`;
+  - `login.html` deja de guardar el token;
+  - `kan.js` ata su memoria a la sesión con un identificador de `/api/sesion`.
+
+**Layout**
+- **`app/layout.tsx`:** CSS globales, Source Sans 3 con `next/font` y el script del tema en línea, para que no parpadee.
+- **`app/(sitio)/layout.tsx`:** `Menu`, `MenuUsuario`, `Campana`, `BotonTema`, `Kan` y el globito de no leídos.
+- **Ayudas del cliente (`lib/cliente/`):** `ProveedorSesion`, `useTiempoReal()` (Ably desde npm, con los mismos eventos) y `useNoLeidos()`.
+- **Accesibilidad:** lo que hoy agrega `tema.js` al cargar (íconos ocultos para lectores, "Saltar al contenido") se escribe directo en los componentes.
+- **Primera página:** `verificar` (187 líneas, pública, 2 rutas de la API).
+
+**Terminado cuando:**
+- no queda token en `localStorage`;
+- las páginas viejas siguen pasando el recorrido;
+- una sección nueva de `test:api` cubre cookie, logout y `Origin`;
+- `/verificar.html` redirige a `/verificar`.
+
+### 2.2 Páginas de cuenta · `nextjs/paginas-cuenta` · 2.5–4 días
+
+| Página | Líneas | API | Qué tiene |
+|---|---|---|---|
+| `login` | 449 | `/api/login`, `/api/reenviar-verificacion` | Formulario, aviso de correo sin verificar, redirección según el rol |
+| `unirse` | 549 | `/api/registro` | Elegir rol, formulario y validación |
+| `restablecer` | 508 | `/api/solicitar-recuperacion`, `/api/validar-token-recuperacion`, `/api/restablecer-password` | Pedir el correo, o la nueva contraseña con el token de la URL |
+| `comprobante` | 265 | `/api/tratos/:id`, `/api/tratos/:id/comprobante` | Vista para imprimir |
+
+**Terminado cuando:** registro → verificar → login → recuperar contraseña funcionan de punta a punta, incluidos los enlaces viejos de los correos (`verificar.html?token=…`).
+
+### 2.3 Perfil y portada · `nextjs/perfil-portada` · 3–4 días
+
+| Página | Líneas | API | Qué tiene |
+|---|---|---|---|
+| `preview` → `/` | 649 | estadísticas públicas | Portada pública. Se quita el rewrite de `/` en `next.config.ts` |
+| `index` → `/inicio` | 801 | `/api/ofertas`, `/api/perfil/:id` | Inicio con sesión: búsqueda y radio por kilómetros |
+| `perfil` | 754 | `/api/perfil/:id` | Editar los datos propios |
+| `perfil-publico` | 456 | `/api/usuarios/:id/publico`, `/api/ofertas`, `/api/subastas` | Perfil de otro usuario |
+
+- La portada y el perfil público se arman en el servidor: cargan más rápido y los buscadores los leen.
+- El buscador del menú, que hoy se repite en index, perfil y chat, pasa a un componente compartido.
+
+**Terminado cuando:** se cumple el Hito A.
+
+### 2.4 Admin y reportes · `nextjs/admin-reportes-react` · 4–6 días
+
+| Página | Líneas | API | Qué tiene |
+|---|---|---|---|
+| `admin` | 707 | `/api/admin/*` | Métricas; usuarios paginados con búsqueda, suspender, eliminar y corregir/confirmar correo; ofertas; categorías |
+| `reportes` | 704 | `/api/reportes` | KPIs, 6 gráficas, imprimir/PDF y exportar a Excel |
+
+- **Librerías por npm:** `chart.js` + `react-chartjs-2` y `exceljs`, cargadas bajo demanda con `import()`.
+- **Componentes que reusa el dashboard:** `Grafica`, `TablaPaginada`, `Toast` y `exportarExcel()`.
+- **Protección:** `/admin` revisa el rol en el servidor y redirige si el usuario no es admin.
+
+**Terminado cuando:**
+- las gráficas y el Excel salen igual que antes;
+- suspender a un usuario lo sigue desconectando en tiempo real.
+
+### 2.5 Dashboard · `nextjs/dashboard-react` · 3–4 días
+- **`dashboard.html`** (1.223 líneas): KPIs, mi actividad, mis tratos paginados (calificar, cambiar estado), gráficas, subastas, pujas, accesos, publicar material y exportar a Excel.
+- **API:** `/api/dashboard`, `/api/tratos`, `/api/categorias`, `/api/ofertas`.
+- **Reusa** los componentes de la 2.4. Las pujas y subastas se actualizan con `useTiempoReal()`.
+
+**Terminado cuando:** los tratos, las calificaciones y el Excel funcionan y el recorrido pasa.
+
+### 2.6 Chat · `nextjs/chat-react` · 3–4 días
+- **`chat.html`** (1.260 líneas): contactos, conversación, enviar, no leídos por contacto, vista de celular (lista ↔ conversación) y Kan dentro del chat.
+- **API:** `/api/chat/contactos`, `/api/chat/mensajes`, `/api/chat/enviar`, `/api/chat/ia`, `/api/perfil/:id`.
+- **Tiempo real:** `useTiempoReal()` y `useNoLeidos()`.
+- **Kan del chat y widget:** comparten la lógica (`lib/cliente/kan.ts`), con historial y memoria.
+
+**Terminado cuando:**
+- dos cuentas se escriben y el mensaje llega sin recargar;
+- el globito de no leídos se actualiza;
+- se cumple el Hito B, junto con la 2.5.
+
+### 2.7 Mercado · dos PRs · 5–7 días
+
+**El más grande:** `mercado.html`, `mercado.js`, `mercado-publicar.js`, `mercado-favoritos.js`, `mercado-mapa.js`, `categorias.js` y `mercado.css` (~2.490 líneas).
+
+| PR | Rama | Qué incluye |
+|---|---|---|
+| 2.7a | `nextjs/mercado-ofertas` | Ofertas con filtros, categorías, paginación y kilómetros (carga inicial en el servidor); subastas con pujas en vivo (`puja:nueva`, `subastas:cambio`); favoritos y alertas |
+| 2.7b | `nextjs/mercado-publicar-mapa` | Publicar y editar con fotos; "Completar con IA" y precio sugerido; mapa con `react-leaflet`, cargado solo en el navegador |
+
+- **Pujas:** el servidor ya valida la puja aunque lleguen dos a la vez (`FOR UPDATE`). La página solo tiene que mostrar bien el aviso de "otro pujó más".
+- **Enlaces a una pestaña:** siguen funcionando, por ejemplo `/mercado?tab=subastas`.
+
+**Terminado cuando:** publicar con IA, pujar en vivo entre dos cuentas, el mapa, los favoritos y las alertas funcionan.
+
+### 2.8 Pruebas E2E · `nextjs/e2e` · 2–3 días
+- **Base:** el recorrido pasa a `@playwright/test` (`web/pruebas/e2e/`), con 4 flujos: publicar, pujar entre dos cuentas, cerrar la subasta y crear el trato, y chatear.
+- **CI:** un job corre los E2E contra la vista previa de cada PR. Necesita el secreto `VERCEL_BYPASS`. Empieza como informativo y después pasa a ser obligatorio.
+- **Limpieza:** las cuentas temporales se borran al final, como hoy.
+
+**Terminado cuando:** se cumple el Hito C y se pueden revisar los criterios de cierre de la sección 12.
+
+### 2.9 *(Opcional)* Kan con Vercel AI SDK · `nextjs/kan-streaming` · 2.5–4 días
+- **Kan:** `streamText` en `/api/chat/ia` y `useChat` en el widget y en el chat, conservando las respuestas fijas de respaldo y los límites de uso.
+- **Asistente de publicación:** `generateObject` con un esquema Zod.
+- **Antes de empezar:** AI SDK 7 pide Node 22 o superior, así que hay que revisar el job de Node 20 del CI.
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|---|---|
+| Cambios visuales al portar los estilos | Mismo CSS (D1); revisar modo claro, modo oscuro y celular en cada PR |
+| `cacheComponents` y las lecturas de la cookie | Lo dinámico va dentro de `<Suspense>`; seguir la guía de `web/node_modules/next/dist/docs/` |
+| Enlaces viejos en correos ya enviados | Redirecciones 308 que conservan el query string |
+| Páginas viejas y nuevas conviviendo | La cookie funciona en las dos; `sesion.js` se queda hasta migrar la última página |
+| El mercado es grande | Se divide en 2.7a y 2.7b |
+
+### Verificación en cada PR
+
+**Antes de mezclar:**
+- los 5 checks del CI en verde;
+- `npm run test:api`;
+- `npm run recorrido` contra la vista previa;
+- revisar a ojo modo claro, modo oscuro y celular.
+
+**Después de mezclar:** la prueba de humo de producción tiene que quedar en verde.
