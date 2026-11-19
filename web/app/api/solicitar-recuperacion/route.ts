@@ -33,7 +33,7 @@ export const POST = ruta(async (req) => {
   );
 
   const base = urlPublica(req);
-  const enlace = `${base}/restablecer.html?token=${token}`;
+  const enlace = `${base}/restablecer?token=${token}`;
   if (!correoConfigurado()) {
     console.warn(`🔑 Enlace de recuperación para ${emailLimpio} (correo no configurado): ${enlace}`);
   } else {

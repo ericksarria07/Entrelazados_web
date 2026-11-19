@@ -155,7 +155,7 @@ async function tokenDeLogin(email) {
 }
 
 async function iniciarSesionUI(pagina, email) {
-    await ir(pagina, '/login.html');
+    await ir(pagina, '/login');
     await pagina.fill('#login-email', email);
     await pagina.fill('#login-password', CLAVE);
     await Promise.all([pagina.waitForURL(/index\.html|admin\.html/, { timeout: 30000 }), pagina.click('#btn-submit-login')]);
@@ -205,8 +205,8 @@ try {
         return await pg.title();
     });
 
-    await paso('Proveedor', 'Registro de proveedor', 'Se llena unirse.html como Proveedor y se envía.', async (pg, p) => {
-        await ir(pg, '/unirse.html');
+    await paso('Proveedor', 'Registro de proveedor', 'Se llena /unirse como Proveedor y se envía.', async (pg, p) => {
+        await ir(pg, '/unirse');
         await pg.click('#optProveedor');
         await pg.fill('#nombreNegocio', 'Curtiembre Recorrido');
         await pg.fill('#correo', cuentas.prov);
@@ -221,8 +221,8 @@ try {
         return resultadoRegistro(p, cuentas.prov, 'Proveedor', 'Curtiembre Recorrido', 'León');
     });
 
-    await paso('Emprendedor 1', 'Registro de emprendedor', 'Se llena unirse.html como Emprendedor y se envía.', async (pg, p) => {
-        await ir(pg, '/unirse.html');
+    await paso('Emprendedor 1', 'Registro de emprendedor', 'Se llena /unirse como Emprendedor y se envía.', async (pg, p) => {
+        await ir(pg, '/unirse');
         await pg.click('#optEmprendedor');
         await pg.fill('#nombreNegocio', 'Zapatería Recorrido');
         await pg.fill('#correo', cuentas.emp1);
@@ -242,7 +242,7 @@ try {
     await paso('Emprendedor 1', 'Login sin confirmar el correo', 'Con la verificación de correo activa, entrar antes de confirmar avisa y ofrece reenviar el enlace.', async (pg, p) => {
         const [u] = await q(`SELECT correo_verificado FROM usuarios WHERE correo_electronico = $1`, [cuentas.emp1]);
         if (u?.correo_verificado) return 'No aplica en esta corrida: la cuenta se creó ya confirmada (límite de registros por hora).';
-        await ir(pg, '/login.html');
+        await ir(pg, '/login');
         await pg.fill('#login-email', cuentas.emp1);
         await pg.fill('#login-password', CLAVE);
         await pg.click('#btn-submit-login');
@@ -472,7 +472,7 @@ try {
 
     await paso('Emprendedor 2', 'Comprobante del trato', 'El comprobante para imprimir o guardar como PDF.', async (pg) => {
         const [t] = await q(`SELECT trato_id FROM tratos_cerrados WHERE origen_id = $1 AND tipo_origen = 'Subasta'`, [subastaId]);
-        await ir(pg, `/comprobante.html?trato=${t.trato_id}`);
+        await ir(pg, `/comprobante?trato=${t.trato_id}`);
         await pg.waitForTimeout(2000);
         return (await pg.locator('body').innerText()).match(/EL-\d+/)?.[0] || '';
     });
@@ -552,7 +552,7 @@ try {
     });
 
     await paso('Emprendedor 1', 'Cerrar sesión borra a Kan', 'Cierra sesión y vuelve a entrar: el chat de Kan empieza de nuevo, sin la conversación anterior.', async (pg) => {
-        await Promise.all([pg.waitForURL(/login\.html/, { timeout: 20000 }), pg.evaluate(() => window.cerrarSesion())]);
+        await Promise.all([pg.waitForURL(/\/login(\.html)?(\?|$)/, { timeout: 20000 }), pg.evaluate(() => window.cerrarSesion())]);
         await iniciarSesionUI(pg, cuentas.emp1);
         await pg.click('.kan-widget-btn');
         await pg.waitForSelector('.kan-chat-window.active');
@@ -600,7 +600,7 @@ try {
 
     // 9. Recuperar contraseña y confirmar correo
     await paso('Visitante', 'Recuperar la contraseña', 'Pedir el enlace responde lo mismo exista o no la cuenta.', async (pg) => {
-        await ir(pg, '/restablecer.html');
+        await ir(pg, '/restablecer');
         const campo = pg.locator('input[type="email"]').first();
         await campo.fill(cuentas.emp2);
         await campo.press('Enter');
@@ -608,7 +608,7 @@ try {
         return (await pg.locator('body').innerText()).match(/Si el correo[^.]*\./)?.[0] || '';
     });
 
-    await paso('Visitante', 'Enlace de confirmación vencido', 'verificar.html con un enlace inválido explica qué hacer.', async (pg) => {
+    await paso('Visitante', 'Enlace de confirmación vencido', 'La vieja verificar.html con un enlace inválido redirige a /verificar y explica qué hacer.', async (pg) => {
         await ir(pg, `/verificar.html?token=${'a'.repeat(64)}`);
         await pg.waitForTimeout(2000);
         return (await pg.locator('body').innerText()).match(/no es válido[^.]*\./)?.[0] || '';

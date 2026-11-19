@@ -540,17 +540,22 @@ Las páginas pasan de `web/public/*.html` a React **una por una** (detalle y ord
 **Cómo se pasa una página a React**
 
 1. `web/app/<pagina>/page.tsx` (Server Component) y lo interactivo en `_componentes/` con `"use client"`.
-2. El `<style>` de la página va a `<pagina>.module.css` con una clase raíz local; por dentro los nombres siguen globales (`.pagina :global(.tarjeta)`), así el modo oscuro de `public/tema.css` los sigue encontrando.
+2. El `<style>` de la página va a `<pagina>.module.css` con una clase raíz local; por dentro los nombres siguen globales (`.pagina :global(.tarjeta)`), así el modo oscuro de `public/tema.css` los sigue encontrando. Lo hace `node scripts/estilos-a-modulo.mjs public/<pagina>.html app/<pagina>/<pagina>.module.css` (body → `.pagina`, `'Source Sans 3'` → `var(--fuente-base)`, imágenes a `/archivo`); después se revisa a mano.
 3. JSX en lugar de `innerHTML` y `esc()`.
 4. Redirección `/<pagina>.html → /<pagina>` en `web/next.config.ts` (conserva `?token=...` de los correos) y se borra el `.html`.
 5. Se ajusta el recorrido (`npm run recorrido`).
 
 El layout raíz pone la letra (Source Sans 3 con `next/font`), los íconos Tabler (npm, versión fija), los colores base (`app/estilos/base.css`), el modo oscuro (`public/tema.css`) con su script antes de pintar, "Saltar al contenido" y el botón del tema (`componentes/BotonTema.tsx`, misma clave `entrelazados-tema` que las páginas viejas).
 
+Ayudas del navegador en `web/lib/cliente/`: `sesion.ts` (guardar y cerrar la sesión, inicio según el rol, `leerJSON`) y `numeros.ts` (montos en letras). Para ir a otra página React se usa `router.push`; a una página vieja `.html`, `window.location`.
+
 | Página | Estado |
 |---|---|
-| `/verificar` | ✅ React (2.1). `/verificar.html` redirige |
-| Las otras 13 | En `web/public/` (2.2 en adelante) |
+| `/verificar` | ✅ React (2.1) |
+| `/login`, `/unirse`, `/restablecer`, `/comprobante` | ✅ React (2.2) |
+| Las otras 9 | En `web/public/` (2.3 en adelante) |
+
+Las URLs viejas (`/login.html`, `/verificar.html?token=…`, …) redirigen con 308 y conservan el query string. Los correos nuevos ya enlazan a `/verificar` y `/restablecer`. Las páginas React muestran de verdad la letra Source Sans 3: las viejas la pedían a Google con un eje que no existe (`opsz`) y caían a Arial/Helvetica.
 
 ---
 

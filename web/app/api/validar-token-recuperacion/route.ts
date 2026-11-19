@@ -1,4 +1,4 @@
-// GET /api/validar-token-recuperacion?token=: restablecer.html pregunta, antes de que se
+// GET /api/validar-token-recuperacion?token=: /restablecer pregunta, antes de que se
 // escriba la contraseña, si el enlace sigue vigente.
 import { obtenerPool } from "@/lib/db";
 import { json, ruta } from "@/lib/http";

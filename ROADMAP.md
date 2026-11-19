@@ -155,7 +155,7 @@ Cada página migrada se despliega sola. El orden va de la más simple a la más 
 | # | Página o pieza | Líneas hoy | Días |
 |---|---|---|---|
 | 2.1 | ✅ Base común: sesión en cookie httpOnly, protección CSRF, layout raíz (letra, íconos, tema oscuro) y la primera página: `verificar`. El menú, la campana, el tiempo real y Kan llegan con la primera página que los muestra | ~1.100 de JS + CSS | 3–4 |
-| 2.2 | `login`, `unirse`, `restablecer`, `comprobante` | ~1.770 | 2.5–4 |
+| 2.2 | ✅ `login`, `unirse`, `restablecer`, `comprobante` | ~1.770 | 2.5–4 |
 | 2.3 | `preview` (portada `/`), `index`, `perfil`, `perfil-publico` | ~2.660 | 3–4 |
 | 2.4 | `admin`, `reportes` (`react-chartjs-2`, ExcelJS) | ~1.410 | 4–6 |
 | 2.5 | `dashboard` | 1.223 | 3–4 |
@@ -405,7 +405,9 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 - una sección nueva de `test:api` cubre cookie, logout y `Origin`;
 - `/verificar.html` redirige a `/verificar`.
 
-### 2.2 Páginas de cuenta · `nextjs/paginas-cuenta` · 2.5–4 días
+### 2.2 Páginas de cuenta · `nextjs/paginas-cuenta` · 2.5–4 días · ✅
+
+> **Hecho:** `/login`, `/unirse`, `/restablecer` y `/comprobante` en React, con sus redirecciones desde `.html`; los correos enlazan a las URLs nuevas; `scripts/estilos-a-modulo.mjs` pasa el `<style>` de cada página a CSS Module. Además se corrigió el contraste del comprobante en modo oscuro (la hoja conserva sus colores de papel). El menú, la campana y Kan siguen para la 2.3: ninguna de estas páginas los tiene.
 
 | Página | Líneas | API | Qué tiene |
 |---|---|---|---|

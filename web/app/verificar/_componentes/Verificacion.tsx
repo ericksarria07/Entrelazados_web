@@ -63,7 +63,7 @@ export default function Verificacion() {
         </div>
         <h1>¡Correo confirmado!</h1>
         <p className="subtitulo">Tu cuenta ya está activa. Ahora puedes iniciar sesión en EntreLazados.</p>
-        <a href="/login.html" className="boton" id="btn-login">
+        <a href="/login" className="boton" id="btn-login">
           <i className="ti ti-login" aria-hidden="true" /> Iniciar sesión
         </a>
       </section>
@@ -81,7 +81,7 @@ export default function Verificacion() {
       </p>
       <PedirEnlaceNuevo />
       <div className="enlaces">
-        <a href="/login.html">
+        <a href="/login">
           <i className="ti ti-arrow-left" aria-hidden="true" /> Volver a iniciar sesión
         </a>
       </div>

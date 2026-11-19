@@ -15,7 +15,11 @@ const nextConfig: NextConfig = {
   // Páginas que ya pasaron a React (Fase 2): la URL vieja .html redirige a la nueva y
   // conserva el query string (?token=... de los correos ya enviados).
   async redirects() {
-    return [{ source: "/verificar.html", destination: "/verificar", permanent: true }];
+    return ["verificar", "login", "unirse", "restablecer", "comprobante"].map((pagina) => ({
+      source: `/${pagina}.html`,
+      destination: `/${pagina}`,
+      permanent: true,
+    }));
   },
 
   // Durante la migración, las páginas son los HTML copiados de Express en public/.
