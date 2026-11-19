@@ -45,3 +45,7 @@ next-env.d.ts
 
 # Recorrido con capturas (npm run recorrido)
 pruebas/recorrido/salida/
+
+# Pruebas E2E (npm run e2e): capturas, trazas e informe
+pruebas/e2e/resultados/
+pruebas/e2e/informe/

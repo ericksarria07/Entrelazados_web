@@ -156,12 +156,12 @@ Cada página migrada se despliega sola. El orden va de la más simple a la más 
 |---|---|---|---|
 | 2.1 | ✅ Base común: sesión en cookie httpOnly, protección CSRF, layout raíz (letra, íconos, tema oscuro) y la primera página: `verificar`. El menú, la campana, el tiempo real y Kan llegan con la primera página que los muestra | ~1.100 de JS + CSS | 3–4 |
 | 2.2 | ✅ `login`, `unirse`, `restablecer`, `comprobante` | ~1.770 | 2.5–4 |
-| 2.3 | `preview` (portada `/`), `index`, `perfil`, `perfil-publico` | ~2.660 | 3–4 |
-| 2.4 | `admin`, `reportes` (`react-chartjs-2`, ExcelJS) | ~1.410 | 4–6 |
-| 2.5 | `dashboard` | 1.223 | 3–4 |
-| 2.6 | `chat` | 1.260 | 3–4 |
-| 2.7 | `mercado`, en dos PRs: ofertas y subastas en vivo (2.7a); publicar con IA y mapa con `react-leaflet` (2.7b) | ~2.490 | 5–7 |
-| 2.8 | Pruebas E2E con `@playwright/test`: publicar, pujar, cerrar y chatear | | 2–3 |
+| 2.3 | ✅ `preview` (portada `/`), `index` (`/inicio`), `perfil`, `perfil-publico`, más la cabecera, la campana, el tiempo real y Kan en React | ~2.660 | 3–4 |
+| 2.4 | ✅ `admin`, `reportes` (Chart.js y ExcelJS de npm) | ~1.410 | 4–6 |
+| 2.5 | ✅ `dashboard` | 1.223 | 3–4 |
+| 2.6 | ✅ `chat` | 1.260 | 3–4 |
+| 2.7 | ✅ `mercado`: ofertas, subastas en vivo, favoritos, alertas, publicar con IA y mapa (Leaflet de npm) | ~2.490 | 5–7 |
+| 2.8 | ✅ Pruebas E2E con `@playwright/test`: publicar, pujar, cerrar y chatear | | 2–3 |
 | 2.9 | *(Opcional)* Kan y el asistente de IA con **Vercel AI SDK**: streaming y salidas tipadas (ver sección 10). No incluido en el total | ~600 | 2.5–4 |
 
 ### Total
@@ -418,7 +418,9 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 
 **Terminado cuando:** registro → verificar → login → recuperar contraseña funcionan de punta a punta, incluidos los enlaces viejos de los correos (`verificar.html?token=…`).
 
-### 2.3 Perfil y portada · `nextjs/perfil-portada` · 3–4 días
+### 2.3 Perfil y portada · `nextjs/perfil-portada` · 3–4 días · ✅
+
+> **Hecho (2.3 a 2.8 en una sola rama, `nextjs/fase2`, un commit por pieza):** la cabecera, el buscador, el menú del usuario, la campana, el tiempo real (`ProveedorSitio` + `useEventoTiempoReal`), los no leídos y Kan quedaron en `web/componentes/sitio/`. La sesión se lee en el servidor en `app/(sitio)/layout.tsx` y las páginas que la exigen viven en `app/(sitio)/(con-sesion)/`. `perfil` resultó ser solo de lectura (no edita datos): se arma en el servidor igual que la portada y el perfil público.
 
 | Página | Líneas | API | Qué tiene |
 |---|---|---|---|
@@ -432,7 +434,9 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 
 **Terminado cuando:** se cumple el Hito A.
 
-### 2.4 Admin y reportes · `nextjs/admin-reportes-react` · 4–6 días
+### 2.4 Admin y reportes · `nextjs/admin-reportes-react` · 4–6 días · ✅
+
+> **Hecho:** en lugar de `react-chartjs-2` se usa `chart.js` directo (`lib/cliente/graficas.ts`), igual que hacían las páginas, y `lib/cliente/excel.ts` para las hojas de Excel. Las gráficas se redibujan al cambiar entre claro y oscuro (antes la página se recargaba).
 
 | Página | Líneas | API | Qué tiene |
 |---|---|---|---|
@@ -447,14 +451,16 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 - las gráficas y el Excel salen igual que antes;
 - suspender a un usuario lo sigue desconectando en tiempo real.
 
-### 2.5 Dashboard · `nextjs/dashboard-react` · 3–4 días
+### 2.5 Dashboard · `nextjs/dashboard-react` · 3–4 días · ✅
 - **`dashboard.html`** (1.223 líneas): KPIs, mi actividad, mis tratos paginados (calificar, cambiar estado), gráficas, subastas, pujas, accesos, publicar material y exportar a Excel.
 - **API:** `/api/dashboard`, `/api/tratos`, `/api/categorias`, `/api/ofertas`.
 - **Reusa** los componentes de la 2.4. Las pujas y subastas se actualizan con `useTiempoReal()`.
 
 **Terminado cuando:** los tratos, las calificaciones y el Excel funcionan y el recorrido pasa.
 
-### 2.6 Chat · `nextjs/chat-react` · 3–4 días
+### 2.6 Chat · `nextjs/chat-react` · 3–4 días · ✅
+
+> **Hecho:** Kan del chat conserva sus preguntas propias; lo que escribe el usuario se muestra como texto (antes se insertaba como HTML sin escapar).
 - **`chat.html`** (1.260 líneas): contactos, conversación, enviar, no leídos por contacto, vista de celular (lista ↔ conversación) y Kan dentro del chat.
 - **API:** `/api/chat/contactos`, `/api/chat/mensajes`, `/api/chat/enviar`, `/api/chat/ia`, `/api/perfil/:id`.
 - **Tiempo real:** `useTiempoReal()` y `useNoLeidos()`.
@@ -465,7 +471,9 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 - el globito de no leídos se actualiza;
 - se cumple el Hito B, junto con la 2.5.
 
-### 2.7 Mercado · dos PRs · 5–7 días
+### 2.7 Mercado · dos PRs · 5–7 días · ✅
+
+> **Hecho en un solo paso** (la rama completa se revisa junta). El mapa usa `leaflet` directo, cargado solo en el navegador, en lugar de `react-leaflet`. Los enlaces a pestañas siguen con el ancla de siempre (`/mercado#tab-auctions`), que es lo que guardan las notificaciones.
 
 **El más grande:** `mercado.html`, `mercado.js`, `mercado-publicar.js`, `mercado-favoritos.js`, `mercado-mapa.js`, `categorias.js` y `mercado.css` (~2.490 líneas).
 
@@ -479,7 +487,9 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 
 **Terminado cuando:** publicar con IA, pujar en vivo entre dos cuentas, el mapa, los favoritos y las alertas funcionan.
 
-### 2.8 Pruebas E2E · `nextjs/e2e` · 2–3 días
+### 2.8 Pruebas E2E · `nextjs/e2e` · 2–3 días · ✅
+
+> **Hecho de otra forma:** los E2E (`web/pruebas/e2e/`, `npm run e2e`) no corren contra la vista previa sino contra un `next start` del propio CI con un Postgres desechable, igual que `test:api`. Así no necesitan `VERCEL_BYPASS` ni la base de la vista previa, y no dependen de Gemini, Ably ni Blob. El job "E2E (Playwright)" corre en cada push. El recorrido (`npm run recorrido`) sigue siendo la revisión completa con capturas contra producción o una vista previa.
 - **Base:** el recorrido pasa a `@playwright/test` (`web/pruebas/e2e/`), con 4 flujos: publicar, pujar entre dos cuentas, cerrar la subasta y crear el trato, y chatear.
 - **CI:** un job corre los E2E contra la vista previa de cada PR. Necesita el secreto `VERCEL_BYPASS`. Empieza como informativo y después pasa a ser obligatorio.
 - **Limpieza:** las cuentas temporales se borran al final, como hoy.
