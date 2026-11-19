@@ -175,11 +175,9 @@ export default function Dashboard() {
   const [tema, setTema] = useState(0);
   const [toast, setToast] = useState({ texto: "", error: false, visible: false });
   const dash = useRef<HTMLDivElement>(null);
-  const lienzos = {
-    actividad: useRef<HTMLCanvasElement>(null),
-    departamentos: useRef<HTMLCanvasElement>(null),
-    categorias: useRef<HTMLCanvasElement>(null),
-  };
+  const lienzoActividad = useRef<HTMLCanvasElement>(null);
+  const lienzoDepartamentos = useRef<HTMLCanvasElement>(null);
+  const lienzoCategorias = useRef<HTMLCanvasElement>(null);
   const relojToast = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const avisar = useCallback((texto: string, esError = false) => {
@@ -248,7 +246,7 @@ export default function Dashboard() {
       { clave: "pujas" as const, nombre: "Pujas", color: colorVar(el, "--serie-3") },
     ];
     if (act.reduce((t, a) => t + a.registros + a.ofertas + a.pujas, 0) > 0) {
-      poner(lienzos.actividad.current, {
+      poner(lienzoActividad.current, {
         type: "line",
         data: {
           labels: act.map((a) => nombreMes(a.mes)),
@@ -285,7 +283,7 @@ export default function Dashboard() {
       const s = ejes(true);
       s.x.stacked = true;
       s.y.stacked = true;
-      poner(lienzos.departamentos.current, {
+      poner(lienzoDepartamentos.current, {
         type: "bar",
         data: {
           labels: deps.map((d) => d.departamento),
@@ -332,7 +330,7 @@ export default function Dashboard() {
       s.y.ticks.callback = function (this: { getLabelForValue: (v: number) => string; chart: { width: number } }, v: number) {
         return recortar(this.getLabelForValue(v), this.chart.width);
       };
-      poner(lienzos.categorias.current, {
+      poner(lienzoCategorias.current, {
         type: "bar",
         data: {
           labels: cats.map((c) => c.categoria),
@@ -370,7 +368,6 @@ export default function Dashboard() {
       cancelado = true;
       hechas.forEach((g) => g.destroy());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- los lienzos son refs fijos
   }, [datos, tema]);
 
   // ------------------------------------------------------------------ EXCEL
@@ -704,7 +701,7 @@ export default function Dashboard() {
                   {d && totalActividad === 0 ? (
                     <Vacio icono="chart-line" texto="Sin actividad registrada en este periodo." />
                   ) : (
-                    <canvas ref={lienzos.actividad} id="graficaActividad" aria-label="Gráfica de actividad mensual" role="img" />
+                    <canvas ref={lienzoActividad} id="graficaActividad" aria-label="Gráfica de actividad mensual" role="img" />
                   )}
                 </div>
                 <div className="tabla-wrap" id="tablaActividad" hidden={!tablas.actividad}>
@@ -743,7 +740,7 @@ export default function Dashboard() {
                   {d && !d.departamentos.length ? (
                     <Vacio icono="map-off" texto="Todavía no hay usuarios registrados." />
                   ) : (
-                    <canvas ref={lienzos.departamentos} id="graficaDepartamentos" aria-label="Gráfica de usuarios por departamento" role="img" />
+                    <canvas ref={lienzoDepartamentos} id="graficaDepartamentos" aria-label="Gráfica de usuarios por departamento" role="img" />
                   )}
                 </div>
                 <div className="tabla-wrap" id="tablaDepartamentos" hidden={!tablas.departamentos}>
@@ -788,7 +785,7 @@ export default function Dashboard() {
                   {d && !d.categorias.length ? (
                     <Vacio icono="package-off" texto="Todavía no hay ofertas publicadas." />
                   ) : (
-                    <canvas ref={lienzos.categorias} id="graficaCategorias" aria-label="Gráfica de ofertas por categoría" role="img" />
+                    <canvas ref={lienzoCategorias} id="graficaCategorias" aria-label="Gráfica de ofertas por categoría" role="img" />
                   )}
                 </div>
                 <div className="tabla-wrap" id="tablaCategoriasConteo" hidden={!tablas.categorias}>

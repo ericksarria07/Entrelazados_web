@@ -1,12 +1,29 @@
 "use client";
 // Formulario de inicio de sesión. Misma lógica que la vieja login.html:
-// - si ya hay sesión en este navegador, va directo al inicio según el rol;
-// - POST /api/login deja la sesión en la cookie httpOnly y aquí se guardan los
-//   datos que usan las páginas viejas (lib/cliente/sesion.ts);
+// - si la cookie de sesión todavía sirve (GET /api/sesion), va directo al inicio según el
+//   rol; si ya no sirve, se borra lo guardado en el navegador;
+// - POST /api/login deja la sesión en la cookie httpOnly y aquí se guardan los datos que
+//   no son secretos (lib/cliente/sesion.ts);
 // - cuenta sin confirmar: ofrece reenviar el enlace.
 import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { type DatosLogin, guardarSesion, inicioSegunRol, leerJSON, REGEX_EMAIL, sesionGuardada } from "@/lib/cliente/sesion";
+import {
+  cerrarSesion,
+  type DatosLogin,
+  guardarSesion,
+  inicioSegunRol,
+  leerJSON,
+  REGEX_EMAIL,
+  sesionGuardada,
+} from "@/lib/cliente/sesion";
+
+// Al cambiar de sesión se navega completo (no con el router del cliente): así ninguna
+// página guardada de cuando no había sesión (que manda a /login) se reutiliza.
+function irAlInicio(rol: string, reemplazar = false) {
+  const destino = new URL(inicioSegunRol(rol), window.location.origin).href;
+  if (reemplazar) window.location.replace(destino);
+  else window.location.assign(destino);
+}
 
 export default function FormularioLogin() {
   const [email, setEmail] = useState("");
@@ -14,10 +31,21 @@ export default function FormularioLogin() {
   const [enviando, setEnviando] = useState(false);
   const router = useRouter();
 
-  // GUARDIÁN: con sesión activa no tiene sentido mostrar el login
+  // GUARDIÁN: con sesión activa no tiene sentido mostrar el login. Se pregunta al servidor
+  // (no basta lo guardado: la cookie pudo vencer y /inicio devolvería aquí otra vez)
   useEffect(() => {
-    const sesion = sesionGuardada();
-    if (sesion) window.location.href = inicioSegunRol(sesion.rol);
+    if (!sesionGuardada()) return;
+    let vivo = true;
+    fetch("/api/sesion")
+      .then(async (res) => {
+        if (!vivo) return;
+        if (res.ok) irAlInicio(((await res.json()) as { rol: string }).rol, true);
+        else await cerrarSesion();
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
   }, []);
 
   async function procesarLogin(evento: FormEvent<HTMLFormElement>) {
@@ -45,7 +73,7 @@ export default function FormularioLogin() {
       if (res.ok) {
         guardarSesion(correo, data);
         alert(`¡Bienvenido de vuelta, ${data.nombre}!`);
-        window.location.href = inicioSegunRol(data.rol);
+        irAlInicio(data.rol);
         return;
       }
       if (data.verificacionPendiente) {

@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
       admin: "/admin",
       reportes: "/reportes",
       dashboard: "/dashboard",
+      chat: "/chat",
+      mercado: "/mercado",
     };
     return Object.entries(nuevas).map(([vieja, nueva]) => ({
       source: `/${vieja}.html`,

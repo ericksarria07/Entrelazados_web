@@ -1,6 +1,6 @@
 /* Página del enlace que llega por correo al registrarse: /verificar?token=...
    Los nombres de clase de adentro siguen siendo globales (:global) para que el modo
-   oscuro de public/tema.css (.tarjeta, .boton...) los siga encontrando. */
+   oscuro de app/estilos/tema.css (.tarjeta, .boton...) los siga encontrando. */
 .pagina {
     min-height: 100vh;
     display: flex;

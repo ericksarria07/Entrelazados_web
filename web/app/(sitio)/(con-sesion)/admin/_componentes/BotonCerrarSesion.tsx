@@ -1,16 +1,15 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { cerrarSesion } from "@/lib/cliente/sesion";
 
 export default function BotonCerrarSesion() {
-  const router = useRouter();
   return (
     <button
       type="button"
       className="user-btn-nav"
       onClick={async () => {
         await cerrarSesion();
-        router.replace("/login");
+        // Navegación completa: nada guardado de la sesión anterior se reutiliza
+        window.location.replace(new URL("/login", window.location.origin).href);
       }}
     >
       <i className="ti ti-logout" aria-hidden="true" /> Cerrar Sesión

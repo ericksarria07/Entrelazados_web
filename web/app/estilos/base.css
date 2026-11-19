@@ -1,7 +1,7 @@
 /* ==========================================================================
    BASE DE LAS PÁGINAS EN REACT (Fase 2)
    Colores comunes (los mismos de las páginas viejas), reinicio y la letra.
-   El modo oscuro está en public/tema.css, que se importa después en
+   El modo oscuro está en app/estilos/tema.css, que se importa después en
    app/layout.tsx: sus reglas html[data-tema="oscuro"] ganan a estos :root.
    ========================================================================== */
 :root {

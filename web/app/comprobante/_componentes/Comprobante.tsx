@@ -3,6 +3,7 @@
 // monto en número y en letras) para imprimirlo o guardarlo como PDF.
 // Los datos salen de GET /api/tratos/:id/comprobante (solo las dos partes y el admin);
 // sin sesión (401) se va al login.
+import Link from "next/link";
 import { Fragment, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { leerJSON } from "@/lib/cliente/sesion";
@@ -198,9 +199,9 @@ export default function Comprobante() {
   return (
     <>
       <div className="barra">
-        <a href="/dashboard.html">
+        <Link href="/dashboard">
           <i className="ti ti-arrow-left" aria-hidden="true" /> Volver al dashboard
-        </a>
+        </Link>
         <button type="button" className="principal" id="btnImprimir" onClick={() => window.print()} disabled={estado.tipo !== "listo"}>
           <i className="ti ti-file-type-pdf" aria-hidden="true" /> Guardar como PDF o imprimir
         </button>

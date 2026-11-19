@@ -1,6 +1,7 @@
 "use client";
 // Confirma el correo con el token del enlace (/verificar?token=...) y, si el enlace no
 // sirve, deja pedir uno nuevo. Misma lógica que la vieja verificar.html.
+import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -63,9 +64,9 @@ export default function Verificacion() {
         </div>
         <h1>¡Correo confirmado!</h1>
         <p className="subtitulo">Tu cuenta ya está activa. Ahora puedes iniciar sesión en EntreLazados.</p>
-        <a href="/login" className="boton" id="btn-login">
+        <Link href="/login" className="boton" id="btn-login">
           <i className="ti ti-login" aria-hidden="true" /> Iniciar sesión
-        </a>
+        </Link>
       </section>
     );
   }
@@ -81,9 +82,9 @@ export default function Verificacion() {
       </p>
       <PedirEnlaceNuevo />
       <div className="enlaces">
-        <a href="/login">
+        <Link href="/login">
           <i className="ti ti-arrow-left" aria-hidden="true" /> Volver a iniciar sesión
-        </a>
+        </Link>
       </div>
     </section>
   );

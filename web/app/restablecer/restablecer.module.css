@@ -1,6 +1,6 @@
 /* Estilos de restablecer.html, pasados a CSS Module con scripts/estilos-a-modulo.mjs.
    Los nombres de clase de adentro son globales (:global) para que el modo oscuro de
-   public/tema.css los siga encontrando. */
+   app/estilos/tema.css los siga encontrando. */
 .pagina {
     --texto-suave: #6b5b53;
     --borde: #d6c7bd;

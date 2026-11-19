@@ -7,7 +7,7 @@
 // Reglas (ver README, "Cómo se pasa una página a React"):
 //   - body / html  → la clase raíz local .pagina (que envuelve toda la página)
 //   - cualquier otro selector → .pagina :global(selector): los nombres de clase
-//     quedan globales, así el modo oscuro de public/tema.css los sigue encontrando
+//     quedan globales, así el modo oscuro de app/estilos/tema.css los sigue encontrando
 //   - :root → las variables propias pasan a .pagina; las de colores base
 //     (app/estilos/base.css) se quitan para no tapar las del modo oscuro
 //   - el reinicio * { margin/padding/box-sizing } se quita (ya está en base.css)
@@ -90,7 +90,7 @@ raizAst.walkRules((regla) => {
 // que la página define en .pagina taparían las que tema.css cambia en <html>: se repiten
 // con el valor oscuro.
 const variablesOscuras = {};
-postcss.parse(fs.readFileSync(new URL("../public/tema.css", import.meta.url), "utf8")).walkRules((r) => {
+postcss.parse(fs.readFileSync(new URL("../app/estilos/tema.css", import.meta.url), "utf8")).walkRules((r) => {
   if (r.selector.trim() === 'html[data-tema="oscuro"]') r.walkDecls(/^--/, (d) => (variablesOscuras[d.prop] = d.value));
 });
 const repetidas = raiz.nodes
@@ -119,6 +119,6 @@ raizAst.walkRules((r) => {
   if (r.parent?.type === "atrule") { r.raws.before = "\n    "; r.raws.after = "\n    "; }
 });
 
-const cabecera = `/* Estilos de ${entrada.replace(/^.*\//, "")}, pasados a CSS Module con scripts/estilos-a-modulo.mjs.\n   Los nombres de clase de adentro son globales (:global) para que el modo oscuro de\n   public/tema.css los siga encontrando. */\n`;
+const cabecera = `/* Estilos de ${entrada.replace(/^.*\//, "")}, pasados a CSS Module con scripts/estilos-a-modulo.mjs.\n   Los nombres de clase de adentro son globales (:global) para que el modo oscuro de\n   app/estilos/tema.css los siga encontrando. */\n`;
 fs.writeFileSync(salida, cabecera + raizAst.toString().replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n") + "\n");
 console.log(`✅ ${salida}`);

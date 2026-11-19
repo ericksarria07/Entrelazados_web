@@ -1,11 +1,10 @@
 // ==========================================================================
 // LAYOUT RAÍZ DE LAS PÁGINAS EN REACT (Fase 2)
 //
-// Las páginas viejas (web/public/*.html) no pasan por aquí: tienen su propio
-// <head> con sesion.js y tema.js. Las páginas React reciben:
+// Todas las páginas pasan por aquí y reciben:
 //   - la letra Source Sans 3 (next/font, sin pedirla a Google en cada visita),
 //   - los íconos Tabler (npm, versión fija),
-//   - los colores base y el modo oscuro (public/tema.css, el mismo de siempre),
+//   - los colores base y el modo oscuro (app/estilos/tema.css, el mismo de siempre),
 //   - el script del tema antes de pintar (sin parpadeo), "Saltar al contenido"
 //     y el botón de modo oscuro.
 // ==========================================================================
@@ -14,7 +13,7 @@ import type { Metadata } from "next";
 import { Source_Sans_3 } from "next/font/google";
 import BotonTema from "@/componentes/BotonTema";
 import "./estilos/base.css";
-import "../public/tema.css";
+import "./estilos/tema.css";
 
 const fuente = Source_Sans_3({
   subsets: ["latin"],

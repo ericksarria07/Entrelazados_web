@@ -1,6 +1,6 @@
 /* Estilos de comprobante.html, pasados a CSS Module con scripts/estilos-a-modulo.mjs.
    Los nombres de clase de adentro son globales (:global) para que el modo oscuro de
-   public/tema.css los siga encontrando. */
+   app/estilos/tema.css los siga encontrando. */
 .pagina {
     --papel: #ffffff;
     --tinta: #1a1a1a;

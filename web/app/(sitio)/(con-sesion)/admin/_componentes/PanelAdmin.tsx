@@ -32,7 +32,7 @@ async function apiAdmin(url: string, opciones?: RequestInit) {
   if (url.includes("/api/admin/") && res.status === 403) {
     await cerrarSesion();
     alert("Esta sección es solo para administradores.");
-    window.location.href = "/login";
+    window.location.href = new URL("/login", window.location.origin).href;
   }
   return res;
 }
@@ -90,15 +90,19 @@ export default function PanelAdmin() {
   // 2. USUARIOS (20 por página, con búsqueda)
   const cargarUsuarios = useCallback(
     async (pagina = paginaUsuarios.current, texto = buscar, problemas = soloProblemas): Promise<void> => {
-      paginaUsuarios.current = pagina;
-      const params = new URLSearchParams({ pagina: String(pagina), porPagina: "20" });
-      if (texto.trim()) params.set("buscar", texto.trim());
-      if (problemas) params.set("problemas", "1");
-      try {
+      const pedir = async (p: number): Promise<void> => {
+        paginaUsuarios.current = p;
+        const params = new URLSearchParams({ pagina: String(p), porPagina: "20" });
+        if (texto.trim()) params.set("buscar", texto.trim());
+        if (problemas) params.set("problemas", "1");
         const res = await apiAdmin(`/api/admin/usuarios?${params}`);
         const datos = (await res.json()) as Pagina<UsuarioAdmin>;
-        if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarUsuarios(datos.paginas, texto, problemas);
+        // Se borró lo último de la última página: se muestra la anterior
+        if (datos.datos.length === 0 && datos.total > 0 && p > 1) return pedir(datos.paginas);
         setUsuarios(datos);
+      };
+      try {
+        await pedir(pagina);
       } catch (err) {
         console.error("Error usuarios:", err);
       }
@@ -108,12 +112,15 @@ export default function PanelAdmin() {
 
   // 3. OFERTAS (15 por página, las más nuevas primero)
   const cargarOfertas = useCallback(async (pagina = paginaOfertas.current): Promise<void> => {
-    paginaOfertas.current = pagina;
-    try {
-      const res = await api(`/api/ofertas?pagina=${pagina}&porPagina=15`);
+    const pedir = async (p: number): Promise<void> => {
+      paginaOfertas.current = p;
+      const res = await api(`/api/ofertas?pagina=${p}&porPagina=15`);
       const datos = (await res.json()) as Pagina<OfertaAdmin>;
-      if (datos.datos.length === 0 && datos.total > 0 && pagina > 1) return cargarOfertas(datos.paginas);
+      if (datos.datos.length === 0 && datos.total > 0 && p > 1) return pedir(datos.paginas);
       setOfertas(datos);
+    };
+    try {
+      await pedir(pagina);
     } catch (err) {
       console.error("Error ofertas:", err);
     }

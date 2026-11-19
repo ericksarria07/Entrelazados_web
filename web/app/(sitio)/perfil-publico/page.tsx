@@ -3,6 +3,7 @@
 // y subastas se piden por páginas desde el navegador. No pide sesión.
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import Cabecera from "@/componentes/sitio/Cabecera";
 import GlobitoChat from "@/componentes/sitio/GlobitoChat";
 import PiePagina from "@/componentes/sitio/PiePagina";
@@ -11,7 +12,8 @@ import mercado from "@/app/estilos/mercado.module.css";
 import { ErrorHttp } from "@/lib/http";
 import { datosDeSesionDesdeCookies } from "@/lib/sesion";
 import { perfilPublico } from "@/lib/usuarios";
-import { BotonCompartir, estrellasFijas, plural, Publicaciones, Resenas, Subastas } from "./_componentes/Secciones";
+import { estrellasFijas, plural } from "./_componentes/formato";
+import { BotonCompartir, Publicaciones, Resenas, Subastas } from "./_componentes/Secciones";
 import estilos from "./perfil-publico.module.css";
 
 type Perfil = Awaited<ReturnType<typeof perfilPublico>>;
@@ -27,6 +29,8 @@ const iniciales = (nombre: string) =>
     .toUpperCase() || "?";
 
 async function cargar(id: string | undefined): Promise<Perfil | { error: [string, string] }> {
+  // Datos de la base: solo al atender la petición (no en el prefetch)
+  await connection();
   if (!(Number.parseInt(id ?? "", 10) > 0)) return { error: ["Falta el perfil", "El enlace no dice de quién es el perfil."] };
   try {
     return await perfilPublico(Number.parseInt(id!, 10));

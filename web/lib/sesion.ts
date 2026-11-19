@@ -16,6 +16,7 @@
 // ==========================================================================
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { cache } from "react";
 import { duracionSesion, jwtSecreto } from "@/lib/config";
 import { obtenerPool } from "@/lib/db";
@@ -73,7 +74,10 @@ async function usuarioDelToken(token: string | null): Promise<Usuario> {
   let usuarioId: unknown;
   try {
     usuarioId = (jwt.verify(token, jwtSecreto()) as jwt.JwtPayload).id;
-  } catch {
+  } catch (err) {
+    // Solo un token malo o vencido es "sesión inválida"; cualquier otro error sigue su camino
+    // (p. ej. Next interrumpe un prerender que llega aquí: no es un token inválido)
+    if (!(err instanceof jwt.JsonWebTokenError)) throw err;
     throw new ErrorHttp(401, "Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
   }
 
@@ -107,6 +111,9 @@ export async function exigirSesion(req: Request): Promise<Usuario> {
 export async function leerSesionDesdeCookies(): Promise<Usuario | null> {
   const token = (await cookies()).get(COOKIE_SESION)?.value ?? null;
   if (!token) return null;
+  // Revisar el token usa la hora actual: solo al atender la petición, nunca en un prerender
+  // (el prefetch de <Link> no debe guardar "sin sesión")
+  await connection();
   try {
     return await usuarioDelToken(token);
   } catch (err) {

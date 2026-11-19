@@ -3,13 +3,12 @@
 /* eslint-disable @next/next/no-img-element -- fotos subidas por los proveedores (Blob), con respaldo si ya no están */
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { estrellasFijas, plural } from "./formato";
 
 type Pagina<T> = { datos: T[]; total: number; pagina: number; paginas: number };
 
-export const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 const dinero = (n: number | string) =>
   `C$ ${Number(n).toLocaleString("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-export const estrellasFijas = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
 const fechaCorta = (f: string) => new Date(f).toLocaleDateString("es-NI", { day: "numeric", month: "short", year: "numeric" });
 
 // Una foto que ya no está en el servidor: se muestra un ícono en su lugar

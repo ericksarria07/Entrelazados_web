@@ -3,6 +3,7 @@
 //   sin token → pedir el enlace (con ?email= ya escrito si viene del login) → "revisa tu correo"
 //   con token del correo → se comprueba → nueva contraseña → listo (al login en 5 s)
 //   enlace vencido o usado → pedir uno nuevo
+import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cerrarSesion, leerJSON, REGEX_EMAIL } from "@/lib/cliente/sesion";
@@ -24,9 +25,9 @@ function CajaMensaje({ id, mensaje, rol }: { id: string; mensaje: Mensaje; rol: 
 function Volver() {
   return (
     <div className="enlaces">
-      <a href="/login">
+      <Link href="/login">
         <i className="ti ti-arrow-left" aria-hidden="true" /> Volver a iniciar sesión
-      </a>
+      </Link>
     </div>
   );
 }
@@ -295,9 +296,9 @@ function Enviado({ correo, otroCorreo }: { correo: string; otroCorreo: () => voi
 
       <CajaMensaje id="mensaje-enviado" mensaje={mensaje} rol="status" />
 
-      <a href="/login" className="boton">
+      <Link href="/login" className="boton">
         <i className="ti ti-login" aria-hidden="true" /> Ir a iniciar sesión
-      </a>
+      </Link>
       <div className="enlaces">
         <button type="button" className="enlace-boton" id="btn-reenviar" disabled={reenviando || restantes > 0} onClick={reenviar}>
           {reenviando ? "Reenviando..." : restantes > 0 ? `Reenviar correo (${restantes} s)` : "Reenviar correo"}
@@ -502,9 +503,9 @@ function Listo() {
         Ya puedes entrar a EntreLazados con tu nueva contraseña. Te llevaremos al inicio de sesión en{" "}
         <strong id="cuenta-regresiva">{Math.max(segundos, 0)}</strong> segundos.
       </p>
-      <a href="/login" className="boton">
+      <Link href="/login" className="boton">
         <i className="ti ti-login" aria-hidden="true" /> Iniciar sesión ahora
-      </a>
+      </Link>
     </section>
   );
 }

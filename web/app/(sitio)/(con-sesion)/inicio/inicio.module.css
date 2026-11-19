@@ -1,6 +1,6 @@
 /* Estilos de index.html, pasados a CSS Module con scripts/estilos-a-modulo.mjs.
    Los nombres de clase de adentro son globales (:global) para que el modo oscuro de
-   public/tema.css los siga encontrando. */
+   app/estilos/tema.css los siga encontrando. */
 .pagina {
     --font-principal: 'Arial Rounded MT Pro', 'Arial Rounded MT Bold', var(--fuente-base), sans-serif;
     --font-secundaria: 'Leelawadee', var(--fuente-base), sans-serif;

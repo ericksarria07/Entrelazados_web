@@ -156,12 +156,10 @@ export default function Reportes() {
   const [toast, setToast] = useState<{ texto: string; error: boolean; visible: boolean }>({ texto: "", error: false, visible: false });
   const [tema, setTema] = useState(0); // cambia al pasar a claro/oscuro: se redibuja
   const dash = useRef<HTMLDivElement>(null);
-  const lienzos = {
-    ventas: useRef<HTMLCanvasElement>(null),
-    estado: useRef<HTMLCanvasElement>(null),
-    materiales: useRef<HTMLCanvasElement>(null),
-    precios: useRef<HTMLCanvasElement>(null),
-  };
+  const lienzoVentas = useRef<HTMLCanvasElement>(null);
+  const lienzoEstado = useRef<HTMLCanvasElement>(null);
+  const lienzoMateriales = useRef<HTMLCanvasElement>(null);
+  const lienzoPrecios = useRef<HTMLCanvasElement>(null);
   const graficas = useRef<Record<string, TipoChart>>({});
   const relojToast = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -233,7 +231,7 @@ export default function Reportes() {
 
     Promise.all([
       !serie.every((m) => m.tratos === 0) &&
-        poner("ventas", lienzos.ventas.current, {
+        poner("ventas", lienzoVentas.current, {
           type: "bar",
           data: {
             labels: serie.map((m) => nombreMes(m.mes)),
@@ -295,7 +293,7 @@ export default function Reportes() {
           } as ChartConfiguration["options"],
         }),
       totalEstado > 0 &&
-        poner("estado", lienzos.estado.current, {
+        poner("estado", lienzoEstado.current, {
           type: "doughnut",
           data: {
             labels: d.estadoSubastas.map((e) => e.estado),
@@ -338,7 +336,7 @@ export default function Reportes() {
           } as ChartConfiguration<"doughnut">["options"],
         } as ChartConfiguration),
       lista.length > 0 &&
-        poner("materiales", lienzos.materiales.current, {
+        poner("materiales", lienzoMateriales.current, {
           type: "bar",
           data: {
             labels: lista.map((m) => (m.categoria.length > 30 ? m.categoria.slice(0, 29) + "…" : m.categoria)),
@@ -370,7 +368,7 @@ export default function Reportes() {
           } as ChartConfiguration["options"],
         }),
       precios.series.length > 0 &&
-        poner("precios", lienzos.precios.current, {
+        poner("precios", lienzoPrecios.current, {
           type: "line",
           data: {
             labels: precios.meses.map((m) => nombreMes(m)),
@@ -413,7 +411,6 @@ export default function Reportes() {
       Object.values(nuevas).forEach((g) => g.destroy());
       graficas.current = {};
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- los lienzos son refs fijos
   }, [datos, tema]);
 
   // ------------------------------------------------------------------ IMPRIMIR / PDF
@@ -728,7 +725,7 @@ export default function Reportes() {
                   {d && d.ventasPorMes.every((m) => m.tratos === 0) ? (
                     <Vacio icono="chart-bar-off" texto="Todavía no hay tratos en este periodo." />
                   ) : (
-                    <canvas ref={lienzos.ventas} id="graficaVentas" role="img" aria-label="Gráfica de ventas por mes" />
+                    <canvas ref={lienzoVentas} id="graficaVentas" role="img" aria-label="Gráfica de ventas por mes" />
                   )}
                 </div>
                 <div className="tabla-wrap" id="tablaVentas" hidden={!tablas.ventas}>
@@ -770,7 +767,7 @@ export default function Reportes() {
                   {d && totalEstado === 0 ? (
                     <Vacio icono="chart-donut" texto="No hubo subastas en este periodo." />
                   ) : (
-                    <canvas ref={lienzos.estado} id="graficaEstado" role="img" aria-label="Gráfica del resultado de las subastas" />
+                    <canvas ref={lienzoEstado} id="graficaEstado" role="img" aria-label="Gráfica del resultado de las subastas" />
                   )}
                 </div>
               </article>
@@ -796,7 +793,7 @@ export default function Reportes() {
                   {d && !d.materialesMasPedidos.length ? (
                     <Vacio icono="flame-off" texto="Todavía no hay pujas en este periodo." />
                   ) : (
-                    <canvas ref={lienzos.materiales} id="graficaMateriales" role="img" aria-label="Gráfica de materiales más pedidos" />
+                    <canvas ref={lienzoMateriales} id="graficaMateriales" role="img" aria-label="Gráfica de materiales más pedidos" />
                   )}
                 </div>
                 <div className="tabla-wrap" id="tablaMateriales" hidden={!tablas.materiales}>
@@ -831,7 +828,7 @@ export default function Reportes() {
                   {d && !seriesPrecios.length ? (
                     <Vacio icono="chart-line" texto="No salieron lotes a subasta en este periodo." />
                   ) : (
-                    <canvas ref={lienzos.precios} id="graficaPrecios" role="img" aria-label="Gráfica de precios por categoría" />
+                    <canvas ref={lienzoPrecios} id="graficaPrecios" role="img" aria-label="Gráfica de precios por categoría" />
                   )}
                 </div>
                 <div className="tabla-wrap" id="tablaPrecios" hidden={!tablas.precios}>

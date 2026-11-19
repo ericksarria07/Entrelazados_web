@@ -16,7 +16,7 @@ export async function api(url: string, opciones?: RequestInit): Promise<Response
     cerrando = true;
     await cerrarSesion();
     alert("Tu sesión expiró. Por favor inicia sesión nuevamente.");
-    window.location.href = "/login";
+    window.location.href = new URL("/login", window.location.origin).href;
   }
   return res;
 }

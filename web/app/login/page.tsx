@@ -1,4 +1,5 @@
 // /login: iniciar sesión (ROADMAP 2.2). /login.html redirige aquí.
+import Link from "next/link";
 import type { Metadata } from "next";
 import CabeceraCuenta from "@/componentes/CabeceraCuenta";
 import FormularioLogin from "./_componentes/FormularioLogin";
@@ -26,9 +27,9 @@ export default function PaginaLogin() {
           </div>
 
           <p style={{ fontSize: 13 }}>
-            <a href="/unirse" className="register-link">
+            <Link href="/unirse" className="register-link">
               Regístrate aquí
-            </a>
+            </Link>
           </p>
         </div>
       </main>
@@ -42,8 +43,8 @@ export default function PaginaLogin() {
           <div className="footer-center">
             <p>EntreLazados © 2026 - Plataforma de Comercio de Materia Prima y Calzado</p>
             <p style={{ marginTop: 8 }}>
-              <a href="/index.html">Inicio</a> | <a href="/mercado.html">Mercado</a> | <a href="/chat.html">Chat</a> |{" "}
-              <a href="/perfil.html">Mi Perfil</a>
+              <Link href="/inicio">Inicio</Link> | <Link href="/mercado">Mercado</Link> | <Link href="/chat">Chat</Link> |{" "}
+              <Link href="/perfil">Mi Perfil</Link>
             </p>
           </div>
 

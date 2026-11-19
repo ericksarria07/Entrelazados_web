@@ -1,4 +1,5 @@
 // /unirse: crear una cuenta de proveedor o emprendedor (ROADMAP 2.2). /unirse.html redirige aquí.
+import Link from "next/link";
 import type { Metadata } from "next";
 import CabeceraCuenta from "@/componentes/CabeceraCuenta";
 import FormularioRegistro from "./_componentes/FormularioRegistro";
@@ -26,9 +27,9 @@ export default function PaginaUnirse() {
           </div>
 
           <p style={{ fontSize: 13 }}>
-            <a href="/login" className="register-link">
+            <Link href="/login" className="register-link">
               Inicia sesión aquí
-            </a>
+            </Link>
           </p>
         </div>
       </main>
@@ -36,7 +37,7 @@ export default function PaginaUnirse() {
       <footer>
         <p>EntreLazados © 2026 - Mercado Digital de Materia Prima y Calzado</p>
         <p style={{ marginTop: 8 }}>
-          <a href="/">Inicio</a> | <a href="/mercado.html">Mercado</a> | <a href="/login">Iniciar Sesión</a>
+          <Link href="/">Inicio</Link> | <Link href="/mercado">Mercado</Link> | <Link href="/login">Iniciar Sesión</Link>
         </p>
       </footer>
     </div>
