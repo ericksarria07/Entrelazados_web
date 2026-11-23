@@ -683,8 +683,11 @@ paths:
       tags: [Chat y Kan]
       summary: Preguntar a Kan
       description: |
-        Primero busca una respuesta fija (gratis); si no hay, pregunta a Gemini con las ofertas y subastas
-        reales como contexto. Si Gemini falla, responde un mensaje amable. Límite: 10 por minuto y 150 al día por usuario.
+        Primero busca una respuesta fija (gratis); si no hay, pregunta a Gemini (Vercel AI SDK) con las ofertas y
+        subastas reales como contexto. Si Gemini falla, responde un mensaje amable. Límite: 10 por minuto y 150 al día por usuario.
+
+        Por defecto responde JSON con el texto completo. Con `Accept: text/plain` la respuesta llega en trozos
+        mientras Gemini la escribe (streaming; lo usan el widget de Kan y el chat). Los errores 400/401/429 siempre son JSON.
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
@@ -717,6 +720,8 @@ paths:
           content:
             application/json:
               schema: { type: object, properties: { respuesta: { type: string } } }
+            text/plain:
+              schema: { type: string, description: "Con Accept: text/plain, el texto llega en trozos (streaming)" }
         "400":
           description: Mensaje vacío o demasiado largo
           content:

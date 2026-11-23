@@ -17,6 +17,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { contenidoKan, type ContextoKan } from "@/lib/cliente/kan-contenido";
 import { useUsuario } from "./ProveedorSitio";
 import "@/app/estilos/kan.css";
+import { preguntarAKan, type MensajeHistorialKan } from "@/lib/cliente/kan";
 
 const POSES = {
   saludando: "/randal-saludando.webp",
@@ -118,6 +119,8 @@ export default function Kan({ contexto = "inicio" }: { contexto?: ContextoKan })
   const [bannerVisible, setBannerVisible] = useState(true);
   const [dormido, setDormido] = useState(false);
   const [texto, setTexto] = useState("");
+  // Mientras llega la respuesta de la IA: no se guarda trozo por trozo y no se manda otra pregunta
+  const [escribiendo, setEscribiendo] = useState(false);
   const cuerpo = useRef<HTMLDivElement>(null);
   const entrada = useRef<HTMLInputElement>(null);
   const relojSueno = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -145,8 +148,8 @@ export default function Kan({ contexto = "inicio" }: { contexto?: ContextoKan })
   }, []);
 
   useEffect(() => {
-    if (listo) guardar(mensajes, abierta);
-  }, [listo, mensajes, abierta]);
+    if (listo && !escribiendo) guardar(mensajes, abierta);
+  }, [listo, mensajes, abierta, escribiendo]);
 
   useEffect(() => {
     if (cuerpo.current) cuerpo.current.scrollTop = cuerpo.current.scrollHeight;
@@ -216,32 +219,39 @@ export default function Kan({ contexto = "inicio" }: { contexto?: ContextoKan })
     });
   }
 
-  // Texto libre: se lo pregunta a la IA
+  // Texto libre: se lo pregunta a la IA y la respuesta aparece mientras se escribe
   async function enviarEscrito() {
     const pregunta = texto.trim();
-    if (!pregunta) return;
+    if (!pregunta || escribiendo) return;
     setTexto("");
     reiniciarSueno();
-    const historial = mensajes
+    const historial: MensajeHistorialKan[] = mensajes
       .filter((m) => m.texto !== SEGUIMIENTO)
       .slice(-MAX_HISTORIAL)
       .map((m) => ({ rol: m.quien === "user" ? "usuario" : "kan", texto: m.texto }));
     agregar(pregunta, "user");
     cambiarPose("telefono");
+    setEscribiendo(true);
+    let empezo = false;
+    // El primer trozo crea el mensaje de Kan; los siguientes lo van completando
+    const mostrar = (hastaAhora: string) => {
+      if (!empezo) {
+        empezo = true;
+        cambiarPose("respondiendo");
+        agregar(hastaAhora, "bot");
+      } else {
+        setMensajes((m) => [...m.slice(0, -1), { texto: hastaAhora, quien: "bot" }]);
+      }
+    };
     try {
-      const res = await fetch("/api/chat/ia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensajeUsuario: pregunta, historial }),
-      });
-      const data = (await res.json()) as { respuesta?: string; error?: string; message?: string };
-      cambiarPose("respondiendo");
-      agregar(data.respuesta || data.error || data.message || "No pude responder en este momento.", "bot");
+      const final = await preguntarAKan(pregunta, historial, mostrar);
+      mostrar(final);
       despues(3000, () => cambiarPose("dudando"));
     } catch (error) {
       console.error("Error al conectar con Kan:", error);
-      cambiarPose("respondiendo");
-      agregar("Lo siento, no pude procesar tu solicitud en este momento. Por favor inténtalo de nuevo.", "bot");
+      mostrar("Lo siento, no pude procesar tu solicitud en este momento. Por favor inténtalo de nuevo.");
+    } finally {
+      setEscribiendo(false);
     }
   }
 
@@ -258,7 +268,7 @@ export default function Kan({ contexto = "inicio" }: { contexto?: ContextoKan })
           1<span className="solo-lector"> mensaje nuevo</span>
         </span>
       </button>
-      <div className={`kan-chat-window${abierta ? " active" : ""}`} role="dialog" aria-label="Chat con Kan">
+      <div className={`kan-chat-window${abierta ? " active" : ""}`} role="dialog" aria-label="Chat con Kan" aria-busy={escribiendo}>
         <div className="kan-header">
           <div className="kan-header-info">
             <div className="kan-avatar-header">
