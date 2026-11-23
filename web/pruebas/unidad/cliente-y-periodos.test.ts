@@ -86,8 +86,13 @@ test("inicioDelPeriodo: primer día del mes, contando el mes actual", () => {
 });
 
 test("fechaExcel quita el corrimiento de la zona horaria", () => {
+  // Excel guarda la fecha sin zona: la hora UTC del resultado debe ser la hora local del
+  // original (en UTC, como en el CI, no cambia nada; en Nicaragua, UTC-6, resta 6 horas)
   const original = new Date("2026-11-23T15:00:00Z");
   const ajustada = fechaExcel(original);
-  assert.equal(ajustada.getTime() - original.getTime(), -original.getTimezoneOffset() * 60000);
+  assert.deepEqual(
+    [ajustada.getUTCFullYear(), ajustada.getUTCMonth(), ajustada.getUTCDate(), ajustada.getUTCHours(), ajustada.getUTCMinutes()],
+    [original.getFullYear(), original.getMonth(), original.getDate(), original.getHours(), original.getMinutes()]
+  );
   assert.equal(fechaExcel("2026-11-23T15:00:00Z").getTime(), ajustada.getTime(), "acepta texto o Date");
 });
