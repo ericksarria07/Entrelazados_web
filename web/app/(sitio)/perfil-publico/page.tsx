@@ -12,6 +12,7 @@ import mercado from "@/app/estilos/mercado.module.css";
 import { ErrorHttp } from "@/lib/http";
 import { datosDeSesionDesdeCookies } from "@/lib/sesion";
 import { perfilPublico } from "@/lib/usuarios";
+import { OPEN_GRAPH_BASE } from "@/lib/metadatos";
 import { estrellasFijas, plural } from "./_componentes/formato";
 import { BotonCompartir, Publicaciones, Resenas, Subastas } from "./_componentes/Secciones";
 import estilos from "./perfil-publico.module.css";
@@ -44,9 +45,14 @@ async function cargar(id: string | undefined): Promise<Perfil | { error: [string
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const p = await cargar((await searchParams).id);
   if ("error" in p) return { title: "Perfil", robots: { index: false } };
+  const descripcion = `${p.rol} en EntreLazados${p.departamento ? ` · ${p.departamento}` : ""}`;
+  // La dirección canónica lleva el ?id: sin él todos los perfiles serían "/perfil-publico"
+  const url = `/perfil-publico?id=${p.id}`;
   return {
     title: p.nombre,
-    description: `${p.rol} en EntreLazados${p.departamento ? ` · ${p.departamento}` : ""}`,
+    description: descripcion,
+    alternates: { canonical: url },
+    openGraph: { ...OPEN_GRAPH_BASE, type: "profile", title: `${p.nombre} en EntreLazados`, description: descripcion, url },
   };
 }
 

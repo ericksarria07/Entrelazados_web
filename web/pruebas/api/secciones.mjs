@@ -7,8 +7,8 @@
 // requiere: secciones que crean variables que esta usa (ctx.p1, ctx.subP1...).
 // El corredor no deja activar una sección si alguna de las que requiere está inactiva.
 // Además, casi todas usan datos que crearon las anteriores (cuentas, ofertas),
-// así que conviene activarlas en orden. La 33 (sesión en cookie) corre antes de la 31,
-// que borra cuentas, y de la 32, que agota el límite de intentos de login.
+// así que conviene activarlas en orden. La 33 (sesión en cookie) y la 35 (buscadores) corren
+// antes de la 31, que borra cuentas, y de la 32, que agota el límite de intentos de login.
 // ==========================================================================
 export const SECCIONES = [
     { archivo: "01-registro.mjs", titulo: "1. Registro", activa: true },
@@ -42,6 +42,7 @@ export const SECCIONES = [
     { archivo: "29-asistente-de-ia-para.mjs", titulo: "30. Asistente de IA para publicar", activa: true, requiere: ["03-inicio-de-sesion.mjs","13-fotos-de-las-ofertas.mjs","17-editar-publicaciones.mjs","26-favoritos-y-alertas-de.mjs"] },
     { archivo: "30-perfil-publico-y-paginacion.mjs", titulo: "31. Perfil público y paginación", activa: true, requiere: ["03-inicio-de-sesion.mjs","17-editar-publicaciones.mjs","23-tiempo-real.mjs","26-favoritos-y-alertas-de.mjs"] },
     { archivo: "33-sesion-con-cookie.mjs", titulo: "32. Sesión en cookie httpOnly y CSRF", activa: true, requiere: ["02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
+    { archivo: "35-buscadores-y-compartir.mjs", titulo: "34. Buscadores y compartir", activa: true, requiere: ["03-inicio-de-sesion.mjs"] },
     { archivo: "31-eliminar-usuarios.mjs", titulo: "12. Eliminar usuarios (admin)", activa: true, requiere: ["03-inicio-de-sesion.mjs","13-fotos-de-las-ofertas.mjs"] },
     { archivo: "34-encabezados-de-seguridad.mjs", titulo: "33. Encabezados de seguridad y CSP", activa: true },
     { archivo: "32-limites-de-intentos.mjs", titulo: "15. Límites de intentos", activa: true, requiere: ["01-registro.mjs","02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
