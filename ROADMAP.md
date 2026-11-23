@@ -420,7 +420,7 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 
 ### 2.3 Perfil y portada · `nextjs/perfil-portada` · 3–4 días · ✅
 
-> **Hecho (2.3 a 2.8 en una sola rama, `nextjs/fase2`, un commit por pieza):** la cabecera, el buscador, el menú del usuario, la campana, el tiempo real (`ProveedorSitio` + `useEventoTiempoReal`), los no leídos y Kan quedaron en `web/componentes/sitio/`. La sesión se lee en el servidor en `app/(sitio)/layout.tsx` y las páginas que la exigen viven en `app/(sitio)/(con-sesion)/`. `perfil` resultó ser solo de lectura (no edita datos): se arma en el servidor igual que la portada y el perfil público.
+> **Hecho (2.3 a 2.8 en una sola rama, `nextjs/fase2`, un commit por pieza):** la cabecera, el buscador, el menú del usuario, la campana, el tiempo real (`ProveedorSitio` + `useEventoTiempoReal`), los no leídos y Kan quedaron en `web/componentes/sitio/`. La sesión se lee en el servidor en `app/(sitio)/layout.tsx` y las páginas que la exigen viven en `app/(sitio)/(con-sesion)/`. `perfil` resultó ser solo de lectura (no edita datos): se arma en el servidor igual que la portada y el perfil público. En noviembre de 2026 se volvió editable (`PUT /api/perfil/[id]` y el botón *Editar perfil*).
 
 | Página | Líneas | API | Qué tiene |
 |---|---|---|---|

@@ -453,3 +453,123 @@
 .pagina :global(.enlace-publico[hidden]) {
     display: none;
 }
+
+/* --- EDITAR PERFIL (formulario en la misma tarjeta) --- */
+
+.pagina :global(.perfil-acciones) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.pagina :global(.form-perfil .perfil-acciones) {
+    margin: 24px 0 0;
+}
+
+.pagina :global(.btn-perfil) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--color-principal);
+    color: #fff;
+    border: 1px solid var(--color-principal);
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--font-secundaria);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.pagina :global(.btn-perfil:hover:not(:disabled)) {
+    background-color: var(--color-secundario);
+}
+
+.pagina :global(.btn-perfil:disabled) {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pagina :global(.btn-perfil.btn-secundario) {
+    background-color: transparent;
+    color: var(--color-principal);
+}
+
+.pagina :global(.btn-perfil.btn-secundario:hover:not(:disabled)) {
+    background-color: rgba(125, 56, 27, 0.08);
+}
+
+:global(html[data-tema="oscuro"]) .pagina :global(.btn-perfil.btn-secundario) {
+    color: #f0b48f;
+    border-color: #b5562f;
+}
+
+.pagina :global(.campo-perfil) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pagina :global(.campo-perfil.campo-ancho) {
+    grid-column: 1 / -1;
+}
+
+.pagina :global(.campo-perfil input),
+.pagina :global(.campo-perfil select),
+.pagina :global(.campo-perfil textarea) {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: var(--font-secundaria);
+    background-color: #fff;
+    color: #1a1a1a;
+}
+
+.pagina :global(.campo-perfil textarea) {
+    resize: vertical;
+    min-height: 90px;
+}
+
+.pagina :global(.campo-perfil input:disabled) {
+    background-color: #f1ece6;
+    color: #6b5b53;
+}
+
+.pagina :global(.nota-campo) {
+    font-size: 12px;
+    color: var(--texto-suave);
+}
+
+.pagina :global(.perfil-error),
+.pagina :global(.perfil-aviso) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    margin: 16px 0 0;
+}
+
+.pagina :global(.perfil-error) {
+    color: var(--error);
+}
+
+.pagina :global(.perfil-aviso) {
+    color: var(--exito);
+    margin: 0 auto 0 0;
+}
+
+:global(html[data-tema="oscuro"]) .pagina :global(.perfil-error) {
+    color: #ff8f8f;
+}
+
+:global(html[data-tema="oscuro"]) .pagina :global(.perfil-aviso) {
+    color: #8fd19e;
+}

@@ -486,6 +486,7 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere sesión: la cookie `ses
 | GET | `/api/usuarios/:id/publico` | Perfil público de un proveedor o emprendedor activo, sin datos de contacto (sin sesión; 404 para admin o cuentas suspendidas) |
 | GET | `/api/usuarios/:id/resenas?pagina=` | Reseñas recibidas, de a 5 (sin sesión) |
 | GET | `/api/perfil/:id` 🔒 | Perfil propio (o cualquiera si eres admin) |
+| PUT | `/api/perfil/:id` 🔒 | Editar mi perfil: `{ nombre, telefono, departamento }` y los datos del rol (RUC, nombre comercial, materia prima y descripción del proveedor; marca, especialidad y capacidad del emprendedor). Solo el propio, también para el admin |
 | GET | `/api/dashboard` 🔒 | Datos del dashboard según el rol |
 | GET | `/api/reportes?meses=3\|6\|12` 🔒 | Reporte de ventas (proveedor), compras (emprendedor) o de la plataforma (admin) |
 | GET | `/api/notificaciones` 🔒 | Las 30 notificaciones más recientes y cuántas faltan por leer |
@@ -605,7 +606,7 @@ Las 15 páginas están en React (detalle y orden en [ROADMAP](ROADMAP.md), secci
 |---|---|---|
 | `/` | Portada pública (se arma en el servidor) | 2.3 |
 | `/login`, `/unirse`, `/restablecer`, `/verificar`, `/comprobante` | Cuenta | 2.1–2.2 |
-| `/inicio`, `/perfil`, `/perfil-publico?id=` | Inicio con sesión, mi perfil y el perfil que se comparte (los dos últimos, en el servidor) | 2.3 |
+| `/inicio`, `/perfil`, `/perfil-publico?id=` | Inicio con sesión, mi perfil (editable con *Editar perfil*) y el perfil que se comparte (los dos últimos, en el servidor) | 2.3 |
 | `/admin`, `/reportes` | Panel de administración; reportes con gráficas, PDF y Excel | 2.4 |
 | `/dashboard` | Panel de control, mis tratos, calificaciones y Excel | 2.5 |
 | `/chat` | Mensajes en vivo y Kan (`/chat?contacto=ID` abre esa conversación) | 2.6 |

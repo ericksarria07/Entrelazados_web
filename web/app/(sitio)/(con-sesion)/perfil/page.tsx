@@ -9,8 +9,10 @@ import EnlaceAdmin from "@/componentes/sitio/EnlaceAdmin";
 import GlobitoChat from "@/componentes/sitio/GlobitoChat";
 import PiePagina from "@/componentes/sitio/PiePagina";
 import comun from "@/app/estilos/comun.module.css";
+import { DEPARTAMENTOS, ubicarDepartamento } from "@/lib/departamentos";
 import { datosDeSesionDesdeCookies } from "@/lib/sesion";
 import { perfilCompleto } from "@/lib/usuarios";
+import EditarPerfil, { type DatosEditables } from "./_componentes/EditarPerfil";
 import estilos from "./perfil.module.css";
 
 export const metadata: Metadata = { title: "Mi Perfil" };
@@ -36,6 +38,23 @@ export default async function PaginaPerfil() {
   const esAdmin = rol === "administrador" || rol === "admin";
   const departamento = data.NombreDepartamento || "Managua";
   const icono = esAdmin ? "ti-shield-check" : rol === "proveedor" ? "ti-truck" : "ti-shoe";
+
+  // Lo que el formulario de "Editar perfil" muestra ya lleno
+  const editables: DatosEditables = {
+    id: data.UsuarioID,
+    rol: esAdmin ? "admin" : rol === "proveedor" ? "proveedor" : "emprendedor",
+    correo: data.CorreoElectronico || "",
+    nombre: data.NombreRazonSocial || "",
+    telefono: data.TelefonoWhatsApp || "",
+    departamento: ubicarDepartamento(data.NombreDepartamento)?.nombre ?? "",
+    numeroRuc: data.NumeroRUC || "",
+    nombreComercial: data.NombreComercial || "",
+    tipoMateriaPrimaPrincipal: data.TipoMateriaPrimaPrincipal || "",
+    descripcionEmpresa: data.DescripcionEmpresa || "",
+    nombreMarca: data.NombreMarca || "",
+    especialidadCalzado: data.EspecialidadCalzado || "",
+    capacidadProduccionMensual: data.CapacidadProduccionMensual == null ? "" : String(data.CapacidadProduccionMensual),
+  };
 
   return (
     <div className={`${comun.pagina} ${estilos.pagina}`}>
@@ -84,77 +103,93 @@ export default async function PaginaPerfil() {
             </div>
 
             <div className="profile-body">
-              <div className="section-header">
-                <i className="ti ti-user-check" aria-hidden="true" /> Información General
-              </div>
-              <div className="info-grid">
-                <Dato icono="ti-id-badge" etiqueta="Nombre / Razón Social" valor={data.NombreRazonSocial || "N/A"} />
-                <Dato icono="ti-mail" etiqueta="Correo Electrónico" valor={data.CorreoElectronico || "N/A"} />
-                <Dato icono="ti-brand-whatsapp" etiqueta="Teléfono / WhatsApp" valor={data.TelefonoWhatsApp || "No especificado"} />
-                <Dato icono="ti-map-pin" etiqueta="Departamento" valor={departamento} />
-              </div>
-
-              {rol === "proveedor" && (
-                <div id="section-proveedor">
-                  <div className="section-header">
-                    <i className="ti ti-truck-delivery" aria-hidden="true" /> Detalle de Proveedor
-                  </div>
-                  <div className="info-grid">
-                    <Dato icono="ti-file-text" etiqueta="Número RUC" valor={data.NumeroRUC || "No registrado"} />
-                    <Dato icono="ti-building-store" etiqueta="Nombre Comercial" valor={data.NombreComercial || "N/A"} />
-                    <Dato icono="ti-box" etiqueta="Materia Prima Principal" valor={data.TipoMateriaPrimaPrincipal || "No especificado"} />
-                    <Dato
-                      icono="ti-info-circle"
-                      etiqueta="Descripción de la Empresa"
-                      valor={data.DescripcionEmpresa || "Sin descripción disponible."}
-                      ancho
-                    />
-                  </div>
+              <EditarPerfil datos={editables} departamentos={DEPARTAMENTOS.map((d) => d.nombre)}>
+                <div className="section-header">
+                  <i className="ti ti-user-check" aria-hidden="true" /> Información General
                 </div>
-              )}
-
-              {rol === "emprendedor" && (
-                <div id="section-emprendedor">
-                  <div className="section-header">
-                    <i className="ti ti-shoe" aria-hidden="true" /> Detalle del Taller / Emprendimiento
-                  </div>
-                  <div className="info-grid">
-                    <Dato icono="ti-tag" etiqueta="Nombre de la Marca" valor={data.NombreMarca || "N/A"} />
-                    <Dato icono="ti-shoe" etiqueta="Especialidad de Calzado" valor={data.EspecialidadCalzado || "No especificado"} />
-                    <Dato
-                      icono="ti-chart-bar"
-                      etiqueta="Capacidad Mensual"
-                      valor={data.CapacidadProduccionMensual ? `${data.CapacidadProduccionMensual} pares/mes` : "No especificada"}
-                    />
-                  </div>
+                <div className="info-grid">
+                  <Dato icono="ti-id-badge" etiqueta="Nombre / Razón Social" valor={data.NombreRazonSocial || "N/A"} />
+                  <Dato icono="ti-mail" etiqueta="Correo Electrónico" valor={data.CorreoElectronico || "N/A"} />
+                  <Dato
+                    icono="ti-brand-whatsapp"
+                    etiqueta="Teléfono / WhatsApp"
+                    valor={data.TelefonoWhatsApp || "No especificado"}
+                  />
+                  <Dato icono="ti-map-pin" etiqueta="Departamento" valor={departamento} />
                 </div>
-              )}
 
-              {esAdmin && (
-                <div id="section-admin">
-                  <div className="section-header">
-                    <i className="ti ti-shield-check" aria-hidden="true" /> Panel de Control Administrativo
+                {rol === "proveedor" && (
+                  <div id="section-proveedor">
+                    <div className="section-header">
+                      <i className="ti ti-truck-delivery" aria-hidden="true" /> Detalle de Proveedor
+                    </div>
+                    <div className="info-grid">
+                      <Dato icono="ti-file-text" etiqueta="Número RUC" valor={data.NumeroRUC || "No registrado"} />
+                      <Dato icono="ti-building-store" etiqueta="Nombre Comercial" valor={data.NombreComercial || "N/A"} />
+                      <Dato
+                        icono="ti-box"
+                        etiqueta="Materia Prima Principal"
+                        valor={data.TipoMateriaPrimaPrincipal || "No especificado"}
+                      />
+                      <Dato
+                        icono="ti-info-circle"
+                        etiqueta="Descripción de la Empresa"
+                        valor={data.DescripcionEmpresa || "Sin descripción disponible."}
+                        ancho
+                      />
+                    </div>
                   </div>
-                  <p style={{ fontSize: 13, color: "#666", marginBottom: 15 }}>
-                    Cuentas con permisos de administración general para moderar la plataforma, gestionar cuentas de usuarios y
-                    supervisar transacciones.
-                  </p>
-                  <div className="admin-actions-grid">
-                    <Link href="/admin" className="btn-admin-action">
-                      <i className="ti ti-layout-dashboard" style={{ fontSize: 20 }} aria-hidden="true" />
-                      Panel General Admin
-                    </Link>
-                    <Link href="/mercado" className="btn-admin-action">
-                      <i className="ti ti-shield-x" style={{ fontSize: 20 }} aria-hidden="true" />
-                      Moderar Publicaciones
-                    </Link>
-                    <Link href="/chat" className="btn-admin-action">
-                      <i className="ti ti-headset" style={{ fontSize: 20 }} aria-hidden="true" />
-                      Canal de Soporte
-                    </Link>
+                )}
+
+                {rol === "emprendedor" && (
+                  <div id="section-emprendedor">
+                    <div className="section-header">
+                      <i className="ti ti-shoe" aria-hidden="true" /> Detalle del Taller / Emprendimiento
+                    </div>
+                    <div className="info-grid">
+                      <Dato icono="ti-tag" etiqueta="Nombre de la Marca" valor={data.NombreMarca || "N/A"} />
+                      <Dato
+                        icono="ti-shoe"
+                        etiqueta="Especialidad de Calzado"
+                        valor={data.EspecialidadCalzado || "No especificado"}
+                      />
+                      <Dato
+                        icono="ti-chart-bar"
+                        etiqueta="Capacidad Mensual"
+                        valor={
+                          data.CapacidadProduccionMensual ? `${data.CapacidadProduccionMensual} pares/mes` : "No especificada"
+                        }
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {esAdmin && (
+                  <div id="section-admin">
+                    <div className="section-header">
+                      <i className="ti ti-shield-check" aria-hidden="true" /> Panel de Control Administrativo
+                    </div>
+                    <p style={{ fontSize: 13, color: "#666", marginBottom: 15 }}>
+                      Cuentas con permisos de administración general para moderar la plataforma, gestionar cuentas de usuarios y
+                      supervisar transacciones.
+                    </p>
+                    <div className="admin-actions-grid">
+                      <Link href="/admin" className="btn-admin-action">
+                        <i className="ti ti-layout-dashboard" style={{ fontSize: 20 }} aria-hidden="true" />
+                        Panel General Admin
+                      </Link>
+                      <Link href="/mercado" className="btn-admin-action">
+                        <i className="ti ti-shield-x" style={{ fontSize: 20 }} aria-hidden="true" />
+                        Moderar Publicaciones
+                      </Link>
+                      <Link href="/chat" className="btn-admin-action">
+                        <i className="ti ti-headset" style={{ fontSize: 20 }} aria-hidden="true" />
+                        Canal de Soporte
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </EditarPerfil>
             </div>
           </div>
         </main>
