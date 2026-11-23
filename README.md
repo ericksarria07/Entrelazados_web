@@ -365,11 +365,24 @@ npm run probar:gemini          # comprueba la clave de Gemini (Kan)
 | | Qué cubre | Comando |
 |---|---|---|
 | **Lint y tipos** | ESLint y `tsc --noEmit` | `npm run lint` y `npm run tipos` |
+| **Unitarias** (`pruebas/unidad/`) | La lógica pura de `lib/`, sin base de datos y en menos de 1 s (ver abajo) | `npm run test:unidad` |
 | **API** (`pruebas/api/`) | Más de 450 comprobaciones de integración en 34 secciones, contra un Postgres de pruebas (ver [Pruebas de la API en Next.js](#pruebas-de-la-api-en-nextjs)) | `npm run build && npm run test:api` |
 | **E2E** (`pruebas/e2e/`) | Los 4 flujos clave en un navegador de verdad: publicar, pujar, cerrar el trato y chatear | `npm run build && npm run e2e` |
 | **Recorrido** (`pruebas/recorrido/`) | Todo el sitio con capturas, contra local o producción | `npm run recorrido` |
 
 El CI de GitHub corre todo menos el recorrido en cada push y *pull request*, y la prueba de humo (`humo.yml`) revisa producción después de cada despliegue.
+
+**Unitarias de `web/`** (`web/pruebas/unidad/*.test.ts`):
+- **Cómo corren:** usan `node:test` y Node 26 corre el TypeScript directamente, sin herramientas extra.
+- **Qué cubren:**
+  - validar publicaciones y alertas;
+  - la máquina de estados de los tratos;
+  - las respuestas fijas y el historial de Kan;
+  - departamentos, precios sugeridos, paginación y utilidades;
+  - los enlaces viejos de las notificaciones;
+  - el monto en letras del comprobante;
+  - los periodos de los reportes.
+- **Regla para la lógica pura:** va en módulos sin el alias `@/` ni imports de Next o de la base de datos, para que Node la pueda cargar sola. Por ejemplo `lib/alertas.ts`, `lib/tratos-estados.ts`, `lib/kan-respuestas.ts`, `lib/ofertas-reglas.ts` y `lib/lotes.ts`. Esos módulos se importan entre sí con rutas relativas `.ts`. Los módulos de siempre (`lib/favoritos.ts`, `lib/tratos.ts`, `lib/kan.ts`, `lib/ofertas.ts`, `lib/subastas.ts`) los re-exportan, así que el resto del código no cambia.
 
 **Versión anterior (`backend/`, Express).** Hay dos tipos de pruebas:
 

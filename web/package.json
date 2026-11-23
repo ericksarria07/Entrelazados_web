@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "tipos": "next typegen && tsc --noEmit",
+    "test:unidad": "node --test pruebas/unidad/",
     "db:generar": "drizzle-kit generate",
     "db:migrar": "drizzle-kit migrate",
     "db:estudio": "drizzle-kit studio",

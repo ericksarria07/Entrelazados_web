@@ -9,8 +9,9 @@ import { enviarNotificaciones } from "@/lib/notificaciones";
 import { aUsuario } from "@/lib/tiempo-real";
 import { after } from "next/server";
 
-// Las subastas se guardan como "Lote Subasta: <material>"; en avisos se muestra solo el material
-export const nombreLote = (titulo: unknown) => String(titulo || "").replace(/^Lote Subasta:\s*/i, "") || "tu lote";
+// nombreLote vive en lotes.ts (sin dependencias, para las pruebas unitarias)
+import { nombreLote } from "@/lib/lotes";
+export { nombreLote };
 
 export type AvisoCancelacion = { subastaId: number; emprendedorId: number; lote: string };
 
