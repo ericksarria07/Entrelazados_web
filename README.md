@@ -4,7 +4,7 @@
 
 Los proveedores publican sus materiales, y cada publicación abre una subasta. Los emprendedores comparan precios por cercanía, pujan y negocian por chat. **Kan**, el asistente virtual (con Google Gemini), orienta a los usuarios dentro de la plataforma.
 
-> Sitio en producción: `http://57.156.69.249:3000` (VM de Azure)
+> **Sitio en producción: https://entrelazados.ericksv.com** (Next.js en Vercel, base de datos en Neon). La versión anterior (Express + MySQL en una VM de Azure, `backend/`) ya no está en línea: la VM de la escuela venció. Sigue en el repositorio hasta cerrar la migración (ver [ROADMAP](ROADMAP.md), sección 12).
 
 ---
 
@@ -27,7 +27,7 @@ Los proveedores publican sus materiales, y cada publicación abre una subasta. L
 - **Subastas ganadas** en el dashboard, con un botón para coordinar la entrega por chat (de a 5, con *Anterior / Siguiente*).
 - **Favoritos**: guarda publicaciones con el corazón y las ve en la pestaña *Favoritos y Alertas*. Si una publicación guardada **baja de precio**, llega una notificación.
 - **Alertas de búsqueda**: "avísame cuando publiquen *cuero café* en *Cuero vacuno* por menos de C$500" (palabra clave, categoría y precio máximo; hasta 10). Cuando alguien publica algo que cumple, llega a la campana y por correo. El botón **Avísame de nuevas** crea la alerta con lo que está escrito en el buscador.
-- **Perfil público** (`perfil-publico.html?id=N`): el nombre de cada proveedor en el Mercado, en el mapa y en los tratos lleva a su página, con sus publicaciones, subastas activas, tratos completados, calificación (con cuántas de cada estrella) y reseñas. Se puede **compartir** y se ve sin iniciar sesión; nunca muestra correo, teléfono, dirección ni RUC. Desde *Mi perfil* cada uno ve el suyo.
+- **Perfil público** (`/perfil-publico?id=N`): el nombre de cada proveedor en el Mercado, en el mapa y en los tratos lleva a su página, con sus publicaciones, subastas activas, tratos completados, calificación (con cuántas de cada estrella) y reseñas. Se puede **compartir** y se ve sin iniciar sesión; nunca muestra correo, teléfono, dirección ni RUC. Desde *Mi perfil* cada uno ve el suyo.
 - **Mapa de proveedores**: un círculo por departamento (crece con la cantidad de proveedores) con la lista de quién vende ahí, sus publicaciones y su calificación; respeta la categoría elegida en el buscador. *Ver publicaciones* filtra el Mercado por ese proveedor.
 
 ### Seguimiento de tratos
@@ -37,7 +37,7 @@ Cada subasta ganada es un trato que proveedor y comprador avanzan desde el dashb
 
 Cualquiera de los dos puede cambiarlo; la otra parte recibe un aviso automático en el chat y un correo. Los tratos cancelados no cuentan en "subastas ganadas / vendidas".
 
-**Comprobante**: cada trato tiene un botón *Comprobante* (`comprobante.html?trato=ID`) con folio (`EL-000042`), los datos de las dos partes, el lote, el precio base, las pujas, el monto en número y en letras y el estado (si se cancela queda "ANULADO"). Se guarda como **PDF** con la impresión del navegador. Aclara que no es una factura fiscal.
+**Comprobante**: cada trato tiene un botón *Comprobante* (`/comprobante?trato=ID`) con folio (`EL-000042`), los datos de las dos partes, el lote, el precio base, las pujas, el monto en número y en letras y el estado (si se cancela queda "ANULADO"). Se guarda como **PDF** con la impresión del navegador. Aclara que no es una factura fiscal.
 
 ### Calificaciones
 Al completar un trato, cada parte califica a la otra **una vez** (1 a 5 estrellas y un comentario opcional). El promedio aparece junto al proveedor en el Mercado y como "Mi calificación" en el dashboard.
@@ -48,13 +48,13 @@ Al completar un trato, cada parte califica a la otra **una vez** (1 a 5 estrella
 - Si retira una publicación o da de baja a un proveedor con subastas abiertas, quienes pujaron reciben un aviso en el chat (y por correo).
 
 ### Cierre automático de subastas
-Cada minuto el servidor cierra las subastas vencidas. Si hubo pujas, gana la más alta:
+Las subastas vencidas se cierran solas. En Vercel no hay un servidor encendido, así que el cierre es **perezoso** (al consultar subastas, tratos o el dashboard se cierran las vencidas) y además corre un cron diario (`web/vercel.json`); en la versión Express era un temporizador de cada minuto. Si hubo pujas, gana la más alta:
 - la subasta pasa a `Finalizada` y el trato queda registrado en `TratosCerrados` (estado `Pendiente`);
 - se abre el chat entre proveedor y ganador con un mensaje automático;
 - ambos reciben un correo (si el correo está configurado). Si no hubo pujas, el proveedor recibe un aviso.
 
 ### Tiempo real
-Las páginas abiertas reciben los cambios al instante (Socket.IO), sin recargar:
+Las páginas abiertas reciben los cambios al instante (con **Ably**; la versión Express usaba Socket.IO), sin recargar:
 - en el **Mercado**, el precio y el número de pujas de cada subasta cambian solos cuando alguien puja (indicador "En vivo"), y la lista se actualiza cuando se crea, cancela o cierra una subasta;
 - en el **Chat**, los mensajes nuevos aparecen enseguida (antes la página preguntaba cada 2 segundos; ahora eso queda solo de respaldo);
 - el contador de mensajes sin leer del menú se actualiza al llegar cada mensaje.
@@ -72,7 +72,7 @@ Una **campana** en el menú de todas las páginas, con el número sin leer. Avis
 Las nuevas aparecen al instante con un aviso flotante. Si ya tienes un aviso sin leer de la misma subasta, se actualiza en vez de repetirse (una "guerra de pujas" no llena la campana). Al hacer clic se marca como leída y lleva a la página correspondiente.
 
 ### Reportes
-Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegido (3, 6 o 12 meses):
+Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3, 6 o 12 meses):
 - el **proveedor** ve sus ventas, el **emprendedor** sus compras y el **administrador** toda la plataforma;
 - ventas por mes, resultado de las subastas (con ganador, sin pujas, canceladas, en curso), **materiales más pedidos**, **precio promedio por categoría** mes a mes, lotes más disputados y el detalle de los tratos;
 - se exporta a **Excel** (6 hojas) y a **PDF** (con la opción "Guardar como PDF" del navegador; funciona también en el celular).
@@ -91,6 +91,25 @@ Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegid
 
 ## Tecnologías
 
+**Versión actual (`web/`, en producción)**
+
+| Parte | Tecnología |
+|---|---|
+| App | **Next.js 16** (App Router, `cacheComponents` y prefetch parcial) con **React 19** y **TypeScript**, sobre **Node 26** |
+| Páginas | Server Components para lo que se arma en el servidor (portada, perfiles) y componentes `"use client"` para lo interactivo; CSS Modules sobre el CSS de siempre; íconos Tabler |
+| Librerías del navegador | Chart.js 4.4.1, ExcelJS 4.4.0 y Leaflet 1.9.4, de npm con versión fija y cargadas bajo demanda |
+| API | Rutas `app/api/**/route.ts` con SQL a mano (`pg`); documentación en `/api/docs` (Swagger UI) |
+| Base de datos | **Neon** (Postgres 18); esquema y migraciones con **Drizzle** (`db/esquema.ts`) |
+| Sesión y seguridad | `jsonwebtoken` en una cookie `httpOnly`, `bcryptjs`, protección CSRF en `proxy.ts`, encabezados y CSP en `next.config.ts`, límites de intentos en memoria |
+| Tiempo real | **Ably** (`@ably/pubsub-device` en el navegador, `@ably/pubsub-server` en el servidor) |
+| Fotos | **Vercel Blob** (en local, a disco) |
+| Correo | `nodemailer` (Gmail con contraseña de aplicación u otro SMTP) |
+| IA | `@google/genai` (Gemini) para Kan, el asistente de publicación y el precio sugerido |
+| Pruebas | `node` para la API, **Playwright 1.57.0** para los E2E y el recorrido |
+| Producción | **Vercel** (dominio en Cloudflare), rama de producción `migracion-nextjs`, CD con migraciones automáticas |
+
+**Versión anterior (`backend/`, Express; se archiva al cerrar la migración)**
+
 | Parte | Tecnología |
 |---|---|
 | Frontend | HTML, CSS y JavaScript sin frameworks; Chart.js, ExcelJS, Leaflet, Tabler Icons |
@@ -101,7 +120,7 @@ Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegid
 | Fotos | `multer` (recibir archivos); se guardan en disco, no en la base de datos |
 | Correo | `nodemailer` (Gmail con contraseña de aplicación u otro SMTP) |
 | IA | `@google/genai` (Gemini) |
-| Producción | VM Ubuntu 24.04 en Azure, PM2 y MySQL en la misma máquina |
+| Producción | VM Ubuntu 24.04 en Azure, PM2 y MySQL en la misma máquina (ya vencida) |
 
 ---
 
@@ -111,20 +130,35 @@ Página **Reportes** (`reportes.html`) con gráficas y tablas del periodo elegid
 Entrelazados_web/
 ├── README.md
 ├── ROADMAP.md                    # plan de migración a Next.js + Vercel + Neon
-├── .github/workflows/
-│   └── pruebas.yml               # GitHub Actions: corre todas las pruebas en cada push y PR
-├── web/                          # app en Next.js (migración en curso, ver la sección Next.js)
-│   ├── next.config.ts            # "/" muestra preview.html, igual que Express
-│   ├── app/api/salud/route.ts    # GET /api/salud: la app y Neon contestan
-│   ├── lib/db.ts                 # db (Drizzle) y el Pool de pg hacia Neon (attachDatabasePool)
+├── .github/
+│   ├── workflows/pruebas.yml     # GitHub Actions: lint, tipos, build, pruebas de la API y E2E en cada push y PR
+│   ├── workflows/humo.yml        # prueba de humo después de cada despliegue en Vercel
+│   └── dependabot.yml            # actualizaciones semanales de las dependencias de web/
+├── web/                          # la app actual: Next.js 16 en Vercel
+│   ├── app/                      # rutas de Next.js
+│   │   ├── layout.tsx            # layout raíz: letra, íconos, tema oscuro, "Saltar al contenido"
+│   │   ├── (sitio)/              # páginas con la cabecera común (portada, perfil público)
+│   │   │   └── (con-sesion)/     # inicio, perfil, admin, reportes, dashboard, chat, mercado (exigen sesión)
+│   │   ├── login/, unirse/, restablecer/, verificar/, comprobante/   # páginas de cuenta
+│   │   ├── api/**/route.ts       # toda la API (la de Express ya está portada)
+│   │   └── estilos/              # tema.css (modo oscuro), base.css y los .module.css compartidos
+│   ├── componentes/sitio/        # cabecera, buscador, campana, Kan, tiempo real (ProveedorSitio)...
+│   ├── lib/                      # lógica del servidor: sesion.ts, http.ts, db.ts, subastas.ts, tratos.ts, kan.ts...
+│   ├── lib/cliente/              # ayudas del navegador: api.ts, sesion.ts, graficas.ts, excel.ts...
+│   ├── proxy.ts                  # protección CSRF de /api/*
+│   ├── next.config.ts            # encabezados de seguridad, CSP y redirecciones de las URLs .html
 │   ├── db/esquema.ts             # las 18 tablas en Drizzle: fuente única del esquema
 │   ├── db/migraciones/           # SQL generado por drizzle-kit (+ 0001_extras.sql escrito a mano)
 │   ├── drizzle.config.ts         # drizzle-kit: conexión directa de Neon, snake_case
-│   ├── scripts/probar-neon.ts    # npm run probar:neon (prueba de punta a punta de Neon)
+│   ├── scripts/                  # crear-admin.ts, probar-neon.ts, migrar-en-build.mjs, estilos-a-modulo.mjs
 │   ├── pruebas/api/              # pruebas de integración de la API (npm run test:api), una sección por archivo
+│   ├── pruebas/e2e/              # E2E con Playwright (npm run e2e)
+│   ├── pruebas/recorrido/        # recorrido con capturas (npm run recorrido)
+│   ├── docs/openapi.yaml         # especificación de la API (se ve en /api/docs)
 │   ├── neon.ts                   # configuración de Neon (neon env pull escribe web/.env.local)
-│   └── public/                   # imágenes (las páginas ya son React, en app/)
-└── backend/
+│   ├── vercel.json               # build con migraciones y el cron de cierre de subastas
+│   └── public/                   # solo imágenes
+└── backend/                      # versión anterior (Express + MySQL); se archiva al cerrar la migración
     ├── package.json              # dependencias y comandos: npm install, npm start, npm test
     ├── entrelazados-api/
     │   ├── index.js              # arranque: crea la base de datos, los servicios y la app, y escucha
@@ -212,7 +246,7 @@ Entrelazados_web/
         └── datos_demo.js         # datos de ejemplo para el dashboard
 ```
 
-### Cómo viaja una petición
+### Cómo viaja una petición (versión Express)
 
 Ejemplo: un emprendedor puja en una subasta (`POST /api/pujas`).
 
@@ -235,6 +269,10 @@ navegador ──► app.js ──► middlewares ──────────�
 ---
 
 ## Instalación local
+
+Para correr la **versión actual** (`web/`, Next.js + Neon) mira [Correrla en tu máquina](#nextjs-en-vercel-web). Necesita Node 26 (`web/.nvmrc`) y una base de Neon; no usa MySQL.
+
+Lo que sigue es la **versión anterior** (`backend/`, Express + MySQL).
 
 ### Requisitos
 - [Node.js](https://nodejs.org) 20 o superior
@@ -322,7 +360,18 @@ npm run probar:gemini          # comprueba la clave de Gemini (Kan)
 
 [![Pruebas](https://github.com/ericksarria07/Entrelazados_web/actions/workflows/pruebas.yml/badge.svg)](https://github.com/ericksarria07/Entrelazados_web/actions/workflows/pruebas.yml)
 
-Hay dos tipos de pruebas:
+**Versión actual (`web/`)**, desde `web/`:
+
+| | Qué cubre | Comando |
+|---|---|---|
+| **Lint y tipos** | ESLint y `tsc --noEmit` | `npm run lint` y `npm run tipos` |
+| **API** (`pruebas/api/`) | Más de 450 comprobaciones de integración en 34 secciones, contra un Postgres de pruebas (ver [Pruebas de la API en Next.js](#pruebas-de-la-api-en-nextjs)) | `npm run build && npm run test:api` |
+| **E2E** (`pruebas/e2e/`) | Los 4 flujos clave en un navegador de verdad: publicar, pujar, cerrar el trato y chatear | `npm run build && npm run e2e` |
+| **Recorrido** (`pruebas/recorrido/`) | Todo el sitio con capturas, contra local o producción | `npm run recorrido` |
+
+El CI de GitHub corre todo menos el recorrido en cada push y *pull request*, y la prueba de humo (`humo.yml`) revisa producción después de cada despliegue.
+
+**Versión anterior (`backend/`, Express).** Hay dos tipos de pruebas:
 
 | | Cuántas | Qué necesitan | Comando (desde `backend/`) |
 |---|---|---|---|
@@ -351,7 +400,12 @@ CLAVE_PRUEBAS=la_clave_de_la_base_de_pruebas npm test
 
 ### En GitHub (integración continua)
 
-En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre las unitarias con Node 24 y 26, y las 402 de integración contra un MySQL 8.0 nuevo en Linux (igual que la VM). El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
+En cada `push` y en cada *pull request* a `master` o `migracion-nextjs`, **GitHub Actions** ([`.github/workflows/pruebas.yml`](.github/workflows/pruebas.yml)) corre:
+
+- las unitarias del backend (78) con Node 24 y 26, y sus 402 de integración contra un MySQL 8.0 nuevo en Linux;
+- en `web/`, con Node 26: lint, tipos, revisión de migraciones y build; las pruebas de la API contra un Postgres 18 nuevo; y los E2E con Playwright (sobre `ubuntu-24.04`, porque Playwright 1.57.0 no soporta Ubuntu 26.04).
+
+El resultado aparece como ✅ o ❌ junto a cada commit, en la pestaña **Actions** y en el *pull request*: si algo falla, no conviene mezclarlo a `master`.
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
@@ -373,30 +427,39 @@ Cuando esas librerías publiquen una versión con el arreglo, el override se pue
 ## Seguridad
 
 - **Contraseñas** cifradas con bcrypt. Las cuentas antiguas en texto plano se cifran solas al iniciar sesión.
-- **Sesiones con JWT** (8 horas). En cada petición se consulta el rol y el estado actuales, así que una cuenta suspendida pierde el acceso al instante.
+- **Sesiones con JWT** (8 horas). En cada petición se consulta el rol y el estado actuales, así que una cuenta suspendida pierde el acceso al instante. En la versión actual el JWT vive en una **cookie `httpOnly`** (`Secure; SameSite=Lax`): ningún script de la página puede leerlo, y `localStorage` solo guarda datos que no son secretos.
 - Las rutas usan el usuario del token, **nunca un id enviado por el navegador**. Solo los proveedores publican y solo los emprendedores pujan.
-- **Consultas SQL parametrizadas** contra inyección SQL, y **escape de HTML** contra XSS.
+- **Consultas SQL parametrizadas** contra inyección SQL. Contra XSS, React escapa el texto (la versión Express usaba `esc()`); ya no se arma HTML con `innerHTML`.
 - Recuperación de contraseña: 1 solicitud por minuto por correo, la misma respuesta exista o no la cuenta, y enlace de un solo uso.
-- **Límites de intentos**: 10 logins fallidos cada 15 min por IP, 5 cuentas por hora, 5 recuperaciones cada 15 min, y Kan con 10 preguntas por minuto y 150 al día por usuario. Al pasarse, responde 429 con el tiempo de espera.
+- **Límites de intentos**: 10 logins fallidos cada 15 min por IP, 5 cuentas por hora, 5 recuperaciones cada 15 min, y Kan con 10 preguntas por minuto y 150 al día por usuario. Al pasarse, responde 429 con el tiempo de espera. En Vercel los contadores viven en la memoria de cada instancia, así que son un freno contra el abuso simple, no un límite exacto.
 - **Kan** solo responde con sesión iniciada y toma el rol del token, así nadie de fuera gasta la cuota de Gemini.
-- **Fotos**: máximo 5 por oferta y 5 MB cada una. El tipo real se comprueba por el contenido del archivo (no por la extensión) y el nombre lo pone el servidor.
-- **CORS cerrado**: la API solo acepta peticiones de las páginas del propio sitio.
+- **Fotos**: máximo 5 por oferta y 5 MB cada una. El tipo real se comprueba por el contenido del archivo (no por la extensión) y el nombre lo pone el servidor. En producción van a Vercel Blob.
+- **Solo el propio sitio**: `web/proxy.ts` responde 403 a cualquier escritura (POST, PUT, PATCH, DELETE) a `/api/*` cuyo `Origin` sea de otro sitio, y la cookie es `SameSite=Lax` (protección CSRF). En Express era CORS cerrado.
 - Solo la carpeta `public/` es accesible desde el navegador.
+- **Encabezados de seguridad** (Next.js, en `web/next.config.ts`):
+  - **CSP**: scripts solo del propio sitio, conexiones solo al sitio y a Ably, nada de iframes ni plugins (`frame-ancestors 'none'`, `object-src 'none'`).
+  - También `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` sin cámara, micrófono ni ubicación, y `Cross-Origin-Opener-Policy`.
+  - Va sin nonces: obligarían a renderizar cada página por request y no funcionan con PPR (`cacheComponents`). Por eso `script-src` acepta `'unsafe-inline'`, pero ningún dominio ajeno.
+  - `/api/docs` tiene su propia CSP, que permite Swagger UI desde unpkg.
+  - HSTS lo pone Vercel.
+  - La sección 33 de `pruebas/api` revisa todo esto.
 
 ---
 
 ## API
 
-📖 **Documentación interactiva:** abre **`/api/docs`** en el servidor (por ejemplo http://localhost:3000/api/docs). Es Swagger UI: muestra cada ruta con sus datos de entrada, sus respuestas y sus errores, y permite **probarla desde el navegador** (inicia sesión con `POST /api/login`, copia el `token` y pégalo en el botón *Authorize*). La especificación está en [`backend/entrelazados-api/docs/openapi.yaml`](backend/entrelazados-api/docs/openapi.yaml) y en crudo en `/api/openapi.json` (se puede importar en Postman o Insomnia).
+📖 **Documentación interactiva:** abre **`/api/docs`** en https://entrelazados.ericksv.com/api/docs (o en tu servidor local, http://localhost:3000/api/docs). Es Swagger UI: muestra cada ruta con sus datos de entrada, sus respuestas y sus errores, y permite **probarla desde el navegador**: inicia sesión con `POST /api/login` desde ahí mismo y la cookie `sesion` queda guardada para las demás rutas. La especificación está en [`web/docs/openapi.yaml`](web/docs/openapi.yaml) (la de la versión Express, en `backend/entrelazados-api/docs/openapi.yaml`) y en crudo en `/api/openapi.json` (se puede importar en Postman o Insomnia).
 
-Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer <token>` (lo agrega `sesion.js` automáticamente).
+Resumen. Todas las rutas responden JSON. 🔒 = requiere sesión: la cookie `sesion` (la manda sola el navegador) o `Authorization: Bearer <valor de esa cookie>` para scripts y pruebas.
 
 | Método | Ruta | Descripción |
 |---|---|---|
 | POST | `/registro` | Crear cuenta (Proveedor o Emprendedor). Si hay que confirmar el correo responde `verificacionPendiente: true` |
 | GET | `/api/verificar-correo?token=` | Confirmar el correo con el enlace recibido |
 | POST | `/api/reenviar-verificacion` | Pedir otro enlace de confirmación `{ email }` |
-| POST | `/api/login` | Iniciar sesión; devuelve el token |
+| POST | `/api/login` | Iniciar sesión: guarda el JWT en la cookie `sesion` (no va en el cuerpo) y devuelve `sesion: { inicio, vence }` |
+| POST | `/api/logout` | Cerrar sesión: borra la cookie |
+| GET | `/api/sesion` 🔒 | Quién entró: `{ id, email, rol, esAdmin, ... }` |
 | POST | `/api/solicitar-recuperacion` | Enviar el enlace para restablecer la contraseña |
 | GET | `/api/validar-token-recuperacion` | Comprobar si un enlace sigue vigente |
 | POST | `/api/restablecer-password` | Guardar la nueva contraseña |
@@ -434,9 +497,9 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere `Authorization: Bearer 
 
 ---
 
-## Neon (Postgres) con Drizzle: migración en curso
+## Neon (Postgres) con Drizzle
 
-La app de Express **sigue usando MySQL**. La nueva (`web/`) usa Neon, y su esquema vive en código con **Drizzle**.
+La app actual (`web/`) usa Neon, y su esquema vive en código con **Drizzle**. La de Express (`backend/`) usaba MySQL.
 
 | | |
 |---|---|
@@ -475,16 +538,15 @@ El CI corre `npm run db:revisar` para comprobar que las migraciones sean coheren
 
 Al final borra sus datos de prueba.
 
-Diferencias con MySQL que tendrán en cuenta las consultas migradas: nombres en snake_case, `timestamptz`,
+Diferencias con MySQL que tienen en cuenta las consultas: nombres en snake_case, `timestamptz`,
 `boolean`, `RETURNING` en lugar de `insertId`, y `numeric` y `COUNT(*)` llegan como texto.
 
 ---
 
-## Next.js en Vercel (`web/`): migración en curso
+## Next.js en Vercel (`web/`)
 
-La carpeta `web/` es la app en **Next.js 16** que reemplazará a Express (ver [ROADMAP](ROADMAP.md)).
-Vive en la rama `migracion-nextjs`. Por ahora sirve las mismas páginas de siempre, copiadas tal cual a `web/public/`.
-Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya funcionan registro, login, confirmación del correo, recuperación de contraseña, ofertas (con fotos), subastas, pujas, cierre de subastas, tratos, dashboard, chat, campana de notificaciones, tiempo real (Ably), favoritos, alertas de búsqueda, mapa de proveedores, Kan, asistente de IA para publicar, reportes, panel de admin, categorías, estadísticas y perfiles: **toda la API de Express** (las 32 secciones de pruebas activas). Documentación interactiva en `/api/docs` (especificación en `web/docs/openapi.yaml`; la sección 12 avisa si una ruta de `app/api/` no está documentada).
+La carpeta `web/` es la app en **Next.js 16** que reemplaza a Express (ver [ROADMAP](ROADMAP.md)). Vive en la rama `migracion-nextjs`, que es la rama de producción de Vercel; cada pieza entra por un *pull request* desde una rama `nextjs/<tema>`.
+La **API** (Fase 1) y las **15 páginas en React** (Fase 2) ya están migradas. Funcionan registro, login, confirmación del correo, recuperación de contraseña, ofertas (con fotos), subastas, pujas, cierre de subastas, tratos, dashboard, chat, campana de notificaciones, tiempo real (Ably), favoritos, alertas de búsqueda, mapa de proveedores, Kan, asistente de IA para publicar, reportes, panel de admin, categorías, estadísticas y perfiles: **toda la API de Express** (las secciones de `web/pruebas/api`). Documentación interactiva en `/api/docs` (especificación en `web/docs/openapi.yaml`; la sección 12 avisa si una ruta de `app/api/` no está documentada).
 
 | | |
 |---|---|
@@ -494,7 +556,7 @@ Las rutas de la API se van pasando a Next.js en las ramas `nextjs/<tema>`. Ya fu
 | Código | Rutas en `web/app/**/route.ts`, con SQL a mano (`pg`). Ayudas en `web/lib/`: `http.ts` (`ruta()`, `ErrorHttp`), `sesion.ts` (`exigirSesion`, `exigirAdmin`, `leerSesionDesdeCookies`), `limites.ts` (en memoria), `correo.ts` (nodemailer + `after()`). `web/proxy.ts` rechaza escrituras a `/api/*` que vienen de otro sitio |
 | Salud | `GET /api/salud` → `{"estado":"ok","bd":"ok"}` (503 si Neon no contesta) |
 
-Correrla en tu máquina:
+Correrla en tu máquina (necesita Node 26; `web/.nvmrc` lo indica):
 
 ```bash
 cd web
@@ -504,7 +566,7 @@ npm run dev                            # http://localhost:3000 y http://localhos
 ```
 
 Cada *pull request* hacia `migracion-nextjs` recibe una vista previa en Vercel. Al mezclarlo, se publica en el dominio.
-El CI corre `npm run lint` y `npm run build` de `web/` (check "Next.js (build)").
+El CI corre en `web/` `npm run lint`, `npm run tipos`, `npm run db:revisar` y `npm run build` (check "Next.js (build)"), además de las pruebas de la API y los E2E.
 
 ### Despliegue continuo
 
@@ -621,7 +683,7 @@ Las ~400 comprobaciones de integración de Express (`backend/pruebas/pruebas_api
 | Archivo | Qué hace |
 |---|---|
 | `correr.mjs` | Vacía la base de pruebas, aplica las migraciones de Drizzle, siembra, levanta `next start` en el puerto 3055 y corre las secciones activas |
-| `secciones.mjs` | Las 32 secciones en orden, cada una con `activa` y lo que `requiere` |
+| `secciones.mjs` | Las 34 secciones en orden, cada una con `activa` y lo que `requiere` |
 | `secciones/NN-*.mjs` | Una sección por archivo. Comparten estado en `ctx` (sesiones, IDs) |
 | `contexto.mjs` | `api()`, `check()`, `seccion()` y `q()` (consulta directa a la base de pruebas) |
 | `semilla.mjs` | Departamentos, `admin@prueba.com` y `antiguo@prueba.com` (contraseña en texto plano) |
@@ -641,24 +703,20 @@ PRUEBAS_SECCIONES=01,02 npm run test:api   # corre esas secciones aunque no est�
 El corredor **vacía** la base de pruebas en cada corrida. Por eso se niega a correr si `PRUEBAS_DATABASE_URL` es la misma base que `DATABASE_URL`.
 
 **Activar una sección:** en la rama que porta sus rutas, cambia `activa: false` por `activa: true` en `secciones.mjs`.
-El CI solo corre las activas, así que siempre está en verde, y el resumen muestra el avance (`secciones activas 5/32`).
+El CI solo corre las activas, así que siempre está en verde, y el resumen muestra el avance (`secciones activas 34/34`).
 Conviene activarlas en orden, porque cada sección usa datos que crearon las anteriores.
 
 **El contrato:** las comprobaciones sobre el JSON de la API no se cambian al portar. Las páginas HTML esperan
 los mismos nombres (`OfertaID`, `TituloMaterial`…), así que la ruta nueva debe devolverlos igual.
 Lo único que se tradujo fue el SQL de `q()`. `q()` devuelve las filas con los nombres de MySQL y los booleanos como `1/0`, igual que `mysql2`.
 
-Estas secciones se reescriben cuando cambie su tecnología:
-
-| Sección | Se reescribe en |
-|---|---|
-| 15 Cierre automático de subastas | En Vercel: cierre perezoso + cron diario. En las pruebas `CIERRE_PEREZOSO=0` y se cierra con la ruta del admin |
-| 23 Tiempo real | Reescrita para Ably. Sin `ABLY_API_KEY` (como en el CI) las comprobaciones de entrega se omiten (⏭️) y se revisa que el permiso responda 503 |
-| 32 Límites de intentos | Se activa cuando estén Kan y su límite (en memoria, `web/lib/limites.ts`) |
+Tres secciones cambiaron con la tecnología nueva: la 14 (cierre de subastas) usa `CIERRE_PEREZOSO=0` y cierra con la ruta del admin, en Vercel hay cierre perezoso más un cron diario; la 24 (tiempo real) se reescribió para Ably y, sin `ABLY_API_KEY` (como en el CI), omite (⏭️) las comprobaciones de entrega y revisa que el permiso responda 503; y la 32 (sesión en cookie) y la 33 (encabezados de seguridad y CSP) son nuevas.
 
 ---
 
-## Despliegue en Azure
+## Despliegue en Azure (versión anterior, ya no se usa)
+
+> La VM de la escuela venció y el sitio ahora corre en Vercel (ver [Next.js en Vercel](#nextjs-en-vercel-web)). Esta sección queda como referencia de la versión Express y se archiva al cerrar la migración.
 
 | | |
 |---|---|
@@ -697,15 +755,15 @@ Los pasos exactos para pasar a cada versión están en [`backend/scripts/LEEME.m
 
 ## Flujo de trabajo con git
 
-- **`master`** es la rama principal, con la app actual (Express + MySQL). Solo recibe correcciones urgentes, siempre por *pull request*.
-- **`migracion-nextjs`** es la rama de larga duración donde se convierte la app a Next.js (ver [ROADMAP](ROADMAP.md)). Se cierra cuando todo esté convertido.
+- **`master`** es la rama principal y todavía tiene la app anterior (Express + MySQL). Solo recibe correcciones urgentes, siempre por *pull request*.
+- **`migracion-nextjs`** es la rama de larga duración donde se convierte la app a Next.js (ver [ROADMAP](ROADMAP.md)). **Vercel publica el sitio desde esta rama.** Se cierra cuando todo esté convertido y revisado.
   - Nadie hace *push* directo: cada pieza se trabaja en una rama corta **`nextjs/<tema>`** (por ejemplo `nextjs/proyecto-base`, `nextjs/pagina-login`) que sale de `migracion-nextjs` y vuelve por *pull request* con **squash** (un commit por pieza).
   - Cuando algo entra a `master`, se abre un *pull request* `master → migracion-nextjs` para mantenerlas sincronizadas.
   - Para cerrarla: *pull request* `migracion-nextjs → master` con **merge commit** (conserva la historia), etiqueta `v2.0` y se borra la rama. La lista de lo que debe estar terminado está en el ROADMAP.
 - `master` y `migracion-nextjs` están protegidas: exigen *pull request* y las pruebas en verde.
 - La rama `main` ya no se usa (la versión 14 se mezcló a `master` en el PR #14).
-- Antes de subir cambios, corre las pruebas (`backend/pruebas/LEEME.md`). Al subirlos, GitHub Actions las vuelve a correr; revisa que el *pull request* tenga ✅ antes de mezclarlo.
-- Si agregas o cambias una ruta, actualiza `docs/openapi.yaml`: la prueba `rutas_documentadas` falla si una ruta no está documentada.
+- Antes de subir cambios en `web/`, corre `npm run lint`, `npm run tipos` y `npm run test:api` (y `npm run e2e` si tocaste una página). Para el backend viejo, mira `backend/pruebas/LEEME.md`. Al subirlos, GitHub Actions las vuelve a correr; revisa que el *pull request* tenga ✅ antes de mezclarlo.
+- Si agregas o cambias una ruta, actualiza `web/docs/openapi.yaml`: la sección 12 de las pruebas de la API avisa si una ruta de `app/api/` no está documentada.
 
 ---
 

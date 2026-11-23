@@ -224,7 +224,7 @@ Los planes gratuitos cambian seguido: revisar las páginas de precios antes de e
 Estas salieron del análisis del código actual:
 
 - [x] HTTPS (por Vercel)
-- [x] Encabezados de seguridad y CSP (se configuran en `next.config`; más fácil sin `onclick` en línea)
+- [x] Encabezados de seguridad y CSP (se configuran en `next.config`; más fácil sin `onclick` en línea). Hechos en noviembre de 2026 (`web/next.config.ts`, sección 33 de `pruebas/api`), sin nonces por PPR
 - [x] Separar el JS de los HTML (componentes React)
 - [x] Migraciones automáticas (Drizzle Kit)
 - [ ] Monitoreo: endpoint `/api/salud` y un monitor externo

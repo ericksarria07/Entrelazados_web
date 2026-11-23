@@ -43,5 +43,6 @@ export const SECCIONES = [
     { archivo: "30-perfil-publico-y-paginacion.mjs", titulo: "31. Perfil público y paginación", activa: true, requiere: ["03-inicio-de-sesion.mjs","17-editar-publicaciones.mjs","23-tiempo-real.mjs","26-favoritos-y-alertas-de.mjs"] },
     { archivo: "33-sesion-con-cookie.mjs", titulo: "32. Sesión en cookie httpOnly y CSRF", activa: true, requiere: ["02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
     { archivo: "31-eliminar-usuarios.mjs", titulo: "12. Eliminar usuarios (admin)", activa: true, requiere: ["03-inicio-de-sesion.mjs","13-fotos-de-las-ofertas.mjs"] },
+    { archivo: "34-encabezados-de-seguridad.mjs", titulo: "33. Encabezados de seguridad y CSP", activa: true },
     { archivo: "32-limites-de-intentos.mjs", titulo: "15. Límites de intentos", activa: true, requiere: ["01-registro.mjs","02-confirmar-el-correo.mjs","03-inicio-de-sesion.mjs"] },
 ];
