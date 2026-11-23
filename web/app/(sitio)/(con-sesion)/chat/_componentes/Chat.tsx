@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { conNegritas } from "@/componentes/sitio/Kan";
 import { useEventoTiempoReal, useSitio } from "@/componentes/sitio/ProveedorSitio";
 import { api, conJSON } from "@/lib/cliente/api";
+import { preguntarAKan, type MensajeHistorialKan } from "@/lib/cliente/kan";
 
 type Contacto = {
   UsuarioID: number;
@@ -29,6 +30,8 @@ const POSES = {
   respondiendo: "/randal-principal.webp",
 };
 type Pose = keyof typeof POSES;
+
+const SEGUIMIENTO_KAN = "¿Tienes alguna otra pregunta o duda?";
 
 // Preguntas rápidas de Kan en el chat: [botón, pregunta, respuesta]
 const OPCIONES_KAN: Record<"proveedor" | "emprendedor", { saludo: string; opciones: [string, string, string][] }> = {
@@ -96,6 +99,8 @@ export default function Chat() {
   const [movil, setMovil] = useState(false);
   const [mensajes, setMensajes] = useState<MensajeBD[]>([]);
   const [kan, setKan] = useState<MensajeKan[]>([]);
+  // Mientras llega la respuesta de la IA no se manda otra pregunta a Kan
+  const [kanEscribiendo, setKanEscribiendo] = useState(false);
   const [pose, setPose] = useState<Pose>("saludando");
   const [poseVisible, setPoseVisible] = useState(true);
   const [texto, setTexto] = useState("");
@@ -219,7 +224,7 @@ export default function Chat() {
       agregarKan(respuesta, false);
       setTimeout(() => {
         cambiarPose("dudando");
-        agregarKan("¿Tienes alguna otra pregunta o duda?", false);
+        agregarKan(SEGUIMIENTO_KAN, false);
       }, 3000);
     }, 700);
   }
@@ -229,17 +234,39 @@ export default function Chat() {
     if (!t) return;
     estabaAbajo.current = true;
     if (seleccion === "kan") {
+      if (kanEscribiendo) return;
+      // Lo hablado antes (sin la pregunta de seguimiento), para que Kan recuerde la conversación
+      const historial: MensajeHistorialKan[] = kan
+        .filter((m) => m.texto !== SEGUIMIENTO_KAN)
+        .slice(-10)
+        .map((m) => ({ rol: m.mio ? "usuario" : "kan", texto: m.texto }));
       agregarKan(t, true);
       setTexto("");
       cambiarPose("telefono");
+      setKanEscribiendo(true);
+      // La respuesta aparece mientras la IA la escribe: el primer trozo crea el mensaje
+      let empezo = false;
+      const mostrar = (hastaAhora: string) => {
+        if (!empezo) {
+          empezo = true;
+          cambiarPose("respondiendo");
+          agregarKan(hastaAhora, false);
+        } else {
+          setKan((k) => [...k.slice(0, -1), { ...k[k.length - 1], texto: hastaAhora }]);
+        }
+      };
       try {
-        const res = await api("/api/chat/ia", conJSON("POST", { mensajeUsuario: t, rolUsuario: miRol || "emprendedor" }));
-        const data = (await res.json()) as { respuesta?: string; error?: string; message?: string };
-        secuenciaKan(data.respuesta || data.error || data.message || "No pude responder en este momento.");
+        mostrar(await preguntarAKan(t, historial, mostrar));
       } catch (err) {
         console.error("Error al conectar con Kan IA:", err);
-        secuenciaKan("¡Ups! Ocurrió un error al intentar conectarme con mi servidor. Inténtalo de nuevo.");
+        mostrar("¡Ups! Ocurrió un error al intentar conectarme con mi servidor. Inténtalo de nuevo.");
+      } finally {
+        setKanEscribiendo(false);
       }
+      setTimeout(() => {
+        cambiarPose("dudando");
+        agregarKan(SEGUIMIENTO_KAN, false);
+      }, 3000);
       return;
     }
     if (typeof seleccion !== "number") return;
@@ -399,6 +426,7 @@ export default function Chat() {
               <div
                 className="chat-messages"
                 id="chat-msgs"
+                aria-busy={seleccion === "kan" && kanEscribiendo}
                 ref={area}
                 onScroll={(e) => {
                   const el = e.currentTarget;

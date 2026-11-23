@@ -79,7 +79,12 @@ Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3
 
 ### Para todos
 - **Dashboard** con 8 indicadores, gráficas (Chart.js), precios de referencia por categoría, subastas en curso y **exportación a Excel** (6 hojas).
-- **Kan**, el asistente virtual con IA. La conversación sigue al cambiar de página (se guarda en el navegador hasta cerrar sesión o que venza la sesión) y Kan recuerda los últimos 10 mensajes al contestar.
+- **Kan**, el asistente virtual con IA:
+  - la respuesta aparece mientras se escribe (streaming), en el widget y en el chat;
+  - la conversación sigue al cambiar de página (se guarda en el navegador hasta cerrar sesión o que venza la sesión);
+  - recuerda los últimos 10 mensajes al contestar.
+
+  `POST /api/chat/ia` responde JSON por defecto y texto en trozos con `Accept: text/plain`.
 - **Chat** directo entre proveedores y emprendedores, con **contador de mensajes no leídos** en el menú de todas las páginas y en cada contacto, y la marca "Visto".
 - **Confirmación del correo al registrarse**: enlace de 24 horas; sin confirmarlo no se puede entrar (se puede pedir otro enlace desde el login).
 - **Recuperación de contraseña por correo**: enlace de un solo uso que vence en 1 hora.
@@ -109,7 +114,7 @@ Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3
 | Tiempo real | **Ably** (`@ably/pubsub-device` en el navegador, `@ably/pubsub-server` en el servidor) |
 | Fotos | **Vercel Blob** (en local, a disco) |
 | Correo | `nodemailer` (Gmail con contraseña de aplicación u otro SMTP) |
-| IA | `@google/genai` (Gemini) para Kan, el asistente de publicación y el precio sugerido |
+| IA | Gemini: Kan responde en streaming con el **Vercel AI SDK** (`ai` + `@ai-sdk/google`); el asistente de publicación y el precio sugerido usan `@google/genai` (JSON con esquema) |
 | Pruebas | `node` para la API, **Playwright 1.57.0** para los E2E y el recorrido |
 | Producción | **Vercel** (dominio en Cloudflare), rama de producción `migracion-nextjs`, CD con migraciones automáticas |
 

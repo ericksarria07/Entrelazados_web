@@ -162,7 +162,7 @@ Cada página migrada se despliega sola. El orden va de la más simple a la más 
 | 2.6 | ✅ `chat` | 1.260 | 3–4 |
 | 2.7 | ✅ `mercado`: ofertas, subastas en vivo, favoritos, alertas, publicar con IA y mapa (Leaflet de npm) | ~2.490 | 5–7 |
 | 2.8 | ✅ Pruebas E2E con `@playwright/test`: publicar, pujar, cerrar y chatear | | 2–3 |
-| 2.9 | *(Opcional)* Kan y el asistente de IA con **Vercel AI SDK**: streaming y salidas tipadas (ver sección 10). No incluido en el total | ~600 | 2.5–4 |
+| 2.9 | ✅ Kan con **Vercel AI SDK** (`ai` 7 + `@ai-sdk/google`): la respuesta aparece mientras se escribe. El asistente de publicación sigue con `@google/genai` (ya devuelve JSON con esquema). No incluido en el total | ~600 | 2.5–4 |
 
 ### Total
 | | Días |
@@ -496,7 +496,14 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 
 **Terminado cuando:** se cumple el Hito C y se pueden revisar los criterios de cierre de la sección 12.
 
-### 2.9 *(Opcional)* Kan con Vercel AI SDK · `nextjs/kan-streaming` · 2.5–4 días
+### 2.9 *(Opcional)* Kan con Vercel AI SDK · `nextjs/kan-streaming` · 2.5–4 días · ✅
+
+> **Hecho (noviembre de 2026):**
+> - **Servidor:** `respuestaKan()` (`lib/kan.ts`) usa `streamText` con un solo reintento, 20 s para el primer trozo y 40 s en total. Si no llega ningún trozo, responde el mensaje de respaldo, como antes.
+> - **`/api/chat/ia`:** sigue respondiendo JSON `{ respuesta }` por defecto (Swagger, scripts y pruebas no cambian). Con `Accept: text/plain` entrega el texto en trozos.
+> - **Cliente:** el widget y el chat lo leen con `preguntarAKan()` (`lib/cliente/kan.ts`), sin `useChat`, para no cambiar su interfaz. Mientras Kan escribe, la ventana tiene `aria-busy` y la conversación se guarda solo al terminar.
+> - **Historial en el chat:** el chat ahora también le manda el historial a Kan.
+> - **Asistente de publicación:** no se migró a `generateObject`; ya pide JSON con esquema a `@google/genai` y funciona bien.
 - **Kan:** `streamText` en `/api/chat/ia` y `useChat` en el widget y en el chat, conservando las respuestas fijas de respaldo y los límites de uso.
 - **Asistente de publicación:** `generateObject` con un esquema Zod.
 - **Antes de empezar:** AI SDK 7 pide Node 22 o superior; desde noviembre de 2026 el proyecto y el CI usan Node 26.

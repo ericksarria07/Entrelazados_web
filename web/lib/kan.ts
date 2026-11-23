@@ -9,7 +9,8 @@
 // deja al usuario con un error.
 // ==========================================================================
 import { obtenerPool } from "@/lib/db";
-import { clienteGemini, modeloGemini } from "@/lib/gemini";
+import { type ModelMessage, streamText } from "ai";
+import { modeloKan } from "@/lib/gemini";
 
 // Respuestas fijas, saludo y limpieza del historial viven en kan-respuestas.ts
 // (sin base de datos ni Gemini, para las pruebas unitarias)
@@ -56,20 +57,24 @@ async function contextoDelMercado() {
   };
 }
 
-// mensaje: lo que escribió el usuario; rol: el de su sesión; historial: lo hablado antes
-export async function responderKan(
-  mensaje: string,
-  rol: string,
-  historial: MensajeHistorial[] = [],
-): Promise<string> {
+// Respuesta de Kan en trozos de texto, para mostrarla mientras se escribe (streaming con el
+// Vercel AI SDK). mensaje: lo que escribió el usuario; rol: el de su sesión; historial: lo
+// hablado antes. Kan nunca deja al usuario con un error: si Gemini no está configurado o
+// falla antes de escribir algo, el único trozo es el mensaje de respaldo.
+export async function* respuestaKan(mensaje: string, rol: string, historial: MensajeHistorial[] = []): AsyncGenerator<string> {
   const rolNormalizado = (rol || "emprendedor").toLowerCase().trim();
-  const esAdmin =
-    rolNormalizado === "administrador" || rolNormalizado === "admin";
+  const esAdmin = rolNormalizado === "administrador" || rolNormalizado === "admin";
   const fija = respuestaFija(mensaje.toLowerCase().trim(), esAdmin);
-  if (fija) return fija;
+  if (fija) {
+    yield fija;
+    return;
+  }
 
-  const ai = clienteGemini();
-  if (!ai) return SIN_CONEXION_IA;
+  const modelo = modeloKan();
+  if (!modelo) {
+    yield SIN_CONEXION_IA;
+    return;
+  }
   const contexto = await contextoDelMercado();
   const instrucciones = `
 Eres Kan (también conocido como Randal), el asistente virtual oficial de "EntreLazados" en Nicaragua.
@@ -88,31 +93,49 @@ ${contexto.subastas}
 3. Adapta tu respuesta según el rol: ${rolNormalizado}.
 4. Respuestas concisas (máximo 3 párrafos).
 `;
+  // streamText no lanza los errores: los avisa por onError (o, si vence el tiempo, el texto
+  // simplemente termina sin nada). Por eso, si no llegó ningún trozo, se usa el respaldo.
+  const resultado = streamText({
+    model: modelo,
+    instructions: instrucciones,
+    messages: conversacionParaGemini(historial, mensaje),
+    temperature: 0.6,
+    maxOutputTokens: 600,
+    // Un solo reintento y 20 s para el primer trozo: si Gemini no responde (o el plan
+    // gratis responde 429), se usa el respaldo en segundos en vez de colgar la función
+    maxRetries: 1,
+    timeout: { firstChunkMs: 20_000, totalMs: 40_000 },
+    onError: ({ error }) => {
+      console.error("❌ Error en la API de Gemini:", (error as Error)?.message || error);
+    },
+  });
+  let escribio = false;
   try {
-    const respuesta = await ai.models.generateContent({
-      model: modeloGemini(),
-      contents: conversacionParaGemini(historial, mensaje),
-      config: {
-        systemInstruction: instrucciones,
-        temperature: 0.6,
-        maxOutputTokens: 600,
-      },
-    });
-    return respuesta.text || "Lo siento, no pude procesar tu solicitud.";
+    for await (const trozo of resultado.textStream) {
+      if (!trozo) continue;
+      escribio = true;
+      yield trozo;
+    }
   } catch (error) {
-    console.error(
-      "❌ Error en la API de Gemini:",
-      (error as Error).message || error,
-    );
-    return SIN_CONEXION_IA;
+    console.error("❌ Error en la API de Gemini:", (error as Error)?.message || error);
   }
+  if (!escribio) yield SIN_CONEXION_IA;
 }
 
-// Historial + pregunta nueva como turnos de Gemini. La conversación tiene que empezar
+// La respuesta completa de una vez (POST /api/chat/ia sin streaming: Swagger, scripts, pruebas)
+export async function responderKan(mensaje: string, rol: string, historial: MensajeHistorial[] = []): Promise<string> {
+  let texto = "";
+  for await (const trozo of respuestaKan(mensaje, rol, historial)) texto += trozo;
+  return texto;
+}
+
+// Historial + pregunta nueva como mensajes del AI SDK. La conversación tiene que empezar
 // con el usuario, así que se quitan las respuestas de Kan que queden al principio
 // (por ejemplo, la respuesta a una pregunta rápida)
-function conversacionParaGemini(historial: MensajeHistorial[], mensaje: string) {
-  const turnos = historial.map((m) => ({ role: m.rol === "kan" ? "model" : "user", parts: [{ text: m.texto }] }));
-  while (turnos.length && turnos[0].role === "model") turnos.shift();
-  return [...turnos, { role: "user", parts: [{ text: mensaje }] }];
+function conversacionParaGemini(historial: MensajeHistorial[], mensaje: string): ModelMessage[] {
+  const turnos: ModelMessage[] = historial.map((m) =>
+    m.rol === "kan" ? { role: "assistant", content: m.texto } : { role: "user", content: m.texto }
+  );
+  while (turnos.length && turnos[0].role === "assistant") turnos.shift();
+  return [...turnos, { role: "user", content: mensaje }];
 }

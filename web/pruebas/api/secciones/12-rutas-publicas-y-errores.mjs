@@ -50,6 +50,25 @@ export default async function correr(ctx) {
     r = await api('POST', '/api/chat/ia', { token: ctx.e2.token, body: { historial: [{ rol: 'kan', texto: 'hola' }, { rol: 'raro', texto: 1 }, null] } });
     check('Kan con historial pero sin mensaje → 400', r.status === 400, JSON.stringify(r));
 
+    // Con "Accept: text/plain" la respuesta llega en trozos mientras se escribe (Vercel AI SDK).
+    // En las pruebas Gemini está apagado: llega la respuesta fija o el respaldo, como texto.
+    const kanEnVivo = async (cuerpo, conSesion = true) => {
+        const res = await fetch(B + '/api/chat/ia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'text/plain', ...(conSesion ? { Authorization: 'Bearer ' + ctx.p2.token } : {}) },
+            body: JSON.stringify(cuerpo),
+        });
+        return { status: res.status, tipo: res.headers.get('content-type') ?? '', texto: await res.text() };
+    };
+    let v = await kanEnVivo({ mensajeUsuario: 'hola' });
+    check('Kan en streaming: responde texto plano (respuesta fija)', v.status === 200 && v.tipo.startsWith('text/plain') && /Soy Kan/.test(v.texto), `${v.status} ${v.tipo} ${v.texto.slice(0, 80)}`);
+    v = await kanEnVivo({ mensajeUsuario: '¿qué cuero me recomiendas para botas?' });
+    check('…sin Gemini, el texto es el mensaje de respaldo (nunca un error)', v.status === 200 && /problemas temporales/.test(v.texto), v.texto.slice(0, 80));
+    v = await kanEnVivo({ mensajeUsuario: '' });
+    check('…un mensaje vacío sigue siendo 400 en JSON', v.status === 400 && v.tipo.includes('application/json') && /obligatorio/.test(v.texto), `${v.status} ${v.tipo}`);
+    v = await kanEnVivo({ mensajeUsuario: 'hola' }, false);
+    check('…y sin sesión, 401', v.status === 401, String(v.status));
+
     // Documentación de la API (Swagger)
     r = await api('GET', '/api/openapi.json');
     check('/api/openapi.json entrega la especificación OpenAPI', r.status === 200 && r.data && r.data.openapi && r.data.paths, String(r.status));

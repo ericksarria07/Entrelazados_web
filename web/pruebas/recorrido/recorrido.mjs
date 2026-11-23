@@ -524,7 +524,9 @@ try {
         await pg.fill('.kan-input', '¿Qué cuero me recomiendas para hacer billeteras resistentes?');
         await pg.press('.kan-input', 'Enter');
         await pg.waitForFunction((n) => document.querySelector('.kan-chat-window').innerText.length > n + 150, antes.length + 60, { timeout: 60000 });
-        await pg.waitForTimeout(1500);
+        // La respuesta llega en trozos: se espera a que termine (aria-busy vuelve a false)
+        await pg.waitForSelector('.kan-chat-window:not([aria-busy="true"])', { timeout: 60000 });
+        await pg.waitForTimeout(500);
         const texto = (await pg.locator('.kan-chat-window').innerText()).slice(antes.length);
         if (/problemas temporales/i.test(texto)) throw new Error('Kan respondió con el mensaje de respaldo (Gemini no contestó)');
         await pg.evaluate(() => { const w = document.querySelector('.kan-chat-window [class*="mensajes"], .kan-chat-window'); w.scrollTop = w.scrollHeight; });
@@ -545,7 +547,8 @@ try {
         await pg.fill('.kan-input', '¿Y cuánto cuesta ese?');
         await pg.press('.kan-input', 'Enter');
         await pg.waitForFunction((n) => document.querySelector('.kan-chat-window').innerText.length > n + 120, antes + 30, { timeout: 60000 });
-        await pg.waitForTimeout(1500);
+        await pg.waitForSelector('.kan-chat-window:not([aria-busy="true"])', { timeout: 60000 });
+        await pg.waitForTimeout(500);
         const texto = (await pg.locator('.kan-chat-window').innerText()).slice(antes);
         if (/problemas temporales/i.test(texto)) throw new Error('Kan respondió con el mensaje de respaldo (Gemini no contestó)');
         return texto.replace(/\s+/g, ' ').trim().slice(0, 220);
