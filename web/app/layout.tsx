@@ -12,6 +12,8 @@ import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 import type { Metadata } from "next";
 import { Source_Sans_3 } from "next/font/google";
 import BotonTema from "@/componentes/BotonTema";
+import { urlDelSitio } from "@/lib/config";
+import { DESCRIPCION_SITIO, OPEN_GRAPH_BASE } from "@/lib/metadatos";
 import "./estilos/base.css";
 import "./estilos/tema.css";
 
@@ -22,10 +24,16 @@ const fuente = Source_Sans_3({
   display: "swap",
 });
 
+// metadataBase: con él, las imágenes y enlaces de Open Graph salen con la dirección completa
+// (WhatsApp y Facebook no entienden rutas relativas). La imagen para compartir la arma
+// app/opengraph-image.tsx.
 export const metadata: Metadata = {
+  metadataBase: new URL(urlDelSitio()),
   title: { default: "EntreLazados", template: "%s - EntreLazados" },
-  description: "Mercado de materia prima para calzado y marroquinería en Nicaragua",
+  description: DESCRIPCION_SITIO,
   icons: { icon: "/logo.png" },
+  openGraph: OPEN_GRAPH_BASE,
+  twitter: { card: "summary_large_image" },
 };
 
 // Igual que tema.js: elección guardada o, si no hay, el modo del sistema. Va en línea

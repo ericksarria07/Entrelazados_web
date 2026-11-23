@@ -47,6 +47,18 @@ export async function usuarioPublico(id: unknown): Promise<UsuarioPublico> {
   return u;
 }
 
+// Perfiles públicos para el sitemap: los mismos que muestra /perfil-publico (cuenta activa,
+// proveedor o emprendedor). Solo el id y la fecha de registro.
+export async function listarPerfilesPublicos(): Promise<{ id: number; desde: Date }[]> {
+  const { rows } = await obtenerPool().query<{ id: number; desde: Date }>(
+    `SELECT usuario_id AS id, fecha_registro AS desde FROM usuarios
+     WHERE estado_cuenta = 'Activo' AND lower(tipo_rol) IN ('proveedor', 'emprendedor')
+     ORDER BY usuario_id
+     LIMIT 5000`
+  );
+  return rows;
+}
+
 // Promedio, total y últimas 5 calificaciones recibidas (de servicios/tratos.js)
 export async function reputacion(usuarioId: number) {
   const pool = obtenerPool();

@@ -4,12 +4,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Buscador from "@/componentes/sitio/Buscador";
+import { OPEN_GRAPH_BASE } from "@/lib/metadatos";
 import { datosDeSesionDesdeCookies } from "@/lib/sesion";
 import BotonSalir from "./_componentes/BotonSalir";
 import estilos from "./portada.module.css";
 
+const TITULO = "EntreLazados - Tu Mercado de Materia Prima para Cuero";
+const DESCRIPCION =
+  "Proveedores de cuero, herrajes, suelas y pegamentos, y emprendedores del calzado en Nicaragua: compara precios por cercanía, puja en subastas y negocia por chat.";
+
 export const metadata: Metadata = {
-  title: { absolute: "EntreLazados - Tu Mercado de Materia Prima para Cuero" },
+  title: { absolute: TITULO },
+  description: DESCRIPCION,
+  alternates: { canonical: "/" },
+  openGraph: { ...OPEN_GRAPH_BASE, title: TITULO, description: DESCRIPCION, url: "/" },
 };
 
 const UNSPLASH = "auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";

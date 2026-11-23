@@ -34,6 +34,16 @@ export function urlPublica(req: Request): string {
   return `${protocolo}://${host}`;
 }
 
+// Dirección del sitio para lo que se arma sin una petición a mano: metadataBase (enlaces
+// absolutos de Open Graph), el sitemap y robots.txt. APP_URL en producción; en Vercel, el
+// dominio de producción o el de la vista previa; en local, localhost.
+export function urlDelSitio(): string {
+  const configurada = texto("APP_URL").replace(/\/+$/, "");
+  if (configurada) return configurada;
+  const vercel = texto(texto("VERCEL_ENV") === "production" ? "VERCEL_PROJECT_PRODUCTION_URL" : "VERCEL_URL");
+  return vercel ? `https://${vercel}` : "http://localhost:3000";
+}
+
 export function verificarCorreo(): boolean {
   const modo = texto("VERIFICAR_CORREO");
   return modo === "1" || (modo !== "0" && correoConfigurado());
