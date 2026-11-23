@@ -18,7 +18,7 @@ function menorDeMil(n: number): string {
   return texto;
 }
 
-// "veintiuno mil" → "veintiún mil", "uno millones" → "un millones"
+// Antes de un sustantivo "uno" se acorta: "veintiún mil", "treinta y un millones", "un córdoba"
 const apocope = (t: string) => t.replace(/veintiuno$/, "veintiún").replace(/uno$/, "un");
 
 export function enLetras(numero: number): string {
@@ -30,8 +30,10 @@ export function enLetras(numero: number): string {
   const partes: string[] = [];
   if (millones) partes.push(millones === 1 ? "un millón" : apocope(menorDeMil(millones)) + " millones");
   if (miles) partes.push(miles === 1 ? "mil" : apocope(menorDeMil(miles)) + " mil");
-  if (resto) partes.push(menorDeMil(resto));
+  if (resto) partes.push(apocope(menorDeMil(resto)));
   let texto = partes.join(" ") || "cero";
   texto = texto.charAt(0).toUpperCase() + texto.slice(1);
-  return `${texto} córdoba${entero === 1 ? "" : "s"} con ${String(centavos).padStart(2, "0")}/100`;
+  // "un millón de córdobas", pero "un millón quinientos córdobas"
+  const de = millones && !miles && !resto ? " de" : "";
+  return `${texto}${de} córdoba${entero === 1 ? "" : "s"} con ${String(centavos).padStart(2, "0")}/100`;
 }

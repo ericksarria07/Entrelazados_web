@@ -12,39 +12,11 @@ import { type AvisoCancelacion, avisarCancelacion, avisarPujadoresCancelacion } 
 import { aTodos } from "@/lib/tiempo-real";
 import { enteroPositivo } from "@/lib/utilidades";
 
-// Duración permitida de una subasta y precio máximo (numeric(10,2) llega hasta 99.999.999,99)
-export const DIAS_SUBASTA = { minimo: 1, maximo: 14, porDefecto: 7 };
-export const PRECIO_MAXIMO = 99999999;
-export const LARGO_DESCRIPCION = 1000;
 const MOTIVO_MODERACION = "por moderación del administrador";
 
-export type DatosOferta = {
-  titulo: string;
-  unidad: string;
-  precio: number;
-  categoriaId: number;
-  distancia: number;
-  descripcion: string | null;
-};
-
-// Valida los campos de una publicación (al crearla y al editarla)
-export function validarOferta(body: Record<string, unknown>): { error: string } | DatosOferta {
-  const titulo = typeof body.titulo === "string" ? body.titulo.trim() : "";
-  const unidad = typeof body.unidad === "string" ? body.unidad.trim() : "";
-  const precio = Number(body.precio);
-  const categoriaId = enteroPositivo(body.categoriaId);
-  if (!titulo || !body.precio || !unidad || !categoriaId) return { error: "Por favor, llena todos los campos obligatorios." };
-  if (titulo.length > 120) return { error: "El título puede tener como máximo 120 caracteres." };
-  if (unidad.length > 30) return { error: "La unidad de medida puede tener como máximo 30 caracteres." };
-  if (!(precio > 0) || precio > PRECIO_MAXIMO) return { error: "El precio debe ser un número mayor que 0." };
-  // Descripción opcional (la puede redactar el asistente de IA); vacía se guarda como NULL
-  const descripcion = typeof body.descripcion === "string" ? body.descripcion.trim() : "";
-  if (descripcion.length > LARGO_DESCRIPCION) {
-    return { error: `La descripción puede tener como máximo ${LARGO_DESCRIPCION} caracteres.` };
-  }
-  const distancia = Math.max(0, Math.min(10000, Math.round(Number(body.distancia) || 0)));
-  return { titulo, unidad, precio, categoriaId, distancia, descripcion: descripcion || null };
-}
+// Reglas puras de una publicación (en ofertas-reglas.ts para poder probarlas sin base de datos)
+import { DIAS_SUBASTA } from "@/lib/ofertas-reglas";
+export { DIAS_SUBASTA, LARGO_DESCRIPCION, PRECIO_MAXIMO, validarOferta, type DatosOferta } from "@/lib/ofertas-reglas";
 
 // Postgres rechaza la llave foránea (23503) cuando la categoría elegida no existe
 export function traducirErrorCategoria(err: unknown): unknown {

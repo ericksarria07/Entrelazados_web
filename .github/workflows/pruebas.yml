@@ -7,7 +7,7 @@
 #   1. Las pruebas unitarias (sin base de datos) con Node 24 y Node 26.
 #   2. Las 274 pruebas de integración de la API contra un MySQL 8.0 nuevo y
 #      vacío (un contenedor que se borra al terminar: nunca toca producción).
-#   3. El lint, los tipos de TypeScript, la revisión de migraciones (Drizzle) y el build
+#   3. El lint, los tipos de TypeScript, las pruebas unitarias, la revisión de migraciones (Drizzle) y el build
 #      del proyecto Next.js (web/), con Node 26 como en Vercel.
 #   4. Las pruebas de integración de la API en Next.js contra un Postgres 18 nuevo y vacío
 #      (solo las secciones ya migradas: ver web/pruebas/api/secciones.mjs).
@@ -103,6 +103,8 @@ jobs:
       - run: npm run lint
       # Los tipos se revisan aparte para que un error de TypeScript se vea claro (no dentro del build)
       - run: npm run tipos
+      # Pruebas unitarias de web/lib (node --test, sin base de datos)
+      - run: npm run test:unidad
       # Las migraciones de Drizzle son coherentes entre sí (no necesita base de datos)
       - run: npm run db:revisar
       # No necesita base de datos: /api/salud se ejecuta en cada request, no en el build

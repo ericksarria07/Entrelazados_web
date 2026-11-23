@@ -19,18 +19,13 @@ import { after } from "next/server";
 import { correoConfigurado, enviarAviso } from "@/lib/correo";
 import { enTransaccion, obtenerPool } from "@/lib/db";
 import { ErrorHttp } from "@/lib/http";
+import { nombreLote } from "@/lib/lotes";
 import { enviarNotificaciones } from "@/lib/notificaciones";
-import { nombreLote } from "@/lib/subastas";
 import { aUsuario } from "@/lib/tiempo-real";
 
-type Estado = "EnProceso" | "Completado" | "Cancelado";
-
-// A cada estado nuevo solo se puede llegar desde estos estados
-export const ESTADOS_ORIGEN: Record<Estado, string[]> = {
-  EnProceso: ["Pendiente"],
-  Completado: ["Pendiente", "EnProceso"],
-  Cancelado: ["Pendiente", "EnProceso"],
-};
+// La máquina de estados y el nombre del lote viven en tratos-estados.ts (pruebas unitarias)
+import { ESTADOS_ORIGEN, type Estado, loteDelTrato } from "@/lib/tratos-estados";
+export { ESTADOS_ORIGEN, loteDelTrato };
 
 const ETIQUETAS: Record<string, string> = {
   Pendiente: "pendiente",
@@ -43,8 +38,6 @@ const LARGO_MAXIMO_MOTIVO = 200;
 const LARGO_MAXIMO_COMENTARIO = 300;
 const NO_EXISTE = "Ese trato no existe o no participas en él.";
 
-// "Subasta ganada: Lote Subasta: Cuero café" → "Cuero café"
-export const loteDelTrato = (descripcion: unknown) => nombreLote(String(descripcion || "").replace(/^Subasta ganada:\s*/i, ""));
 
 const esEstado = (valor: unknown): valor is Estado => typeof valor === "string" && valor in ESTADOS_ORIGEN;
 
