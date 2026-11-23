@@ -6,6 +6,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- vistas previas (blob:) y fotos ya subidas */
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useFocoModal } from "@/lib/cliente/foco";
 import { api, conJSON } from "@/lib/cliente/api";
 import type { Categoria } from "@/lib/cliente/categorias";
 import type { Oferta } from "./tipos";
@@ -77,6 +78,9 @@ export default function ModalOferta({
   const entradaFotos = useRef<HTMLInputElement>(null);
   const titulo = useRef<HTMLInputElement>(null);
   const precio = useRef<HTMLInputElement>(null);
+  // Se monta solo cuando está abierta: el foco entra al abrir y vuelve al botón al cerrar
+  const caja = useRef<HTMLDivElement>(null);
+  useFocoModal(caja, true);
   const fotosRef = useRef(fotos);
   useEffect(() => {
     fotosRef.current = fotos;
@@ -305,6 +309,7 @@ export default function ModalOferta({
   return (
     <div
       id="modalOferta"
+      ref={caja}
       className="modal"
       role="dialog"
       aria-modal="true"

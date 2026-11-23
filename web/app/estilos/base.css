@@ -24,3 +24,27 @@
 body {
     font-family: var(--fuente-base), 'Source Sans 3', sans-serif;
 }
+
+/* Accesibilidad (axe, WCAG AA): el acento #993D24 sobre la cabecera, la sub-barra y el pie
+   (café oscuro) daba 2.3–2.6 de contraste. En modo claro se usa un tono más vivo del mismo
+   color (#d9693f: 4.6–5.2). En modo oscuro --color-terciario ya es claro (tema.css). */
+html:not([data-tema="oscuro"]) .amazon-header .logo span,
+html:not([data-tema="oscuro"]) .login-header .logo span,
+html:not([data-tema="oscuro"]) footer .footer-brand span,
+html:not([data-tema="oscuro"]) .sub-bar a.active,
+html:not([data-tema="oscuro"]) .sub-bar a:hover {
+    color: #d9693f !important;
+}
+
+/* Texto solo para lectores de pantalla: no se ve, pero se lee */
+.solo-lector {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}

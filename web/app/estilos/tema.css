@@ -234,3 +234,19 @@ html[data-tema="oscuro"] img[src$="logo.png"]:not(.hoja img) { background: #f4ec
 html[data-tema="oscuro"] table th,
 html[data-tema="oscuro"] thead th { background-color: #2a201b !important; }
 html[data-tema="oscuro"] tbody tr:hover td { background-color: #2a201b; }
+
+/* Accesibilidad (axe, WCAG AA): el acento #b5562f como TEXTO sobre las tarjetas oscuras daba
+   3–3.6 de contraste (mínimo 4.5). Se aclara solo en el texto: los botones siguen con
+   --color-principal de fondo y letra blanca (4.84). El rol del contacto del chat tiene el
+   color en línea, por eso !important. */
+html[data-tema="oscuro"] .amazon-card-link,
+html[data-tema="oscuro"] .shelf-item-title,
+html[data-tema="oscuro"] .info-label,
+html[data-tema="oscuro"] .enlace-publico,
+html[data-tema="oscuro"] .range-val,
+html[data-tema="oscuro"] .enlaces a,
+html[data-tema="oscuro"] .contact-item > div > span { color: #e08a63 !important; }
+html[data-tema="oscuro"] .delta-sube { color: #5cb85c !important; }
+/* Tarjetas para elegir el rol en /unirse: tenían fondo claro fijo con letra clara del tema */
+html[data-tema="oscuro"] .role-option { background-color: #2a201b !important; border-color: #4a3a31 !important; }
+html[data-tema="oscuro"] .role-option.selected { background-color: #3a2a22 !important; border-color: #e08a63 !important; }

@@ -178,7 +178,7 @@
     --grid: #efe8e1;
     --texto: #2a1a12;
     --texto-2: #6b5a50;
-    --texto-3: #8d7d73;
+    --texto-3: #75665d; /* antes #8d7d73: 3.95 de contraste sobre blanco; ahora 5.5 */
     --serie-1: #993D24;
     --serie-2: #008f6b;
     --serie-3: #c98500;

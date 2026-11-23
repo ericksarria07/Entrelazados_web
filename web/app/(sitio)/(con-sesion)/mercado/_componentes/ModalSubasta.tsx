@@ -1,8 +1,9 @@
 // Crear una subasta: lote nuevo o a partir de una de mis publicaciones
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, conJSON } from "@/lib/cliente/api";
 import type { Categoria } from "@/lib/cliente/categorias";
+import { useFocoModal } from "@/lib/cliente/foco";
 import type { Oferta } from "./tipos";
 
 const VACIO = { ofertaId: "", titulo: "", precioBase: "", dias: "7", categoriaId: "" };
@@ -23,6 +24,8 @@ export default function ModalSubasta({
   const [form, setForm] = useState(VACIO);
   const [mias, setMias] = useState<Oferta[]>([]);
   const [enviando, setEnviando] = useState(false);
+  const caja = useRef<HTMLDivElement>(null);
+  useFocoModal(caja, abierto);
 
   // Al abrir: TODAS mis publicaciones, por si el lote sale de una de ellas
   useEffect(() => {
@@ -91,6 +94,7 @@ export default function ModalSubasta({
   return (
     <div
       id="modalSubasta"
+      ref={caja}
       className="modal"
       role="dialog"
       aria-modal="true"
