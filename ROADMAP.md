@@ -499,7 +499,7 @@ Mientras dure la migración, Vercel publica `migracion-nextjs` en `entrelazados.
 ### 2.9 *(Opcional)* Kan con Vercel AI SDK · `nextjs/kan-streaming` · 2.5–4 días
 - **Kan:** `streamText` en `/api/chat/ia` y `useChat` en el widget y en el chat, conservando las respuestas fijas de respaldo y los límites de uso.
 - **Asistente de publicación:** `generateObject` con un esquema Zod.
-- **Antes de empezar:** AI SDK 7 pide Node 22 o superior, así que hay que revisar el job de Node 20 del CI.
+- **Antes de empezar:** AI SDK 7 pide Node 22 o superior; desde noviembre de 2026 el proyecto y el CI usan Node 26.
 
 ### Riesgos
 
