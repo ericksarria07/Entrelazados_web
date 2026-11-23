@@ -1,0 +1,36 @@
+# ==========================================================================
+# DEPENDABOT: GitHub revisa cada semana si hay versiones nuevas o arreglos
+# de seguridad y abre un Pull Request con la actualización (el CI la prueba).
+# - npm de web/ (Next.js): las menores y parches van juntas en un solo PR;
+#   las mayores van una por una para revisarlas con calma.
+# - Las acciones de GitHub de los workflows (.github/workflows/).
+# backend/ (Express) no se incluye: se archiva al cerrar la migración.
+# Mientras dure la migración, los PRs van a migracion-nextjs.
+# ==========================================================================
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web
+    target-branch: migracion-nextjs
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Managua
+    open-pull-requests-limit: 5
+    groups:
+      menores-y-parches:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: migracion-nextjs
+    schedule:
+      interval: monthly
+      timezone: America/Managua
+    groups:
+      acciones:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"

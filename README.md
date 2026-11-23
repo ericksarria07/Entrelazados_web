@@ -355,6 +355,19 @@ En cada `push` y en cada *pull request* a `main` o `master`, **GitHub Actions** 
 
 Las instrucciones completas están en [`backend/pruebas/LEEME.md`](backend/pruebas/LEEME.md). Ahí también se explica cómo cargar datos de demostración para ver el dashboard con información.
 
+### Dependencias al día (Dependabot)
+
+[`.github/dependabot.yml`](.github/dependabot.yml) hace que GitHub revise cada lunes las dependencias de `web/`, y una vez al mes las acciones de los workflows. Si hay versiones nuevas, abre un *pull request* hacia `migracion-nextjs` y el CI lo prueba. Las versiones menores y los parches llegan juntos en un solo PR; las mayores, una por una.
+
+`npm audit --omit=dev` (en `web/`) no debe dar vulnerabilidades. Las que vienen de una dependencia de otra librería y todavía no tienen arreglo se fuerzan en `overrides` de `web/package.json`:
+
+| Override | Por qué |
+|---|---|
+| `@vercel/cli-config` → `zod ^4.6.7` | `@vercel/blob` 2.9.0 trae zod 4.1 (GHSA-mrhx-c7xc-m3w5) |
+| `exceljs` → `uuid ^11.1.1` | exceljs 4.4.0 pide uuid 8 (GHSA-w5hq-g745-h8pq); solo usa `v4`, que no cambió |
+
+Cuando esas librerías publiquen una versión con el arreglo, el override se puede quitar. Las 4 moderadas que quedan en `npm audit` son del esbuild viejo de `drizzle-kit`, que solo se usa en desarrollo y nunca levanta el servidor de esbuild.
+
 ---
 
 ## Seguridad

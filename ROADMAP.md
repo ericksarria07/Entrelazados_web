@@ -228,7 +228,7 @@ Estas salieron del análisis del código actual:
 - [x] Separar el JS de los HTML (componentes React)
 - [x] Migraciones automáticas (Drizzle Kit)
 - [ ] Monitoreo: endpoint `/api/salud` y un monitor externo
-- [ ] Fijar las versiones de las dependencias de CDN (`@tabler/icons-webfont@latest`) o instalarlas con npm
+- [x] Fijar las versiones de las dependencias de CDN (`@tabler/icons-webfont@latest`) o instalarlas con npm (Fase 2: todo por npm con versión fija; Dependabot avisa de las nuevas)
 
 ---
 
