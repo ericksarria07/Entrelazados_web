@@ -1,9 +1,9 @@
 // Piezas que comparten las pestañas del Mercado: paginación, enlace al perfil, estrellas
 // y la tarjeta de una publicación (lista de ofertas y favoritos)
 "use client";
-/* eslint-disable @next/next/no-img-element -- fotos subidas por los proveedores (Blob) */
 import Link from "next/link";
 import type { Oferta, Pagina } from "./tipos";
+import FotoOferta from "@/componentes/FotoOferta";
 
 export function Paginacion({ datos, ir }: { datos: Pagina<unknown> | null; ir: (p: number) => void }) {
   if (!datos || datos.total === 0 || datos.paginas <= 1) return null;
@@ -73,7 +73,7 @@ export function TarjetaOferta({
       <div className="listing-top">
         <div className="listing-avatar">
           {fotos.length ? (
-            <img src={fotos[0]} alt={`Foto de ${oferta.TituloMaterial}`} loading="lazy" />
+            <FotoOferta src={fotos[0]} alt={`Foto de ${oferta.TituloMaterial}`} width={60} height={60} sizes="60px" />
           ) : (
             <i className={`ti ${iconoCat}`} aria-hidden="true" />
           )}

@@ -6,7 +6,6 @@
 //   #tab-auctions, #tab-favorites, #tab-map   abre esa pestaña (enlaces de las notificaciones)
 // ==========================================================================
 "use client";
-/* eslint-disable @next/next/no-img-element -- fotos subidas por los proveedores (Blob) */
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Cabecera from "@/componentes/sitio/Cabecera";
@@ -20,6 +19,7 @@ import ModalOferta from "./ModalOferta";
 import ModalSubasta from "./ModalSubasta";
 import SubBarra from "./SubBarra";
 import { tiempoRestante, type FiltroFijo, type Oferta, type Pagina, type Pestana, type Subasta } from "./tipos";
+import FotoOferta from "@/componentes/FotoOferta";
 
 const POR_PAGINA_OFERTAS = 10;
 const POR_PAGINA_SUBASTAS = 8;
@@ -659,7 +659,7 @@ export default function Mercado() {
                     <div className="auction-top">
                       <div className="listing-avatar">
                         {s.Foto ? (
-                          <img src={s.Foto} alt={lote} loading="lazy" />
+                          <FotoOferta src={s.Foto} alt={lote} width={60} height={60} sizes="60px" />
                         ) : (
                           <i className="ti ti-gavel" aria-hidden="true" />
                         )}

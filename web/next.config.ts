@@ -76,6 +76,21 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
 
+  // next/image (componentes/FotoOferta.tsx): solo se optimizan las fotos de las ofertas.
+  // Vercel Blob en producción, /uploads/ofertas/ en local y las fotos viejas de Unsplash.
+  // El optimizador responde desde /_next/image, el mismo sitio, así que la CSP no cambia.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com", pathname: "/ofertas/**" },
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "plus.unsplash.com" },
+    ],
+    localPatterns: [{ pathname: "/uploads/ofertas/**", search: "" }],
+    // Cada foto tiene un nombre único y nunca cambia: la versión optimizada se guarda 31 días
+    // (por defecto, 1 hora). Así se gastan menos transformaciones del plan Hobby (5 000/mes).
+    minimumCacheTTL: 2678400,
+  },
+
   // Archivos que las funciones leen del disco y Vercel no copia solo: el logo de los
   // correos (lib/correo.ts) y la especificación de la API (lib/documentacion.ts).
   outputFileTracingIncludes: {

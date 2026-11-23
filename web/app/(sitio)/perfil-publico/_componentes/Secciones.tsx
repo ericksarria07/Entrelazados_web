@@ -1,9 +1,9 @@
 // Reseñas, publicaciones y subastas del perfil público: paginadas, se piden a la API
 "use client";
-/* eslint-disable @next/next/no-img-element -- fotos subidas por los proveedores (Blob), con respaldo si ya no están */
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { estrellasFijas, plural } from "./formato";
+import FotoOferta from "@/componentes/FotoOferta";
 
 type Pagina<T> = { datos: T[]; total: number; pagina: number; paginas: number };
 
@@ -15,7 +15,9 @@ const fechaCorta = (f: string) => new Date(f).toLocaleDateString("es-NI", { day:
 function Foto({ src, alt, icono }: { src?: string | null; alt: string; icono: string }) {
   const [rota, setRota] = useState(false);
   if (!src || rota) return <i className={`ti ${src ? "ti-photo-off" : icono}`} aria-hidden="true" />;
-  return <img src={src} alt={alt} loading="lazy" onError={() => setRota(true)} />;
+  return (
+    <FotoOferta src={src} alt={alt} width={320} height={240} sizes="(max-width: 640px) 50vw, 330px" onError={() => setRota(true)} />
+  );
 }
 
 function Paginacion({ datos, ir }: { datos: Pagina<unknown> | null; ir: (p: number) => void }) {
