@@ -85,7 +85,12 @@ Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3
 - **Recuperación de contraseña por correo**: enlace de un solo uso que vence en 1 hora.
 - Diseño adaptado a celular.
 - **Modo oscuro**: la primera vez sigue el modo del sistema; el botón redondo de abajo a la izquierda lo cambia y la elección se recuerda en el navegador (también al cerrar sesión). Al imprimir o guardar un PDF siempre se usa el modo claro.
-- **Accesibilidad**: foco visible al navegar con el teclado, enlace "Saltar al contenido", etiquetas en los campos y en los botones que solo tienen un ícono, ventanas con `role="dialog"`, pestañas con `role="tab"`, imágenes con texto alternativo y menos animaciones si el sistema lo pide.
+- **Accesibilidad**:
+  - foco visible al navegar con el teclado y enlace "Saltar al contenido";
+  - etiquetas en los campos y en los botones que solo tienen un ícono;
+  - ventanas con `role="dialog"`; el foco entra al abrirlas, `Tab` no se escapa y al cerrar vuelve al botón (`useFocoModal`);
+  - pestañas con `role="tab"`, imágenes con texto alternativo y menos animaciones si el sistema lo pide;
+  - contraste de colores WCAG AA en modo claro y oscuro, revisado con axe en cada push.
 
 ---
 
@@ -367,7 +372,7 @@ npm run probar:gemini          # comprueba la clave de Gemini (Kan)
 | **Lint y tipos** | ESLint y `tsc --noEmit` | `npm run lint` y `npm run tipos` |
 | **Unitarias** (`pruebas/unidad/`) | La lógica pura de `lib/`, sin base de datos y en menos de 1 s (ver abajo) | `npm run test:unidad` |
 | **API** (`pruebas/api/`) | Más de 450 comprobaciones de integración en 34 secciones, contra un Postgres de pruebas (ver [Pruebas de la API en Next.js](#pruebas-de-la-api-en-nextjs)) | `npm run build && npm run test:api` |
-| **E2E** (`pruebas/e2e/`) | Los 4 flujos clave en un navegador de verdad: publicar, pujar, cerrar el trato y chatear | `npm run build && npm run e2e` |
+| **E2E** (`pruebas/e2e/`) | Los 5 flujos clave en un navegador de verdad (publicar, pujar, cerrar el trato, chatear y editar el perfil) y la accesibilidad de 10 páginas con axe | `npm run build && npm run e2e` |
 | **Recorrido** (`pruebas/recorrido/`) | Todo el sitio con capturas, contra local o producción | `npm run recorrido` |
 
 El CI de GitHub corre todo menos el recorrido en cada push y *pull request*, y la prueba de humo (`humo.yml`) revisa producción después de cada despliegue.
@@ -684,7 +689,12 @@ RECORRIDO_URL=http://localhost:3000 npm run recorrido
 | Requisitos | `DATABASE_URL` de la misma base que la URL probada. Playwright fijo en 1.57.0: es la última versión con Chromium para macOS 13 |
 | Ojo | Cuenta para el límite de 5 registros por hora por conexión: si se corre varias veces seguidas, los registros por formulario se anotan como "límite alcanzado" y las cuentas se crean en la base |
 
-**Pruebas E2E** (`web/pruebas/e2e/`, `@playwright/test` 1.57.0): los 4 flujos clave en un navegador de verdad, con tamaño de celular: el proveedor publica, dos emprendedores pujan (el segundo supera al primero), la subasta cierra y el trato se completa, se califica y se abre el comprobante, y comprador y proveedor se escriben por el chat. Antes de empezar se vacía y se siembra la base de pruebas, y Playwright levanta `next start` en el puerto 3066. No dependen de Gemini, Ably ni Blob, así que el CI las corre en cada push (job "E2E (Playwright)", contra un Postgres desechable; si fallan, sube el informe y las trazas).
+**Pruebas E2E** (`web/pruebas/e2e/`, `@playwright/test` 1.57.0), en un navegador de verdad y con tamaño de celular:
+- **`flujos.spec.ts`, los 5 flujos clave:** el proveedor publica; dos emprendedores pujan (el segundo supera al primero); la subasta cierra y el trato se completa, se califica y se abre el comprobante; comprador y proveedor se escriben por el chat; un emprendedor edita su perfil.
+- **`accesibilidad.spec.ts`:** pasa [axe](https://github.com/dequelabs/axe-core) (`@axe-core/playwright` 4.14.0, reglas WCAG 2.1 A y AA) por 10 páginas, en modo claro y oscuro. Las públicas son `/`, `/login`, `/unirse`, `/restablecer` y `/perfil-publico`; con sesión, `/inicio`, `/mercado`, `/perfil`, `/dashboard` y `/chat`. Falla con las infracciones graves (`critical` y `serious`); las menores solo las lista.
+- **`ayudas.ts`:** crea las cuentas e inicia sesión, y lo comparten las dos.
+
+Antes de empezar se vacía y se siembra la base de pruebas, y Playwright levanta `next start` en el puerto 3066. No dependen de Gemini, Ably ni Blob, así que el CI las corre en cada push (job "E2E (Playwright)", contra un Postgres desechable; si fallan, sube el informe y las trazas).
 
 ```bash
 cd web

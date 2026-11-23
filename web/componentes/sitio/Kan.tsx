@@ -249,11 +249,13 @@ export default function Kan({ contexto = "inicio" }: { contexto?: ContextoKan })
 
   return (
     <div className="kan-componente">
-      <button type="button" className="kan-widget-btn" aria-label="Abrir el chat de Kan" onClick={alternar}>
+      {/* El nombre del botón sale de su contenido: el alt de la imagen y la insignia ("1" y,
+          solo para lectores de pantalla, "mensaje nuevo"). Así lo que se ve está en el nombre. */}
+      <button type="button" className="kan-widget-btn" onClick={alternar}>
         {/* eslint-disable-next-line @next/next/no-img-element -- poses de Kan en public/, cambian al instante */}
-        <img src={imgBoton} alt="Kan, el asistente" />
+        <img src={imgBoton} alt="Abrir el chat de Kan" />
         <span className="kan-badge" style={insignia ? undefined : { display: "none" }}>
-          1
+          1<span className="solo-lector"> mensaje nuevo</span>
         </span>
       </button>
       <div className={`kan-chat-window${abierta ? " active" : ""}`} role="dialog" aria-label="Chat con Kan">

@@ -8,46 +8,8 @@
 //   5. Un emprendedor edita su perfil.
 // Cada persona usa su propio navegador (contexto) con su cookie de sesión.
 // ==========================================================================
-import { expect, test, type Browser, type Page } from "@playwright/test";
-import bcrypt from "bcryptjs";
-import pg from "pg";
-
-const CLAVE = "E2e-Clave123";
-// Con SSL (Neon) se verifica el certificado, igual que pruebas/api/contexto.mjs
-const url = (process.env.PRUEBAS_DATABASE_URL ?? "").replace(/sslmode=(require|prefer|verify-ca)/, "sslmode=verify-full");
-const pool = new pg.Pool({ connectionString: url, max: 2 });
-const q = async <T = Record<string, unknown>>(sql: string, p: unknown[] = []) => (await pool.query(sql, p)).rows as T[];
-
-type Cuenta = { id: number; email: string; nombre: string };
-
-async function crearCuenta(rol: "Proveedor" | "Emprendedor", nombre: string, depto: number): Promise<Cuenta> {
-  const email = `${nombre.toLowerCase().replace(/\s+/g, ".")}@e2e.example.com`;
-  const [{ usuario_id: id }] = await q<{ usuario_id: number }>(
-    `INSERT INTO usuarios (correo_electronico, contrasena_hash, tipo_rol, estado_cuenta, correo_verificado)
-     VALUES ($1, $2, $3, 'Activo', true) RETURNING usuario_id`,
-    [email, bcrypt.hashSync(CLAVE, 10), rol]
-  );
-  await q(`INSERT INTO perfiles_usuarios (usuario_id, nombre_razon_social, telefono_whatsapp, departamento_id) VALUES ($1, $2, '88880000', $3)`, [
-    id,
-    nombre,
-    depto,
-  ]);
-  if (rol === "Proveedor") await q(`INSERT INTO proveedores (usuario_id, nombre_comercial) VALUES ($1, $2)`, [id, nombre]);
-  else await q(`INSERT INTO emprendedores (usuario_id, nombre_marca) VALUES ($1, $2)`, [id, nombre]);
-  return { id, email, nombre };
-}
-
-// Abre un navegador nuevo, inicia sesión por el formulario y devuelve la página
-async function entrar(browser: Browser, cuenta: Cuenta | { email: string; clave: string }): Promise<Page> {
-  const contexto = await browser.newContext();
-  const pagina = await contexto.newPage();
-  pagina.on("dialog", (d) => d.accept(d.type() === "prompt" ? "Todo excelente" : undefined));
-  await pagina.goto("/login");
-  await pagina.fill("#login-email", cuenta.email);
-  await pagina.fill("#login-password", "clave" in cuenta ? cuenta.clave : CLAVE);
-  await Promise.all([pagina.waitForURL(/\/(inicio|admin)(\?|$)/), pagina.click("#btn-submit-login")]);
-  return pagina;
-}
+import { expect, test, type Page } from "@playwright/test";
+import { type Cuenta, cerrarBase, crearCuenta, entrar, q } from "./ayudas";
 
 let proveedor: Cuenta, comprador1: Cuenta, comprador2: Cuenta;
 let pProveedor: Page, pComprador1: Page, pComprador2: Page;
@@ -65,7 +27,7 @@ test.describe.serial("Flujos clave", () => {
   });
 
   test.afterAll(async () => {
-    await pool.end();
+    await cerrarBase();
   });
 
   test("1. El proveedor publica una oferta y se abre su subasta", async () => {
