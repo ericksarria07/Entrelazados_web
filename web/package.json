@@ -59,5 +59,13 @@
   "description": "EntreLazados en Next.js (migración en curso, ver ROADMAP.md)",
   "engines": {
     "node": "26.x"
+  },
+  "overrides": {
+    "@vercel/cli-config": {
+      "zod": "^4.6.7"
+    },
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }
