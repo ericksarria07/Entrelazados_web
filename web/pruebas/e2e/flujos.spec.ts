@@ -1,10 +1,11 @@
 // ==========================================================================
-// LOS 4 FLUJOS CLAVE DE ENTRELAZADOS, DE PUNTA A PUNTA (ROADMAP 2.8)
+// LOS FLUJOS CLAVE DE ENTRELAZADOS, DE PUNTA A PUNTA (ROADMAP 2.8)
 //   1. El proveedor publica una oferta (se abre su subasta de 7 días).
 //   2. Dos emprendedores pujan; el segundo supera al primero.
 //   3. La subasta cierra: el ganador ve el trato, el proveedor lo completa,
 //      el ganador califica y abre el comprobante.
 //   4. Comprador y proveedor se escriben por el chat.
+//   5. Un emprendedor edita su perfil.
 // Cada persona usa su propio navegador (contexto) con su cookie de sesión.
 // ==========================================================================
 import { expect, test, type Browser, type Page } from "@playwright/test";
@@ -163,5 +164,29 @@ test.describe.serial("Flujos clave", () => {
     await pProveedor.fill("#chat-text", "Sí, también en negro.");
     await pProveedor.click(".chat-send");
     await expect(pComprador1.locator("#chat-msgs")).toContainText("también en negro", { timeout: 15_000 });
+  });
+
+  test("5. El emprendedor edita su perfil", async () => {
+    const p = pComprador1;
+    await p.goto("/perfil");
+    await p.click("#btn-editar-perfil");
+    await expect(p.locator("#form-perfil")).toBeVisible();
+    await expect(p.locator("#perfil-nombre")).toHaveValue(comprador1.nombre);
+    await p.fill("#perfil-nombreMarca", "Pasos Firmes E2E");
+    await p.selectOption("#perfil-departamento", "Granada");
+    await p.fill("#perfil-capacidadProduccionMensual", "250");
+    await p.click("#btn-guardar-perfil");
+    // Vuelve a la vista de lectura con los datos nuevos (armada otra vez en el servidor)
+    await expect(p.locator("#form-perfil")).toBeHidden();
+    await expect(p.locator("main")).toContainText("Pasos Firmes E2E");
+    await expect(p.locator("main")).toContainText("Granada");
+    await expect(p.locator("main")).toContainText("250 pares/mes");
+    // Un dato inválido no se guarda y se explica por qué
+    await p.click("#btn-editar-perfil");
+    await p.fill("#perfil-telefono", "llámame");
+    await p.click("#btn-guardar-perfil");
+    await expect(p.locator(".perfil-error")).toContainText("teléfono válido");
+    const [fila] = await q<{ telefono_whatsapp: string }>(`SELECT telefono_whatsapp FROM perfiles_usuarios WHERE usuario_id = $1`, [comprador1.id]);
+    expect(fila.telefono_whatsapp).toBe("88880000");
   });
 });

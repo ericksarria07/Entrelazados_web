@@ -892,6 +892,42 @@ paths:
         "401": { $ref: "#/components/responses/SinSesion" }
         "403": { description: No es tu perfil }
         "404": { $ref: "#/components/responses/NoEncontrado" }
+    put:
+      tags: [Perfil y dashboard]
+      summary: Editar mi perfil
+      description: |
+        Solo el propio perfil (tampoco el administrador edita el de otro). Los datos generales son
+        obligatorios; los del rol (proveedor o emprendedor) son opcionales y vacío los borra.
+        El departamento se guarda con su nombre oficial ("leon" → "León"). El correo, la contraseña
+        y el rol no se cambian aquí. Responde el perfil completo ya actualizado.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, telefono, departamento]
+              properties:
+                nombre: { type: string, minLength: 2, maxLength: 150 }
+                telefono: { type: string, maxLength: 20, pattern: "^[0-9+\\-() ]+$", example: "+505 8888-8888" }
+                departamento: { type: string, description: Uno de los 17 departamentos de Nicaragua, example: León }
+                numeroRuc: { type: string, maxLength: 50, description: Solo proveedor }
+                nombreComercial: { type: string, maxLength: 150, description: Solo proveedor }
+                tipoMateriaPrimaPrincipal: { type: string, maxLength: 100, description: Solo proveedor }
+                descripcionEmpresa: { type: string, maxLength: 2000, description: Solo proveedor }
+                nombreMarca: { type: string, maxLength: 150, description: Solo emprendedor }
+                especialidadCalzado: { type: string, maxLength: 100, description: Solo emprendedor }
+                capacidadProduccionMensual: { type: integer, minimum: 0, maximum: 1000000, nullable: true, description: Solo emprendedor (pares al mes) }
+      responses:
+        "200":
+          description: Perfil actualizado (mismo formato que el GET)
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "400": { $ref: "#/components/responses/DatosInvalidos" }
+        "401": { $ref: "#/components/responses/SinSesion" }
+        "403": { description: No es tu perfil }
 
   /api/usuarios/{id}/reputacion:
     parameters:

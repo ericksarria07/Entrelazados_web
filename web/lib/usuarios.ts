@@ -3,9 +3,10 @@
 // El perfil público nunca trae correo, teléfono, dirección ni RUC. Solo existe para
 // proveedores y emprendedores con la cuenta activa (a cualquier otro se le responde 404).
 // ==========================================================================
-import { obtenerPool } from "@/lib/db";
+import { enTransaccion, obtenerPool } from "@/lib/db";
+import { ubicarDepartamento } from "@/lib/departamentos";
 import { ErrorHttp } from "@/lib/http";
-import { enteroPositivo, redondearCalificacion } from "@/lib/utilidades";
+import { enteroPositivo, redondearCalificacion, textoLimpio } from "@/lib/utilidades";
 
 const NO_ENCONTRADO = "Ese perfil no existe o no está disponible.";
 
@@ -166,4 +167,89 @@ export async function perfilPublico(idTexto: unknown) {
     },
     reputacion: { total, promedio: total ? redondearCalificacion(suma / total) : null, distribucion },
   };
+}
+
+// ==========================================================================
+// EDITAR MI PERFIL: PUT /api/perfil/[id] y el formulario de /perfil
+// Datos generales para todos; los del proveedor o del emprendedor según su rol.
+// El correo, la contraseña y el rol no se cambian aquí.
+// ==========================================================================
+const TELEFONO = /^[0-9+\-() ]+$/;
+
+// Texto opcional: vacío → null; más largo que el máximo → 400 con el nombre del campo
+function opcional(valor: unknown, maximo: number, campo: string): string | null {
+  const texto = textoLimpio(valor);
+  if (!texto) return null;
+  if (texto.length > maximo) throw new ErrorHttp(400, `${campo}: máximo ${maximo} caracteres.`);
+  return texto;
+}
+
+export async function actualizarPerfil(usuarioId: number, rol: string, cuerpo: Record<string, unknown>): Promise<void> {
+  const nombre = textoLimpio(cuerpo.nombre);
+  if (nombre.length < 2 || nombre.length > 150) throw new ErrorHttp(400, "El nombre debe tener entre 2 y 150 caracteres.");
+  const telefono = textoLimpio(cuerpo.telefono);
+  if (!telefono || telefono.length > 20 || !TELEFONO.test(telefono)) {
+    throw new ErrorHttp(400, "Escribe un teléfono válido (solo números, espacios y + - ( ), hasta 20 caracteres).");
+  }
+  // Uno de los 17 departamentos; se guarda con su nombre oficial ("leon" → "León")
+  const departamento = ubicarDepartamento(textoLimpio(cuerpo.departamento));
+  if (!departamento) throw new ErrorHttp(400, "Elige uno de los departamentos de Nicaragua.");
+
+  const rolMinus = rol.toLowerCase();
+  let datosRol: unknown[] | null = null;
+  if (rolMinus === "proveedor") {
+    datosRol = [
+      opcional(cuerpo.numeroRuc, 50, "Número RUC"),
+      opcional(cuerpo.nombreComercial, 150, "Nombre comercial"),
+      opcional(cuerpo.tipoMateriaPrimaPrincipal, 100, "Materia prima principal"),
+      opcional(cuerpo.descripcionEmpresa, 2000, "Descripción de la empresa"),
+    ];
+  } else if (rolMinus === "emprendedor") {
+    const capacidadTexto = textoLimpio(String(cuerpo.capacidadProduccionMensual ?? ""));
+    let capacidad: number | null = null;
+    if (capacidadTexto) {
+      capacidad = Number(capacidadTexto);
+      if (!Number.isInteger(capacidad) || capacidad < 0 || capacidad > 1_000_000) {
+        throw new ErrorHttp(400, "La capacidad mensual debe ser un número entero entre 0 y 1.000.000.");
+      }
+    }
+    datosRol = [opcional(cuerpo.nombreMarca, 150, "Nombre de la marca"), opcional(cuerpo.especialidadCalzado, 100, "Especialidad de calzado"), capacidad];
+  }
+
+  await enTransaccion(async (c) => {
+    // El departamento se crea si todavía no existe (igual que al registrarse)
+    const {
+      rows: [depto],
+    } = await c.query<{ departamento_id: number }>(
+      `INSERT INTO departamentos (nombre_departamento) VALUES ($1)
+       ON CONFLICT (nombre_departamento) DO UPDATE SET nombre_departamento = EXCLUDED.nombre_departamento
+       RETURNING departamento_id`,
+      [departamento.nombre]
+    );
+    // Un admin creado a mano puede no tener fila de perfil: se crea
+    await c.query(
+      `INSERT INTO perfiles_usuarios (usuario_id, nombre_razon_social, telefono_whatsapp, departamento_id)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (usuario_id) DO UPDATE SET nombre_razon_social = EXCLUDED.nombre_razon_social,
+         telefono_whatsapp = EXCLUDED.telefono_whatsapp, departamento_id = EXCLUDED.departamento_id`,
+      [usuarioId, nombre, telefono, depto.departamento_id]
+    );
+    if (rolMinus === "proveedor" && datosRol) {
+      await c.query(
+        `INSERT INTO proveedores (usuario_id, numero_ruc, nombre_comercial, tipo_materia_prima_principal, descripcion_empresa)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (usuario_id) DO UPDATE SET numero_ruc = EXCLUDED.numero_ruc, nombre_comercial = EXCLUDED.nombre_comercial,
+           tipo_materia_prima_principal = EXCLUDED.tipo_materia_prima_principal, descripcion_empresa = EXCLUDED.descripcion_empresa`,
+        [usuarioId, ...datosRol]
+      );
+    } else if (rolMinus === "emprendedor" && datosRol) {
+      await c.query(
+        `INSERT INTO emprendedores (usuario_id, nombre_marca, especialidad_calzado, capacidad_produccion_mensual)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (usuario_id) DO UPDATE SET nombre_marca = EXCLUDED.nombre_marca,
+           especialidad_calzado = EXCLUDED.especialidad_calzado, capacidad_produccion_mensual = EXCLUDED.capacidad_produccion_mensual`,
+        [usuarioId, ...datosRol]
+      );
+    }
+  });
 }
