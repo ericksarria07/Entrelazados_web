@@ -10,7 +10,7 @@
 // ==========================================================================
 import { obtenerPool } from "@/lib/db";
 import { type ModelMessage, streamText } from "ai";
-import { modeloKan } from "@/lib/gemini";
+import { modeloIA } from "@/lib/gemini";
 
 // Respuestas fijas, saludo y limpieza del historial viven en kan-respuestas.ts
 // (sin base de datos ni Gemini, para las pruebas unitarias)
@@ -70,7 +70,7 @@ export async function* respuestaKan(mensaje: string, rol: string, historial: Men
     return;
   }
 
-  const modelo = modeloKan();
+  const modelo = modeloIA();
   if (!modelo) {
     yield SIN_CONEXION_IA;
     return;

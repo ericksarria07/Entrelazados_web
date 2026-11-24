@@ -11,51 +11,61 @@
 //    sugiere la mediana. Así esta parte funciona SIEMPRE, con o sin IA.
 // La IA nunca guarda nada: solo propone, y el proveedor decide.
 // ==========================================================================
+import { generateText, Output, type UserContent } from "ai";
+import { z } from "zod";
 import { obtenerPool } from "@/lib/db";
 import type { Foto } from "@/lib/fotos";
-import { clienteGemini, modeloGemini } from "@/lib/gemini";
+import { modeloIA } from "@/lib/gemini";
 import { ErrorHttp } from "@/lib/http";
 import { LARGO_DESCRIPCION } from "@/lib/ofertas";
+import { estadisticas, normalizarUnidad, precioRazonable, redondearPrecio } from "@/lib/reglas-precio";
 import { enteroPositivo, textoLimpio } from "@/lib/utilidades";
 
 export const NO_DISPONIBLE =
   "El asistente de IA no está disponible en este momento. Puedes llenar el formulario a mano.";
 const MAX_COMPARABLES = 25;
 
-import { estadisticas, normalizarUnidad, precioRazonable, redondearPrecio } from "@/lib/reglas-precio";
+// Lo que tiene que devolver Gemini en cada caso. El AI SDK se lo pasa como esquema
+// y valida la respuesta: si no cumple, cuenta como fallo (503 o el respaldo).
+const ESQUEMA_PUBLICACION = z.object({
+  titulo: z.string(),
+  descripcion: z.string(),
+  categoriaId: z.number().int(),
+  unidad: z.string(),
+  esMaterial: z.boolean(),
+});
+const ESQUEMA_PRECIO = z.object({
+  precioSugerido: z.number(),
+  explicacion: z.string(),
+});
 
-type Parte =
-  { text: string } | { inlineData: { mimeType: string; data: string } };
-
-// Llama a Gemini pidiendo una respuesta JSON con el esquema indicado
-async function preguntarJson({
-  partes,
+// Pide a Gemini un objeto con el esquema indicado (AI SDK: generateText + Output.object).
+// Un solo reintento y 20 s como máximo: si Gemini no responde (o el plan gratis da 429),
+// se usa el respaldo en segundos en vez de colgar la función.
+async function preguntarObjeto<T>({
+  contenido,
   esquema,
   temperatura = 0.4,
 }: {
-  partes: Parte[];
-  esquema: object;
+  contenido: UserContent;
+  esquema: z.ZodType<T>;
   temperatura?: number;
-}) {
-  const ai = clienteGemini();
-  if (!ai) throw new ErrorHttp(503, NO_DISPONIBLE);
+}): Promise<T> {
+  const modelo = modeloIA();
+  if (!modelo) throw new ErrorHttp(503, NO_DISPONIBLE);
   try {
-    const respuesta = await ai.models.generateContent({
-      model: modeloGemini(),
-      contents: [{ role: "user", parts: partes }],
-      config: {
-        temperature: temperatura,
-        maxOutputTokens: 800,
-        responseMimeType: "application/json",
-        responseJsonSchema: esquema,
-      },
+    const { output } = await generateText({
+      model: modelo,
+      messages: [{ role: "user", content: contenido }],
+      output: Output.object({ schema: esquema }),
+      temperature: temperatura,
+      maxOutputTokens: 800,
+      maxRetries: 1,
+      timeout: { totalMs: 20_000 },
     });
-    return JSON.parse(respuesta.text || "{}");
+    return output;
   } catch (err) {
-    console.error(
-      "❌ Asistente de IA (Gemini):",
-      (err as Error).message || err,
-    );
+    console.error("❌ Asistente de IA (Gemini):", (err as Error).message || err);
     throw new ErrorHttp(503, NO_DISPONIBLE);
   }
 }
@@ -93,31 +103,9 @@ ${categorias.map((c) => `  ${c.categoria_id} = ${c.nombre_categoria}`).join("\n"
 - unidad: la unidad de venta más común para ese material, p. ej. "por pie²", "por par", "por docena", "por metro", "por unidad".
 - esMaterial: false si la foto no muestra un material o insumo para calzado o marroquinería.`;
 
-  const partes: Parte[] = [{ text: instrucciones }];
-  if (foto)
-    partes.unshift({
-      inlineData: { mimeType: foto.tipo, data: foto.buffer.toString("base64") },
-    });
-  const r = await preguntarJson({
-    partes,
-    esquema: {
-      type: "object",
-      properties: {
-        titulo: { type: "string" },
-        descripcion: { type: "string" },
-        categoriaId: { type: "integer" },
-        unidad: { type: "string" },
-        esMaterial: { type: "boolean" },
-      },
-      required: [
-        "titulo",
-        "descripcion",
-        "categoriaId",
-        "unidad",
-        "esMaterial",
-      ],
-    },
-  });
+  const contenido: UserContent = [{ type: "text", text: instrucciones }];
+  if (foto) contenido.unshift({ type: "file", mediaType: foto.tipo, data: foto.buffer });
+  const r = await preguntarObjeto({ contenido, esquema: ESQUEMA_PUBLICACION });
   if (r.esMaterial === false) {
     throw new ErrorHttp(
       422,
@@ -268,7 +256,7 @@ export async function sugerirPrecio({
       `En ${cat.nombre_categoria} hay ${est.muestras} precio${est.muestras === 1 ? "" : "s"} para comparar, entre C$${est.minimo} y C$${est.maximo}. ` +
       `Te sugerimos el precio del medio (la mediana).${avisoUnidad}`,
   };
-  if (!clienteGemini()) return respaldo;
+  if (!modeloIA()) return respaldo;
   try {
     const lista = comparables
       .slice(0, MAX_COMPARABLES)
@@ -277,10 +265,12 @@ export async function sugerirPrecio({
           `- ${c.titulo}: C$${c.precio}${c.unidad ? ` ${c.unidad}` : ""} (${c.fuente})`,
       )
       .join("\n");
-    const r = await preguntarJson({
+    const r = await preguntarObjeto({
       temperatura: 0.2,
-      partes: [
+      esquema: ESQUEMA_PRECIO,
+      contenido: [
         {
+          type: "text",
           text: `Eres el asistente de precios de EntreLazados (Nicaragua, precios en córdobas C$).
 Un proveedor quiere publicar: "${tituloLimpio || "material sin título"}" en la categoría ${cat.nombre_categoria}${unidadLimpia ? `, vendido ${unidadLimpia}` : ""}.
 Precios de materiales parecidos en la plataforma (mediana C$${est.mediana}, mínimo C$${est.minimo}, máximo C$${est.maximo}):
@@ -289,14 +279,6 @@ Propón un precio competitivo DENTRO de ese rango para que se venda pronto sin r
 y explica en 1 o 2 oraciones sencillas por qué (menciona con qué publicaciones lo comparaste). No inventes otros datos.${mismaUnidad ? "" : " Algunas publicaciones usan otra unidad: dilo en la explicación."}`,
         },
       ],
-      esquema: {
-        type: "object",
-        properties: {
-          precioSugerido: { type: "number" },
-          explicacion: { type: "string" },
-        },
-        required: ["precioSugerido", "explicacion"],
-      },
     });
     if (!precioRazonable(r.precioSugerido, est) || !textoLimpio(r.explicacion))
       return respaldo;
