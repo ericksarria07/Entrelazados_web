@@ -85,7 +85,7 @@ export const GET = conRespaldo([], async (req) => {
 export const POST = ruta(async (req) => {
   const usuario = await exigirSesion(req);
   exigirRoles(usuario, "proveedor");
-  limite("fotos", `u${usuario.id}`).consumir();
+  await limite("fotos", `u${usuario.id}`).consumir();
   // El proveedor es SIEMPRE el usuario de la sesión, nunca el que envíe el navegador
   const proveedorId = usuario.id;
   const { campos, archivos } = await leerFormulario(req);

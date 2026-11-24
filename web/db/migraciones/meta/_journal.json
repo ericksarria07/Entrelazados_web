@@ -15,6 +15,13 @@
       "when": 1794807164453,
       "tag": "0001_extras",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795560456541,
+      "tag": "0002_limites_uso",
+      "breakpoints": true
     }
   ]
 }

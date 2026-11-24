@@ -17,8 +17,8 @@ const LARGO_MAXIMO = 1000;
 
 export const POST = ruta(async (req) => {
   const usuario = await exigirSesion(req);
-  limite("kanMinuto", `u${usuario.id}`).consumir();
-  limite("kanDia", `u${usuario.id}`).consumir();
+  await limite("kanMinuto", `u${usuario.id}`).consumir();
+  await limite("kanDia", `u${usuario.id}`).consumir();
   const { mensajeUsuario, historial } = await leerCuerpo(req);
   if (typeof mensajeUsuario !== "string" || !mensajeUsuario.trim()) {
     return json({ error: "El mensaje del usuario es obligatorio." }, 400);

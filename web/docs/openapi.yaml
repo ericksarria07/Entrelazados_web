@@ -354,7 +354,7 @@ paths:
           description: Cuántas subastas cerró
           content:
             application/json:
-              schema: { type: object, properties: { cerradas: { type: integer, example: 2 } } }
+              schema: { type: object, properties: { cerradas: { type: integer, example: 2 }, limitesBorrados: { type: integer, example: 14, description: "Contadores vencidos de los límites de intentos que se borraron" } } }
         "401":
           description: Falta el secreto del cron o no coincide
 

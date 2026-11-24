@@ -12,7 +12,7 @@ const ERROR_REGISTRO = "El correo ya está registrado o hubo un error.";
 const opcional = (valor: unknown) => (valor === undefined || valor === null || valor === "" ? null : valor);
 
 export const POST = ruta(async (req) => {
-  limite("registro", ipDe(req)).consumir();
+  await limite("registro", ipDe(req)).consumir();
   const b = await leerCuerpo(req);
   const nombreDepartamento = textoLimpio(b.deptoId);
   const passwordPlano = b.password || b.contrasena;

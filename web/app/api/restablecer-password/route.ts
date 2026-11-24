@@ -8,7 +8,7 @@ import { ErrorHttp, json, leerCuerpo, ruta } from "@/lib/http";
 import { ipDe, limite } from "@/lib/limites";
 
 export const POST = ruta(async (req) => {
-  limite("recuperacion", ipDe(req)).consumir();
+  await limite("recuperacion", ipDe(req)).consumir();
   const { token, nuevaContrasena } = await leerCuerpo(req);
   if (!token || !nuevaContrasena) {
     throw new ErrorHttp(400, "Datos incompletos para restablecer la contraseña.");

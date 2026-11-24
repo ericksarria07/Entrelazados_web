@@ -13,15 +13,17 @@
 //   LIMITE_FOTOS          publicaciones por usuario cada hora           (20)
 //   LIMITE_IA             consultas al asistente de IA por usuario cada hora (30)
 //
-//   limite('registro', ipDe(req)).consumir();        // cuenta y, si se pasó, 429
+//   await limite('registro', ipDe(req)).consumir();        // cuenta y, si se pasó, 429
 //   const l = limite('login', ipDe(req));
-//   l.comprobar();  ...  if (fallo) l.sumarFallo();  // solo cuentan los fallidos
+//   await l.comprobar();  ...  if (fallo) await l.sumarFallo();  // solo los fallidos
 //
-// Los contadores viven en la memoria de cada instancia de la función: en Vercel
-// el límite es aproximado (cada instancia cuenta por su lado y empieza de cero
-// al arrancar). Es una decisión consciente para no agregar otro servicio.
+// Los contadores viven en la tabla limites_uso de Postgres, así todas las instancias
+// de Vercel cuentan juntas y un despliegue nuevo no los reinicia (antes vivían en la
+// memoria de cada instancia y el límite era aproximado). Cuesta una consulta por
+// petición limitada. Si la base no responde, el límite no bloquea (falla abierto).
 // ==========================================================================
 import { ipAddress } from "@vercel/functions";
+import { obtenerPool } from "@/lib/db";
 import { ErrorHttp } from "@/lib/http";
 
 const MINUTO = 60 * 1000;
@@ -45,26 +47,34 @@ const DEFINICIONES = {
 type NombreLimite = keyof typeof DEFINICIONES;
 type Ventana = { cuenta: number; vence: number };
 
-const contadores = new Map<string, Ventana>();
+// Suma `cuanto` al contador de la clave en un solo paso atómico: si la ventana ya venció
+// (o no existe) empieza una nueva; si no, suma a la que está abierta. Con cuanto = 0
+// solo la lee (para comprobar sin contar).
+const SQL_SUMAR = `
+  INSERT INTO limites_uso (clave, cuenta, vence)
+  VALUES ($1, $2, now() + $3 * interval '1 millisecond')
+  ON CONFLICT (clave) DO UPDATE SET
+    cuenta = CASE WHEN limites_uso.vence <= now() THEN EXCLUDED.cuenta ELSE limites_uso.cuenta + EXCLUDED.cuenta END,
+    vence  = CASE WHEN limites_uso.vence <= now() THEN EXCLUDED.vence  ELSE limites_uso.vence END
+  RETURNING cuenta, (extract(epoch FROM vence) * 1000)::float8 AS vence`;
 
-function ventanaDe(clave: string, ventanaMs: number): Ventana {
-  const ahora = Date.now();
-  let v = contadores.get(clave);
-  if (!v || v.vence <= ahora) {
-    v = { cuenta: 0, vence: ahora + ventanaMs };
-    contadores.set(clave, v);
-    // Limpieza de ventanas vencidas para que el mapa no crezca sin fin
-    if (contadores.size > 5000) for (const [c, x] of contadores) if (x.vence <= ahora) contadores.delete(c);
+async function sumar(clave: string, cuanto: number, ventanaMs: number): Promise<Ventana | null> {
+  try {
+    const { rows } = await obtenerPool().query<{ cuenta: number; vence: number }>(SQL_SUMAR, [clave, cuanto, ventanaMs]);
+    return { cuenta: Number(rows[0].cuenta), vence: Number(rows[0].vence) };
+  } catch (error) {
+    // Si la base falla, no se bloquea a nadie: el límite es un freno, no un requisito
+    console.error(`❌ No se pudo leer el límite ${clave}:`, (error as Error)?.message || error);
+    return null;
   }
-  return v;
 }
 
 export function limite(nombre: NombreLimite, clave: string) {
   const def = DEFINICIONES[nombre];
   const maximo = numeroEnv(def.env, def.porDefecto);
-  const v = ventanaDe(`${nombre}:${clave}`, def.ventanaMs);
+  const llave = `${nombre}:${clave}`.slice(0, 200);
 
-  const bloquear = () => {
+  const bloquear = (v: Ventana) => {
     const segundos = Math.max(1, Math.ceil((v.vence - Date.now()) / 1000));
     const minutos = Math.max(1, Math.ceil(segundos / 60));
     console.warn(`⚠️ Límite "${nombre}" alcanzado por ${clave}`);
@@ -75,18 +85,25 @@ export function limite(nombre: NombreLimite, clave: string) {
 
   return {
     // Cuenta esta petición; si pasa del máximo responde 429
-    consumir() {
-      v.cuenta++;
-      if (v.cuenta > maximo) throw bloquear();
+    async consumir() {
+      const v = await sumar(llave, 1, def.ventanaMs);
+      if (v && v.cuenta > maximo) throw bloquear(v);
     },
     // Sin contar: 429 si ya se llegó al máximo (para límites que solo cuentan fallos)
-    comprobar() {
-      if (v.cuenta >= maximo) throw bloquear();
+    async comprobar() {
+      const v = await sumar(llave, 0, def.ventanaMs);
+      if (v && v.cuenta >= maximo) throw bloquear(v);
     },
-    sumarFallo() {
-      v.cuenta++;
+    async sumarFallo() {
+      await sumar(llave, 1, def.ventanaMs);
     },
   };
+}
+
+// Borra las ventanas vencidas (lo llama el cron diario)
+export async function limpiarLimitesVencidos(): Promise<number> {
+  const { rowCount } = await obtenerPool().query("DELETE FROM limites_uso WHERE vence < now()");
+  return rowCount ?? 0;
 }
 
 // IP del cliente: en Vercel viene en x-real-ip / x-forwarded-for
