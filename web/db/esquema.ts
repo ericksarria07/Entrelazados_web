@@ -460,3 +460,16 @@ export const alertasBusquedaRelaciones = relations(alertasBusqueda, ({ one }) =>
     references: [categoriasMateriales.categoriaId],
   }),
 }));
+
+// Contadores de los límites de intentos (lib/limites.ts). Viven en la base para que
+// todas las instancias de Vercel cuenten juntas. clave = "<límite>:<ip o u<id>>".
+// Las ventanas vencidas se borran en el cron diario (/api/cron/cerrar-subastas).
+export const limitesUso = pgTable(
+  "limites_uso",
+  {
+    clave: varchar({ length: 200 }).primaryKey(),
+    cuenta: integer().notNull(),
+    vence: fecha().notNull(),
+  },
+  (t) => [index("idx_limites_uso_vence").on(t.vence)]
+);

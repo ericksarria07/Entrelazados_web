@@ -9,7 +9,7 @@ import { ipDe, limite } from "@/lib/limites";
 import { REGEX_EMAIL, textoLimpio } from "@/lib/utilidades";
 
 export const POST = ruta(async (req) => {
-  limite("recuperacion", ipDe(req)).consumir();
+  await limite("recuperacion", ipDe(req)).consumir();
   const emailLimpio = textoLimpio((await leerCuerpo(req)).email);
   if (!emailLimpio || !REGEX_EMAIL.test(emailLimpio)) {
     throw new ErrorHttp(400, "Por favor proporciona un correo electrónico válido.");

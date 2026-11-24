@@ -15,11 +15,11 @@ import { REGEX_EMAIL, textoLimpio } from "@/lib/utilidades";
 
 export const POST = ruta(async (req) => {
   const intentos = limite("login", ipDe(req));
-  intentos.comprobar();
+  await intentos.comprobar();
   try {
     return await iniciarSesion(req);
   } catch (err) {
-    intentos.sumarFallo();
+    await intentos.sumarFallo();
     throw err;
   }
 });

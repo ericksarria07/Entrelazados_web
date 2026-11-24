@@ -38,7 +38,7 @@ function leerFotosQuitar(valor: unknown): string[] {
 export const PUT = ruta<Contexto>(async (req, ctx) => {
   const usuario = await exigirSesion(req);
   exigirRoles(usuario, "proveedor");
-  limite("fotos", `u${usuario.id}`).consumir();
+  await limite("fotos", `u${usuario.id}`).consumir();
   const { campos, archivos } = await leerFormulario(req);
   const errorArchivos = revisarArchivos(archivos);
   if (errorArchivos) throw new ErrorHttp(400, errorArchivos);

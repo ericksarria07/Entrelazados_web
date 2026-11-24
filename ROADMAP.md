@@ -70,7 +70,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Cierre de subastas | **Cierre perezoso** + **Vercel Cron diario** | Sin servicio nuevo y **no mantiene Neon despierto**. El ganador se entera cuando alguien usa el sitio o, a más tardar, con el cron del día | QStash (cierra a la hora exacta, pero es otra cuenta); cron cada minuto (gasta las horas gratis de Neon y en Vercel Hobby el cron es diario) |
 | Fotos | **Vercel Blob** (`@vercel/blob`, store `entrelazados-fotos`) | Las fotos siguen llegando al servidor como hoy, así que las páginas no cambian. La página ya las reduce a 1600 px, y 5 fotos caben en el límite de 4,5 MB por petición. Sin cuenta nueva: es parte de Vercel. En tu máquina y en las pruebas se guardan en disco (`web/lib/fotos.ts`) | Cloudinary (miniaturas automáticas, pero cambia la subida y es otra cuenta); Google Cloud Storage; Cloudflare R2 |
 | Sesión | **Cookie httpOnly** con `jose` (o Auth.js) | El token no se puede robar con un XSS | JWT en `localStorage` (actual) |
-| Límites de peticiones | **En memoria** (`web/lib/limites.ts`, sin `express-rate-limit`) | Sin servicio ni paquete nuevo. En Vercel cada instancia cuenta por su lado y empieza de cero al arrancar: el límite es aproximado, y se aceptó así | Upstash Redis (otra cuenta y otra dependencia solo para esto); tabla en Postgres (límite exacto, una consulta más por intento) |
+| Límites de peticiones | **Tabla `limites_uso` en Postgres** (`web/lib/limites.ts`, sin `express-rate-limit`). Al principio vivían en memoria; desde `nextjs/limites-bd` están en la base | Sin servicio ni paquete nuevo. Un solo `INSERT … ON CONFLICT` atómico por intento: todas las instancias de Vercel cuentan juntas y un despliegue no reinicia los contadores. Si la base falla, no bloquea | En memoria (cada instancia contaba por su lado: se podía saltar); Upstash Redis (otra cuenta y otra dependencia solo para esto) |
 | Tareas después de responder | **`after()`** de Next.js | Las 14 tareas que hoy se lanzan sin esperar (correos, alertas) se cortarían al congelarse la función | Lanzar sin esperar (actual) |
 
 ### Detalle: tiempo real con Ably
@@ -259,7 +259,7 @@ Estas salieron del análisis del código actual:
 ### Puntos a cuidar
 - **`useChat` es de React**, así que conviene hacerlo en la **Fase 2**, junto con el widget de Kan (2.1) y la página de chat (2.6). En la Fase 1, `@google/genai` funciona tal cual en el runtime de Node de Vercel y no hace falta tocarlo.
 - **Mantener el respaldo** de `respuestaFija` cuando Gemini falla (manejo de errores del stream).
-- **Los límites de Kan** (por minuto y por día) siguen aplicando: se quedan en memoria como el resto.
+- **Los límites de Kan** (por minuto y por día) siguen aplicando, como el resto (hoy en la tabla `limites_uso`).
 - **El historial cuesta tokens:** limitar cuántos mensajes previos se envían.
 - **El SDK cambia rápido** entre versiones mayores: fijar la versión.
 - El SDK es open source y gratis. El costo sigue siendo el uso de Gemini (o del modelo que se elija).

@@ -9,7 +9,7 @@ import { exigirRoles, exigirSesion } from "@/lib/sesion";
 export const POST = ruta(async (req) => {
   const usuario = await exigirSesion(req);
   exigirRoles(usuario, "proveedor");
-  limite("ia", `u${usuario.id}`).consumir();
+  await limite("ia", `u${usuario.id}`).consumir();
   const { campos, archivos } = await leerFormulario(req);
   const errorArchivos = revisarArchivos(archivos);
   if (errorArchivos) throw new ErrorHttp(400, errorArchivos);
