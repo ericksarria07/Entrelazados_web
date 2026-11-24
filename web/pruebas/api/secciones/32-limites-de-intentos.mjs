@@ -26,10 +26,11 @@ export default async function correr(ctx) {
     check('…el límite de Kan es por usuario: otro usuario sigue pudiendo preguntar', r.status === 200);
     const [fila] = await q(`SELECT cuenta, vence > now() AS abierta FROM limites_uso WHERE clave = $1`, [`kanMinuto:u${ctx.e1.id}`]);
     check('…el contador queda en la base (todas las instancias de Vercel cuentan juntas)', fila && fila.cuenta >= 11 && fila.abierta, JSON.stringify(fila));
-    // 12 preguntas a la vez del admin (ya hizo 1): la suma es atómica, pasan exactamente 9
+    // 12 preguntas a la vez del admin, desde un contador en cero: la suma es atómica, pasan exactamente 10
+    await q(`DELETE FROM limites_uso WHERE clave = $1`, [`kanMinuto:u${ctx.admin.id}`]);
     const rafaga = await Promise.all(Array.from({ length: 12 }, () => api('POST', '/api/chat/ia', { token: ctx.admin.token, body: { mensajeUsuario: 'hola' } })));
     const pasaron = rafaga.filter((x) => x.status === 200).length;
-    check('…con 12 preguntas a la vez no se cuela ninguna de más (pasan 9 de 12)', pasaron === 9 && rafaga.every((x) => [200, 429].includes(x.status)), `pasaron=${pasaron} ${rafaga.map((x) => x.status).join(',')}`);
+    check('…con 12 preguntas a la vez no se cuela ninguna de más (pasan 10 de 12)', pasaron === 10 && rafaga.every((x) => [200, 429].includes(x.status)), `pasaron=${pasaron} ${rafaga.map((x) => x.status).join(',')}`);
 
     limite = await hasta429((i) => ctx.reg(`masivo${i}@prueba.com`, 'Emprendedor'), 50);
     check('Registro: crear cuentas sin parar desde la misma IP → 429', limite.intentos !== null, `intentos=${limite.intentos}`);
