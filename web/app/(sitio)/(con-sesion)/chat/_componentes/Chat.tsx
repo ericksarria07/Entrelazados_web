@@ -337,7 +337,7 @@ export default function Chat() {
             ) : !contactos ? (
               <p style={{ textAlign: "center", padding: 20, color: "var(--text-muted)", fontSize: 13 }}>Buscando contactos...</p>
             ) : !contactos.length ? (
-              <div style={{ padding: 15, textAlign: "center", color: "#777", fontSize: 13 }}>No hay otros usuarios registrados aún.</div>
+              <div className="texto-gris" style={{ padding: 15, textAlign: "center", fontSize: 13 }}>No hay otros usuarios registrados aún.</div>
             ) : (
               // Llegan primero los que tienen mensajes sin leer y luego las conversaciones recientes
               contactos.map((c) => {

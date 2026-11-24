@@ -36,6 +36,11 @@ html:not([data-tema="oscuro"]) .sub-bar a:hover {
     color: #d9693f !important;
 }
 
+/* Texto secundario gris. Va en una clase y no en style="color: #555": cuando React pinta
+   la página en el navegador, el atributo queda como rgb(85, 85, 85) y la regla del modo
+   oscuro que busca "color: #555" en el atributo deja de aplicarse (contraste 2.3:1). */
+.texto-gris { color: #555; }
+
 /* Texto solo para lectores de pantalla: no se ve, pero se lee */
 .solo-lector {
     position: absolute !important;

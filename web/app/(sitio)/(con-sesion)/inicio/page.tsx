@@ -105,7 +105,7 @@ export default async function PaginaInicio() {
 
           <div className="amazon-card">
             <h2>Materia Prima Directa de Curtiembres</h2>
-            <p style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginBottom: 15 }}>
+            <p className="texto-gris" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 15 }}>
               Conecta directamente con productores de Masaya, Granada y Estelí sin intermediarios.
             </p>
             <img

@@ -143,6 +143,8 @@ html[data-tema="oscuro"] .leaflet-control-attribution a { color: #e08a62; }
 html[data-tema="oscuro"] .tema-boton { background: #f0d5c4; color: #3D170A; border-color: #3D170A; }
 html[data-tema="oscuro"] .tema-boton:hover { background: #fff; }
 
+html[data-tema="oscuro"] .texto-gris { color: #c4b5ab; }
+
 /* Textos con color fijo escrito en el HTML (style="color: #555") y en las páginas */
 html[data-tema="oscuro"] [style*="color: #555"], html[data-tema="oscuro"] [style*="color:#555"],
 html[data-tema="oscuro"] [style*="color: #666"], html[data-tema="oscuro"] [style*="color:#666"],
