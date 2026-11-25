@@ -86,3 +86,12 @@ test("cordobas da el formato de la página (C$ con dos decimales)", () => {
   assert.equal(u.cordobas("400"), "C$400.00");
   assert.equal(u.cordobas(0), "C$0.00");
 });
+
+// ---------------------------------------------------------------- MEDICIÓN (Analytics)
+test("sinDatosPrivados quita el token de la dirección y deja lo demás", async () => {
+  const { sinDatosPrivados } = await import("../../lib/medicion.ts");
+  assert.equal(sinDatosPrivados("https://e.com/restablecer?token=abc123"), "https://e.com/restablecer");
+  assert.equal(sinDatosPrivados("https://e.com/verificar?token=x&a=1"), "https://e.com/verificar?a=1");
+  assert.equal(sinDatosPrivados("https://e.com/mercado?q=cuero"), "https://e.com/mercado?q=cuero");
+  assert.equal(sinDatosPrivados("no es una url"), "no es una url");
+});
