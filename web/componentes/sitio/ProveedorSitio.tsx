@@ -9,6 +9,9 @@
 //   useEventoTiempoReal(). Si no hay tiempo real, siguen preguntando cada tanto.
 // - Mensajes sin leer: /api/chat/no-leidos cada 30 s con la pestaña visible, y al
 //   instante cuando llega un mensaje (useNoLeidos()).
+// - Botón Atrás: el navegador puede mostrar la página tal como la dejó (bfcache), con
+//   la sesión de ese momento. Si desde entonces se cerró la sesión o entró otra cuenta,
+//   la página se recarga para pedirle al servidor la sesión de ahora.
 // ==========================================================================
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
@@ -44,6 +47,32 @@ async function pedirPermiso(): Promise<Permiso | null> {
     return res.ok ? ((await res.json()) as Permiso) : null;
   } catch {
     return null;
+  }
+}
+
+// Recarga sin dejar ver la página vieja mientras tanto
+function recargar() {
+  document.documentElement.style.visibility = "hidden";
+  window.location.reload();
+}
+
+// ¿La sesión de ahora es la misma con la que se pintó la página? Primero lo guardado en
+// localStorage (lo cambian el login y cerrar sesión, sin esperar a la red) y, si coincide,
+// la cookie en el servidor (localStorage puede estar bloqueado o desactualizado).
+async function sesionCambio(idPagina: string | null): Promise<boolean> {
+  let idGuardado: string | null = null;
+  try {
+    idGuardado = localStorage.getItem("userId");
+  } catch {
+    /* almacenamiento bloqueado: decide el servidor */
+  }
+  if (idGuardado !== idPagina) return true;
+  try {
+    const res = await fetch("/api/sesion", { cache: "no-store" });
+    const idServidor = res.ok ? String(((await res.json()) as { id: number }).id) : null;
+    return idServidor !== idPagina;
+  } catch {
+    return false; // sin conexión: se queda como está
   }
 }
 
@@ -87,6 +116,16 @@ export default function ProveedorSitio({ usuario, children }: { usuario: DatosSe
   useEffect(() => {
     if (usuario) recordarUsuario(usuario);
   }, [usuario]);
+
+  // Página restaurada por el botón Atrás (bfcache): si la sesión cambió, se recarga
+  const idPagina = usuario ? String(usuario.id) : null;
+  useEffect(() => {
+    const alMostrar = async (e: PageTransitionEvent) => {
+      if (e.persisted && (await sesionCambio(idPagina))) recargar();
+    };
+    window.addEventListener("pageshow", alMostrar);
+    return () => window.removeEventListener("pageshow", alMostrar);
+  }, [idPagina]);
 
   // Mensajes sin leer
   useEffect(() => {
