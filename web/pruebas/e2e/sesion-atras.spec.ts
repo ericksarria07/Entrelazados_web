@@ -74,8 +74,22 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
   test("si se cerró la sesión, la página restaurada manda a /login", async ({ browser }) => {
     const pagina = await entrar(browser, alfa);
     await listaParaRestaurar(pagina);
+    const consola: string[] = [];
+    pagina.on("console", (m) => consola.push(`${m.type()}: ${m.text()}`.slice(0, 200)));
+    pagina.on("framenavigated", (f) => f === pagina.mainFrame() && consola.push(`navegó a ${f.url()}`));
     await cerrarSesionDesde(pagina);
-    await Promise.all([pagina.waitForURL(/\/login/), restaurarDeLaMemoria(pagina)]);
+    await restaurarDeLaMemoria(pagina);
+    const llego = await pagina.waitForURL(/\/login/, { timeout: 20_000 }).then(() => true, () => false);
+    if (!llego) {
+      // Diagnóstico para el CI: dónde quedó y con qué sesión
+      const diagnostico = await pagina.evaluate(async () => ({
+        url: location.pathname,
+        menu: document.querySelector(".user-nav-name")?.textContent,
+        userId: localStorage.getItem("userId"),
+        sesion: (await fetch("/api/sesion")).status,
+      })).catch((e) => ({ error: String(e) }));
+      throw new Error(`No llegó a /login: ${JSON.stringify(diagnostico)}\n${consola.join("\n")}`);
+    }
     await pagina.context().close();
   });
 
