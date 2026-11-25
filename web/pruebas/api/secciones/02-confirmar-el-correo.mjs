@@ -1,16 +1,19 @@
 // 1b. Confirmar el correo (VERIFICAR_CORREO=1)
 // Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
-import { api, check, iniciarSesion, seccion, q } from '../contexto.mjs';
+import { api, check, enlaceDelLog, iniciarSesion, seccion, q } from '../contexto.mjs';
 
 export default async function correr(ctx) {
     let r;
     seccion('1b. Confirmar el correo (VERIFICAR_CORREO=1)');
     ctx.login = iniciarSesion;
-    const tokenVerif = async (email) => ((await q(`SELECT token_verificacion FROM usuarios WHERE correo_electronico = $1`, [email]))[0] || {}).TokenVerificacion;
+    // El token del enlace sale del log del servidor: la base guarda solo su SHA-256
+    const tokenVerif = async (email) => enlaceDelLog('confirmacion', email);
     ctx.verificar = async (email) => api('GET', '/api/verificar-correo?token=' + await tokenVerif(email));
     const sinConfirmar = (await q(`SELECT correo_verificado, token_verificacion, expiracion_verificacion > NOW() + interval '23 hour' AS vigente FROM usuarios WHERE correo_electronico = 'prov1@prueba.com'`))[0];
     check('La cuenta nueva queda sin confirmar, con un enlace de 24 h', sinConfirmar.CorreoVerificado === 0 && /^[a-f0-9]{64}$/.test(sinConfirmar.TokenVerificacion || '') && sinConfirmar.vigente === 1, JSON.stringify(sinConfirmar));
+    const tokP1 = await tokenVerif('prov1@prueba.com');
+    check('…la base guarda el hash del token, no el token del enlace', /^[a-f0-9]{64}$/.test(tokP1 || '') && tokP1 !== sinConfirmar.TokenVerificacion, String(tokP1));
     r = await ctx.login('prov1@prueba.com', 'Clave123');
     check('Entrar sin confirmar el correo → 403 con verificacionPendiente', r.status === 403 && r.data.verificacionPendiente === true, JSON.stringify(r));
     r = await api('GET', '/api/verificar-correo?token=zzz');

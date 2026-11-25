@@ -1,5 +1,6 @@
 // GET /api/verificar-correo?token=: confirma el correo con el enlace que llegó al registrarse.
 // Cada enlace sirve una sola vez y vence en 24 horas.
+import { hashToken } from "@/lib/cuentas";
 import { obtenerPool } from "@/lib/db";
 import { json, ruta } from "@/lib/http";
 import { esTokenValido } from "@/lib/utilidades";
@@ -12,7 +13,7 @@ export const GET = ruta(async (req) => {
   const { rowCount } = await obtenerPool().query(
     `UPDATE usuarios SET correo_verificado = true, token_verificacion = NULL, expiracion_verificacion = NULL
      WHERE token_verificacion = $1 AND expiracion_verificacion > now()`,
-    [token]
+    [hashToken(token)]
   );
   if (!rowCount) return json(INVALIDO, 400);
   return json({ ok: true, message: "¡Listo! Tu correo quedó confirmado. Ya puedes iniciar sesión." });

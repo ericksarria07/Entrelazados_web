@@ -24,6 +24,9 @@ export const POST = ruta(async (req) => {
   }
 });
 
+let hashFalso: Promise<string> | undefined;
+const hashDeMentira = () => (hashFalso ??= bcrypt.hash("cuenta-que-no-existe", rondasBcrypt));
+
 async function iniciarSesion(req: Request) {
   const b = await leerCuerpo(req);
   const emailLimpio = textoLimpio(b.email);
@@ -36,7 +39,7 @@ async function iniciarSesion(req: Request) {
   const {
     rows: [usuario],
   } = await pool.query(
-    `SELECT u.usuario_id, u.contrasena_hash, u.tipo_rol, u.estado_cuenta, u.correo_verificado,
+    `SELECT u.usuario_id, u.contrasena_hash, u.tipo_rol, u.estado_cuenta, u.correo_verificado, u.version_sesion,
             p.nombre_razon_social, d.nombre_departamento
      FROM usuarios u
      LEFT JOIN perfiles_usuarios p ON u.usuario_id = p.usuario_id
@@ -46,7 +49,12 @@ async function iniciarSesion(req: Request) {
   );
 
   const incorrecto = new ErrorHttp(401, "Correo o contraseña incorrectos.");
-  if (!usuario) throw incorrecto;
+  if (!usuario) {
+    // Se compara igual contra un hash de mentira: así la respuesta tarda lo mismo exista o
+    // no la cuenta, y medir el tiempo no revela qué correos están registrados
+    await bcrypt.compare(String(passIngresada), await hashDeMentira());
+    throw incorrecto;
+  }
 
   const hashGuardado: string = usuario.contrasena_hash || "";
   const cifrada = esHashBcrypt(hashGuardado);

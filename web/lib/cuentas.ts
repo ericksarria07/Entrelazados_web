@@ -5,28 +5,31 @@
 // ==========================================================================
 import crypto from "node:crypto";
 import { enviarDespues, enviarVerificacion, correoConfigurado } from "@/lib/correo";
+import { ErrorHttp } from "@/lib/http";
+import { limite } from "@/lib/limites";
 
 export const MENSAJE_RECUPERACION = "Si el correo está registrado, recibirás un enlace de recuperación en unos minutos.";
 export const MENSAJE_REENVIO =
   "Si la cuenta existe y falta confirmarla, te enviamos un enlace nuevo. Revisa también la carpeta Spam.";
 export const LARGO_MAXIMO_BCRYPT = 72; // bcrypt ignora lo que pase de 72 bytes
-const ESPERA_REENVIO_MS = 60 * 1000; // 1 correo por minuto por dirección
+export const LARGO_MINIMO_CONTRASENA = 8;
 
 export const nuevoToken = () => crypto.randomBytes(32).toString("hex");
+// Los enlaces de recuperación y de confirmación llevan el token; la base guarda solo su
+// SHA-256. Así, quien llegue a leer la base no puede usar los enlaces vigentes.
+export const hashToken = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 export const esHashBcrypt = (hash: string) => /^\$2[aby]\$/.test(hash);
 
-// Recuerda cuándo se mandó el último correo a cada dirección (1 por minuto).
-// Devuelve false si todavía no pasó el minuto. En memoria, como los límites.
-const ultimosEnvios = new Map<string, number>();
-export function puedeEnviar(clave: string): boolean {
-  const ahora = Date.now();
-  const ultimo = ultimosEnvios.get(clave);
-  if (ultimo !== undefined && ahora - ultimo < ESPERA_REENVIO_MS) return false;
-  ultimosEnvios.set(clave, ahora);
-  if (ultimosEnvios.size > 1000) {
-    for (const [c, t] of ultimosEnvios) if (ahora - t > ESPERA_REENVIO_MS) ultimosEnvios.delete(c);
+// Un correo por minuto a cada dirección. Cuenta en la tabla limites_uso (como los
+// límites de intentos), así vale para todas las instancias. false si todavía no pasó.
+export async function puedeEnviar(clave: string): Promise<boolean> {
+  try {
+    await limite("correo", clave).consumir();
+    return true;
+  } catch (err) {
+    if (err instanceof ErrorHttp && err.status === 429) return false;
+    throw err;
   }
-  return true;
 }
 
 // Manda el enlace de confirmación (o lo escribe en el log si el correo no está configurado)

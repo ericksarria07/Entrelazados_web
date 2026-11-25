@@ -45,4 +45,14 @@ export default async function correr(ctx) {
     // Cerrar sesión
     const salida = cookieSesion(r.setCookie);
     check('POST /api/logout borra la cookie (vacía, Max-Age=0)', salida && salida.valor === '' && salida.atributos.includes('max-age=0'), salida?.linea);
+
+    // Cerrar sesión anula el token, aunque alguien lo haya copiado (version_sesion)
+    const antiguo = await ctx.login('antiguo@prueba.com', 'clave_vieja');
+    const copia = `sesion=${antiguo.cookie?.valor}`;
+    const otro = await ctx.login('antiguo@prueba.com', 'clave_vieja'); // otro dispositivo
+    check('…antes de salir, la sesión sirve', (await api('GET', '/api/sesion', { cookie: copia })).status === 200);
+    r = await api('POST', '/api/logout', { cookie: copia, headers: { Origin: B } });
+    check('Después de cerrar sesión, una copia de la cookie ya no sirve (401)', r.status === 200 && (await api('GET', '/api/sesion', { cookie: copia })).status === 401);
+    check('…y se cierra también en los demás dispositivos', (await api('GET', '/api/sesion', { cookie: `sesion=${otro.cookie?.valor}` })).status === 401);
+    check('…volver a entrar funciona', (await api('GET', '/api/sesion', { cookie: `sesion=${(await ctx.login('antiguo@prueba.com', 'clave_vieja')).cookie?.valor}` })).status === 200);
 }

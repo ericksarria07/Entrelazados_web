@@ -1,5 +1,5 @@
 // ==========================================================================
-// PROXY (antes "middleware"): corre antes de cada petición a /api/*.
+// PROXY (antes "middleware"): corre antes de cada petición a /api/* y a /registro.
 //
 // Protección CSRF: con la sesión en una cookie, el navegador la mandaría sola aunque
 // la petición la dispare otro sitio. SameSite=Lax ya frena los formularios ajenos;
@@ -32,5 +32,6 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  // /registro está fuera de /api (lo pide así el formulario de /unirse), pero también es una escritura
+  matcher: ["/api/:path*", "/registro"],
 };

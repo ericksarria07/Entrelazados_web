@@ -74,6 +74,10 @@ export default function FormularioRegistro() {
       alert("Por favor, ingresa un correo electrónico válido con su dominio completo (ejemplo: usuario@gmail.com).");
       return;
     }
+    if (c.password.length < 8) {
+      alert("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
     if (c.password !== c.confirmPassword) {
       alert("Las contraseñas no coinciden. Por favor verifícalas.");
       return;
