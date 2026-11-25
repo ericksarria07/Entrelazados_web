@@ -18,6 +18,18 @@ const restaurarDeLaMemoria = (pagina: Page) =>
   pagina.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
 const nombreEnElMenu = (pagina: Page) => pagina.locator(".user-nav-name").first();
 
+// Cierra la sesión desde la página, como cerrarSesion(): POST /api/logout con la cookie
+// y se borra lo guardado. (El cliente HTTP de Playwright no manda la cookie Secure por http.)
+async function cerrarSesionDesde(pagina: Page) {
+  const estado = await pagina.evaluate(async () => {
+    const r = await fetch("/api/logout", { method: "POST" });
+    localStorage.removeItem("userId");
+    return r.status;
+  });
+  expect(estado).toBe(200);
+  expect((await pagina.context().cookies()).find((c) => c.name === "sesion")?.value ?? "").toBe("");
+}
+
 // Espera a que la página termine de cargar y ProveedorSitio registre su oyente de
 // "pageshow" (en el CI la hidratación tarda más que el login: un evento antes se perdería)
 async function listaParaRestaurar(pagina: Page) {
@@ -45,7 +57,7 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
     await expect(nombreEnElMenu(pagina)).toHaveText(alfa.nombre);
 
     // Otra pestaña del mismo navegador cierra la sesión y entra con la otra cuenta
-    await pagina.context().request.post("/api/logout"); // comparte las cookies del navegador
+    await cerrarSesionDesde(pagina);
     const otra = await pagina.context().newPage();
     await otra.goto("/login");
     await otra.evaluate(() => localStorage.clear()); // lo que hace cerrarSesion()
@@ -62,8 +74,7 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
   test("si se cerró la sesión, la página restaurada manda a /login", async ({ browser }) => {
     const pagina = await entrar(browser, alfa);
     await listaParaRestaurar(pagina);
-    await pagina.context().request.post("/api/logout");
-    await pagina.evaluate(() => localStorage.removeItem("userId"));
+    await cerrarSesionDesde(pagina);
     await Promise.all([pagina.waitForURL(/\/login/), restaurarDeLaMemoria(pagina)]);
     await pagina.context().close();
   });
