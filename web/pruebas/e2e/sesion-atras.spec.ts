@@ -18,6 +18,20 @@ const restaurarDeLaMemoria = (pagina: Page) =>
   pagina.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
 const nombreEnElMenu = (pagina: Page) => pagina.locator(".user-nav-name").first();
 
+// Espera a que la página termine de cargar y ProveedorSitio registre su oyente de
+// "pageshow" (en el CI la hidratación tarda más que el login: un evento antes se perdería)
+async function listaParaRestaurar(pagina: Page) {
+  await pagina.context().addInitScript(() => {
+    const original = window.addEventListener.bind(window);
+    window.addEventListener = ((tipo: string, ...resto: unknown[]) => {
+      if (tipo === "pageshow") (window as unknown as { oyentePageshow: boolean }).oyentePageshow = true;
+      return (original as (...a: unknown[]) => void)(tipo, ...resto);
+    }) as typeof window.addEventListener;
+  });
+  await pagina.reload();
+  await pagina.waitForFunction(() => (window as unknown as { oyentePageshow?: boolean }).oyentePageshow === true);
+}
+
 test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
   test.beforeAll(async () => {
     alfa = await crearCuenta("Emprendedor", "Cuenta Alfa Atras", 1);
@@ -27,6 +41,7 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
 
   test("si entró otra cuenta, la página restaurada se recarga con la sesión nueva", async ({ browser }) => {
     const pagina = await entrar(browser, alfa);
+    await listaParaRestaurar(pagina);
     await expect(nombreEnElMenu(pagina)).toHaveText(alfa.nombre);
 
     // Otra pestaña del mismo navegador cierra la sesión y entra con la otra cuenta
@@ -46,6 +61,7 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
 
   test("si se cerró la sesión, la página restaurada manda a /login", async ({ browser }) => {
     const pagina = await entrar(browser, alfa);
+    await listaParaRestaurar(pagina);
     await pagina.context().request.post("/api/logout");
     await pagina.evaluate(() => localStorage.removeItem("userId"));
     await Promise.all([pagina.waitForURL(/\/login/), restaurarDeLaMemoria(pagina)]);
@@ -54,6 +70,7 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
 
   test("con la misma sesión no recarga", async ({ browser }) => {
     const pagina = await entrar(browser, alfa);
+    await listaParaRestaurar(pagina);
     await pagina.evaluate(() => ((window as unknown as { marca: number }).marca = 1));
     await restaurarDeLaMemoria(pagina);
     await pagina.waitForTimeout(1500); // da tiempo a la consulta a /api/sesion
