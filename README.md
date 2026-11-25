@@ -82,7 +82,8 @@ Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3
 - **Kan**, el asistente virtual con IA:
   - la respuesta aparece mientras se escribe (streaming), en el widget y en el chat;
   - la conversación sigue al cambiar de página (se guarda en el navegador hasta cerrar sesión o que venza la sesión);
-  - recuerda los últimos 10 mensajes al contestar.
+  - recuerda los últimos 10 mensajes al contestar;
+  - consulta el mercado real con **herramientas** (*tool calling*, `web/lib/kan-herramientas.ts`) en vez de recibir todo el inventario en el mensaje: `buscarOfertas` (por texto o categoría), `subastasActivas` (las que cierran antes primero), `misSubastas` (las del proveedor, o en las que pujó el emprendedor y si va ganando) y `preciosDeReferencia` (mínimo, mediana y máximo de una categoría). Solo leen; el usuario de "mis subastas" sale de la sesión. En los registros de Vercel queda qué herramientas usó cada respuesta (`Kan consultó: ...`).
 
   `POST /api/chat/ia` responde JSON por defecto y texto en trozos con `Accept: text/plain`.
 - **Chat** directo entre proveedores y emprendedores, con **contador de mensajes no leídos** en el menú de todas las páginas y en cada contacto, y la marca "Visto".
@@ -115,7 +116,7 @@ Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3
 | Tiempo real | **Ably** (`@ably/pubsub-device` en el navegador, `@ably/pubsub-server` en el servidor) |
 | Fotos | **Vercel Blob** (en local, a disco) |
 | Correo | `nodemailer` (Gmail con contraseña de aplicación u otro SMTP) |
-| IA | Gemini con el **Vercel AI SDK** (`ai` + `@ai-sdk/google`): Kan responde en streaming (`streamText`); el asistente de publicación y el precio sugerido piden un objeto validado con un esquema Zod (`generateText` + `Output.object`) |
+| IA | Gemini con el **Vercel AI SDK** (`ai` + `@ai-sdk/google`): Kan responde en streaming (`streamText`) y consulta la base con herramientas (`tool` + Zod, hasta 4 pasos con `stopWhen`); el asistente de publicación y el precio sugerido piden un objeto validado con un esquema Zod (`generateText` + `Output.object`) |
 | Pruebas | `node` para la API, **Playwright 1.57.0** para los E2E y el recorrido |
 | Producción | **Vercel** (dominio en Cloudflare), rama de producción `migracion-nextjs`, CD con migraciones automáticas |
 

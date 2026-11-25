@@ -2,7 +2,8 @@
 // historial: los últimos mensajes de la conversación [{ rol: 'usuario'|'kan', texto }],
 // para que Kan recuerde lo hablado. Si no es válido se ignora (no es obligatorio).
 // Requiere sesión: cada pregunta cuenta para un usuario concreto y nadie puede gastar
-// la cuota de Gemini desde fuera. El rol sale de la sesión, no de lo que diga el navegador.
+// la cuota de Gemini desde fuera. El id y el rol salen de la sesión, no de lo que diga el
+// navegador (las herramientas de Kan los usan para "mis subastas").
 //
 // Dos formas de respuesta, con el mismo código (Vercel AI SDK):
 //   - por defecto, JSON { respuesta } con el texto completo (Swagger, scripts, pruebas);
@@ -28,10 +29,10 @@ export const POST = ruta(async (req) => {
   }
 
   if (!(req.headers.get("accept") ?? "").includes("text/plain")) {
-    return json({ respuesta: await responderKan(mensajeUsuario, usuario.rol, leerHistorial(historial)) });
+    return json({ respuesta: await responderKan(mensajeUsuario, usuario, leerHistorial(historial)) });
   }
 
-  const trozos = respuestaKan(mensajeUsuario, usuario.rol, leerHistorial(historial));
+  const trozos = respuestaKan(mensajeUsuario, usuario, leerHistorial(historial));
   const codificar = new TextEncoder();
   const flujo = new ReadableStream<Uint8Array>({
     async pull(control) {

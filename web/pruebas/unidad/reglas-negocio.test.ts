@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { esRolAdmin, inicioSegunRol } from "../../lib/cliente/sesion.ts";
-import { leerHistorial, respuestaFija } from "../../lib/kan-respuestas.ts";
+import { leerHistorial, respuestaFija, tiempoRestante } from "../../lib/kan-respuestas.ts";
 import { nombreLote } from "../../lib/lotes.ts";
 import { DIAS_SUBASTA, PRECIO_MAXIMO, validarOferta } from "../../lib/ofertas-reglas.ts";
 import { ESTADOS_ORIGEN, loteDelTrato } from "../../lib/tratos-estados.ts";
@@ -131,4 +131,14 @@ test("esRolAdmin reconoce los dos nombres del rol, sin importar mayúsculas", ()
   assert.ok(!esRolAdmin(null));
   assert.equal(inicioSegunRol("Administrador"), "/admin");
   assert.equal(inicioSegunRol("emprendedor"), "/inicio");
+});
+
+test("tiempoRestante dice en palabras cuánto falta para que cierre una subasta", () => {
+  const ahora = new Date("2026-11-25T12:00:00Z");
+  const en = (min: number) => new Date(ahora.getTime() + min * 60_000);
+  assert.equal(tiempoRestante(en(-5), ahora), "ya venció");
+  assert.equal(tiempoRestante(en(45), ahora), "45 min");
+  assert.equal(tiempoRestante(en(5 * 60 + 10), ahora), "5 h");
+  assert.equal(tiempoRestante(en(24 * 60), ahora), "1 día");
+  assert.equal(tiempoRestante(en((2 * 24 + 3) * 60), ahora), "2 días y 3 h");
 });

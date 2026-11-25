@@ -683,8 +683,9 @@ paths:
       tags: [Chat y Kan]
       summary: Preguntar a Kan
       description: |
-        Primero busca una respuesta fija (gratis); si no hay, pregunta a Gemini (Vercel AI SDK) con las ofertas y
-        subastas reales como contexto. Si Gemini falla, responde un mensaje amable. Límite: 10 por minuto y 150 al día por usuario.
+        Primero busca una respuesta fija (gratis); si no hay, pregunta a Gemini (Vercel AI SDK), que consulta el
+        mercado real con herramientas: ofertas, subastas activas, las subastas o pujas del propio usuario y
+        precios de referencia por categoría. Si Gemini falla, responde un mensaje amable. Límite: 10 por minuto y 150 al día por usuario.
 
         Por defecto responde JSON con el texto completo. Con `Accept: text/plain` la respuesta llega en trozos
         mientras Gemini la escribe (streaming; lo usan el widget de Kan y el chat). Los errores 400/401/429 siempre son JSON.
