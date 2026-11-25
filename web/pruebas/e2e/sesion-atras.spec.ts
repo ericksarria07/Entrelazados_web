@@ -30,18 +30,11 @@ async function cerrarSesionDesde(pagina: Page) {
   expect((await pagina.context().cookies()).find((c) => c.name === "sesion")?.value ?? "").toBe("");
 }
 
-// Espera a que la página termine de cargar y ProveedorSitio registre su oyente de
-// "pageshow" (en el CI la hidratación tarda más que el login: un evento antes se perdería)
+// Espera a que ProveedorSitio registre su oyente de "pageshow". Su efecto siguiente pide
+// /api/chat/no-leidos y React corre los efectos en orden: cuando sale esa petición, el
+// oyente ya está. (En el CI la página hidrata después del login; un evento antes se pierde.)
 async function listaParaRestaurar(pagina: Page) {
-  await pagina.context().addInitScript(() => {
-    const original = window.addEventListener.bind(window);
-    window.addEventListener = ((tipo: string, ...resto: unknown[]) => {
-      if (tipo === "pageshow") (window as unknown as { oyentePageshow: boolean }).oyentePageshow = true;
-      return (original as (...a: unknown[]) => void)(tipo, ...resto);
-    }) as typeof window.addEventListener;
-  });
-  await pagina.reload();
-  await pagina.waitForFunction(() => (window as unknown as { oyentePageshow?: boolean }).oyentePageshow === true);
+  await Promise.all([pagina.waitForRequest((r) => r.url().includes("/api/chat/no-leidos")), pagina.reload()]);
 }
 
 test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
