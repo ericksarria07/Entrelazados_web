@@ -103,7 +103,7 @@ export function limite(nombre: NombreLimite, clave: string) {
   };
 }
 
-// Borra las ventanas vencidas (lo llama el cron diario)
+// Borra las ventanas vencidas (lo llama la corrida de cada hora, /api/cron/cerrar-subastas)
 export async function limpiarLimitesVencidos(): Promise<number> {
   const { rowCount } = await obtenerPool().query("DELETE FROM limites_uso WHERE vence < now()");
   return rowCount ?? 0;

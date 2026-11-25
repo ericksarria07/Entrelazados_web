@@ -1,10 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run vercel-build",
-  "crons": [
-    {
+  "schedules": {
+    "cerrar-subastas": {
+      "schedule": "0 * * * *",
       "path": "/api/cron/cerrar-subastas",
-      "schedule": "0 6 * * *"
+      "requestMethod": "GET"
     }
-  ]
+  }
 }

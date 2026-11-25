@@ -1,6 +1,6 @@
 // 14. Cierre automático de subastas
 // En Vercel el cierre es perezoso (al listar subastas, pujar, ver tratos o el dashboard) y con un
-// cron diario. Aquí CIERRE_PEREZOSO=0: lo dispara /api/admin/subastas/cerrar-vencidas.
+// corrida de cada hora (Vercel Schedules). Aquí CIERRE_PEREZOSO=0: lo dispara /api/admin/subastas/cerrar-vencidas.
 // Portada de backend/pruebas/pruebas_api.js (Express + MySQL) a Next.js + Postgres.
 // Las llamadas a la API no cambian: el JSON que esperan es el contrato que usan las páginas.
 import { B, api, check, seccion, q } from '../contexto.mjs';
@@ -49,7 +49,7 @@ export default async function correr(ctx) {
     r = await api('GET', '/api/dashboard', { token: ctx.p1.token });
     check('Dashboard del proveedor: 1 subasta vendida', r.status === 200 && r.data.miActividad.subastasVendidas === 1, JSON.stringify(r.data && r.data.miActividad));
 
-    // Cron diario de Vercel: solo responde con el secreto (CRON_SECRET)
+    // Corrida de cada hora de Vercel Schedules: solo responde con el secreto (CRON_SECRET)
     const cron = (auth) => fetch(B + '/api/cron/cerrar-subastas', { headers: auth ? { Authorization: auth } : {} }).then(async (x) => ({ status: x.status, data: await x.json() }));
     r = await cron();
     check('El cron de cierre sin secreto → 401', r.status === 401);

@@ -1,6 +1,8 @@
-// GET /api/cron/cerrar-subastas: el cron diario de Vercel (vercel.json) cierra las subastas
-// vencidas que nadie miró y borra los contadores vencidos de los límites. Vercel manda "Authorization: Bearer <CRON_SECRET>"; sin
-// CRON_SECRET configurado, la ruta no responde a nadie.
+// GET /api/cron/cerrar-subastas: la corrida de cada hora de Vercel Schedules (vercel.json,
+// "cerrar-subastas") cierra las subastas vencidas que nadie miró y borra los contadores
+// vencidos de los límites. Es un objetivo "path" (la ruta sigue siendo pública), así que
+// Vercel manda "Authorization: Bearer <CRON_SECRET>"; sin CRON_SECRET configurado, la ruta
+// no responde a nadie.
 import { urlPublica } from "@/lib/config";
 import { cerrarVencidas } from "@/lib/cierre-subastas";
 import { json, ruta } from "@/lib/http";

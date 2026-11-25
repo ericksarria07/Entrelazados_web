@@ -45,7 +45,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
                 │   • Páginas React (SSR / cliente)             │
                 │   • Route Handlers  /api/*                    │
                 │   • after() para correos y avisos             │
-                │   • Vercel Cron (barrido diario)              │
+                │   • Vercel Schedules (barrido cada hora)      │
                 └──┬──────────┬──────────┬──────────┬───────────┘
                    │          │          │          │
                    ▼          ▼          ▼          ▼
@@ -67,7 +67,7 @@ Vercel ejecuta **funciones serverless**: no hay un proceso permanente ni disco p
 | Base de datos | **Neon** (Postgres serverless) | Plan gratis, ramas de BD para probar migraciones, integración con Vercel | D1 (SQLite): sin transacciones interactivas ni `FOR UPDATE`, que son clave para las pujas |
 | Acceso a datos | **Drizzle ORM** (esquema y migraciones) + **`pg`** (node-postgres; las rutas escriben su SQL a mano con `$1, $2…`) con `attachDatabasePool` de `@vercel/functions` | Mapea snake_case ↔ camelCase y da tipos. `pg` es el driver que recomienda Neon para Vercel (Fluid compute reutiliza el pool entre peticiones) y permite transacciones interactivas con `FOR UPDATE` (probado con `npm run probar:neon` en `web/`) | `@neondatabase/serverless`: Neon lo recomienda para entornos edge; su driver HTTP no tiene transacciones interactivas |
 | Tiempo real | **Ably** (Pusher como equivalente) | Socket.IO no funciona en Vercel. Ably tiene buen plan gratis, SDK para React y canales privados | SSE desde Route Handlers (las funciones tienen duración máxima); Supabase Realtime (otra plataforma más) |
-| Cierre de subastas | **Cierre perezoso** + **Vercel Cron diario** | Sin servicio nuevo y **no mantiene Neon despierto**. El ganador se entera cuando alguien usa el sitio o, a más tardar, con el cron del día | QStash (cierra a la hora exacta, pero es otra cuenta); cron cada minuto (gasta las horas gratis de Neon y en Vercel Hobby el cron es diario) |
+| Cierre de subastas | **Cierre perezoso** + **Vercel Schedules cada hora** (antes Cron diario) | Sin servicio nuevo y **no mantiene Neon despierto**. El ganador se entera cuando alguien usa el sitio o, a más tardar, con la corrida de la hora siguiente | QStash (cierra a la hora exacta, pero es otra cuenta); cron cada minuto (gasta las horas gratis de Neon y en Vercel Hobby el cron es diario) |
 | Fotos | **Vercel Blob** (`@vercel/blob`, store `entrelazados-fotos`) | Las fotos siguen llegando al servidor como hoy, así que las páginas no cambian. La página ya las reduce a 1600 px, y 5 fotos caben en el límite de 4,5 MB por petición. Sin cuenta nueva: es parte de Vercel. En tu máquina y en las pruebas se guardan en disco (`web/lib/fotos.ts`) | Cloudinary (miniaturas automáticas, pero cambia la subida y es otra cuenta); Google Cloud Storage; Cloudflare R2 |
 | Sesión | **Cookie httpOnly** con `jose` (o Auth.js) | El token no se puede robar con un XSS | JWT en `localStorage` (actual) |
 | Límites de peticiones | **Tabla `limites_uso` en Postgres** (`web/lib/limites.ts`, sin `express-rate-limit`). Al principio vivían en memoria; desde `nextjs/limites-bd` están en la base | Sin servicio ni paquete nuevo. Un solo `INSERT … ON CONFLICT` atómico por intento: todas las instancias de Vercel cuentan juntas y un despliegue no reinicia los contadores. Si la base falla, no bloquea | En memoria (cada instancia contaba por su lado: se podía saltar); Upstash Redis (otra cuenta y otra dependencia solo para esto) |
@@ -87,7 +87,7 @@ El prefijo (`ABLY_CANAL_PREFIJO`, por defecto `VERCEL_ENV`) separa producción, 
 ### Detalle: cierre de subastas
 ✅ `web/lib/cierre-subastas.ts`, con la misma lógica de `crearCierreSubastas` (`servicios/subastas.js`). Solo cambia quién la dispara:
 1. **Cierre perezoso:** al listar subastas, pujar, ver los tratos o abrir el dashboard se cierran las vencidas, como mucho una vez cada 15 s por instancia. En tratos y dashboard se espera al cierre, para que el trato aparezca enseguida; en lo demás va después de responder.
-2. **Vercel Cron diario** (`web/vercel.json`, 06:00 UTC = medianoche en Nicaragua): `GET /api/cron/cerrar-subastas`, protegido con `CRON_SECRET`.
+2. **Vercel Schedules cada hora** (`web/vercel.json`, `schedules.cerrar-subastas`, antes un Cron diario a las 06:00 UTC): `GET /api/cron/cerrar-subastas`, protegido con `CRON_SECRET`. Cada hora y no cada 15 min (el mínimo de Hobby) para no gastar las horas gratis de Neon: cada corrida lo despierta ~5 min, unas 15 horas de cómputo al mes contra ~180 cada 15 min.
 3. **A mano:** `POST /api/admin/subastas/cerrar-vencidas`.
 
 ---

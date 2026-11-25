@@ -11,8 +11,10 @@
 // Cuándo corre (en Vercel no hay procesos que corran cada minuto):
 //   * CIERRE PEREZOSO: cerrarVencidasSiToca() al listar subastas, pujar, ver tratos
 //     o abrir el dashboard. Como mucho una vez cada 15 s por instancia.
-//   * CRON DIARIO de Vercel (vercel.json → /api/cron/cerrar-subastas), para las
-//     que nadie miró.
+//   * CADA HORA con Vercel Schedules (vercel.json, "cerrar-subastas" →
+//     /api/cron/cerrar-subastas), para las que nadie miró. En Hobby corre dentro de
+//     los primeros 15 min de cada hora. No más seguido: cada corrida despierta a Neon,
+//     y cada 15 min lo tendría encendido todo el mes (más que las horas gratis).
 //   * A mano: POST /api/admin/subastas/cerrar-vencidas.
 // CIERRE_PEREZOSO=0 lo apaga (las pruebas cierran con la ruta del admin).
 //
