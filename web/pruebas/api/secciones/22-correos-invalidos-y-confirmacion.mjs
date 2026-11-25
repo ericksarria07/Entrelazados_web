@@ -35,7 +35,7 @@ export default async function correr(ctx) {
     check('El admin da por confirmado un correo (si no le llega el enlace)', r.status === 200 && (await ctx.login('pendiente@prueba.com', 'Clave123')).status === 200, JSON.stringify(r));
 
     r = await ctx.reg('olvido@prueba.com', 'Emprendedor', { nombre: 'Taller Olvido' });
-    await q(`UPDATE usuarios SET token_recuperacion = 'tok-olvido', expiracion_token = NOW() + interval '1 hour' WHERE correo_electronico = 'olvido@prueba.com'`);
+    await q(`UPDATE usuarios SET token_recuperacion = encode(sha256('tok-olvido'::bytea), 'hex'), expiracion_token = NOW() + interval '1 hour' WHERE correo_electronico = 'olvido@prueba.com'`);
     r = await api('POST', '/api/restablecer-password', { body: { token: 'tok-olvido', nuevaContrasena: 'NuevaClave9' } });
     const filaOlvido = (await q(`SELECT correo_verificado FROM usuarios WHERE correo_electronico = 'olvido@prueba.com'`))[0];
     check('Restablecer la contraseña con el enlace del correo también lo confirma', r.status === 200 && filaOlvido.CorreoVerificado === 1 && (await ctx.login('olvido@prueba.com', 'NuevaClave9')).status === 200);

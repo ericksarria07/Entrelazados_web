@@ -12,6 +12,7 @@
 //   LIMITE_KAN_DIA        preguntas a Kan por usuario cada día         (150)
 //   LIMITE_FOTOS          publicaciones por usuario cada hora           (20)
 //   LIMITE_IA             consultas al asistente de IA por usuario cada hora (30)
+//   LIMITE_CORREO         correos de recuperación o confirmación por dirección cada minuto (1)
 //
 //   await limite('registro', ipDe(req)).consumir();        // cuenta y, si se pasó, 429
 //   const l = limite('login', ipDe(req));
@@ -42,6 +43,8 @@ const DEFINICIONES = {
   kanDia: { ventanaMs: 24 * 60 * MINUTO, env: "LIMITE_KAN_DIA", porDefecto: 150, mensaje: "Llegaste al máximo de preguntas a Kan por hoy." },
   fotos: { ventanaMs: 60 * MINUTO, env: "LIMITE_FOTOS", porDefecto: 20, mensaje: "Publicaste demasiadas ofertas en poco tiempo." },
   ia: { ventanaMs: 60 * MINUTO, env: "LIMITE_IA", porDefecto: 30, mensaje: "Usaste mucho el asistente de IA en poco tiempo." },
+  // Por dirección de correo: 1 correo de recuperación o confirmación por minuto (lib/cuentas.ts)
+  correo: { ventanaMs: MINUTO, env: "LIMITE_CORREO", porDefecto: 1, mensaje: "Ya te enviamos un correo hace poco." },
 } as const;
 
 type NombreLimite = keyof typeof DEFINICIONES;

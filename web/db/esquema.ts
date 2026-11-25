@@ -60,6 +60,9 @@ export const usuarios = pgTable(
     correoVerificado: boolean().notNull().default(true),
     tokenVerificacion: varchar({ length: 64 }),
     expiracionVerificacion: fecha(),
+    // Va dentro del JWT: al cerrar sesión o cambiar la contraseña sube en 1 y los
+    // tokens anteriores dejan de servir (lib/sesion.ts)
+    versionSesion: integer().notNull().default(0),
   },
   (t) => [
     check("usuarios_tipo_rol_check", sql`${t.tipoRol} IN ('Proveedor', 'Emprendedor', 'Administrador', 'Admin')`),

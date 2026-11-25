@@ -89,7 +89,7 @@ paths:
               properties:
                 nombre: { type: string, example: Curtiembre La Esperanza }
                 email: { type: string, format: email, example: ventas@esperanza.com }
-                password: { type: string, minLength: 6, maxLength: 72, example: Clave123 }
+                password: { type: string, minLength: 8, maxLength: 72, example: Clave123 }
                 rol: { type: string, enum: [Proveedor, Emprendedor] }
                 deptoId: { type: string, description: Nombre del departamento, example: León }
                 telefono: { type: string, example: "88887777" }
@@ -171,7 +171,7 @@ paths:
     post:
       tags: [Cuentas]
       summary: Cerrar sesión
-      description: Borra la cookie `sesion`. No pide sesión (si ya venció, igual se borra).
+      description: Borra la cookie `sesion` y sube la versión de la sesión, así el token deja de servir aunque alguien lo haya copiado (se cierra en todos los dispositivos). No pide sesión (si ya venció, igual se borra).
       responses:
         "200":
           description: Sesión cerrada
@@ -283,7 +283,7 @@ paths:
               required: [token, nuevaContrasena]
               properties:
                 token: { type: string, pattern: "^[a-f0-9]{64}$" }
-                nuevaContrasena: { type: string, minLength: 6, maxLength: 72 }
+                nuevaContrasena: { type: string, minLength: 8, maxLength: 72 }
       responses:
         "200": { $ref: "#/components/responses/Mensaje" }
         "400": { $ref: "#/components/responses/DatosInvalidos" }

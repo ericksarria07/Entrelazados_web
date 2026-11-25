@@ -1,5 +1,6 @@
 // GET /api/validar-token-recuperacion?token=: /restablecer pregunta, antes de que se
 // escriba la contraseña, si el enlace sigue vigente.
+import { hashToken } from "@/lib/cuentas";
 import { obtenerPool } from "@/lib/db";
 import { json, ruta } from "@/lib/http";
 import { esTokenValido, ocultarCorreo } from "@/lib/utilidades";
@@ -11,7 +12,7 @@ export const GET = ruta(async (req) => {
     rows: [fila],
   } = await obtenerPool().query(
     "SELECT correo_electronico, expiracion_token FROM usuarios WHERE token_recuperacion = $1 AND expiracion_token > now()",
-    [token]
+    [hashToken(token)]
   );
   if (!fila) return json({ valido: false }, 400);
   return json({ valido: true, correo: ocultarCorreo(fila.correo_electronico), expira: fila.expiracion_token });

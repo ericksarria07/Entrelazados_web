@@ -9,6 +9,8 @@
 //   B          URL del servidor de pruebas
 //   conectarOyente()  escucha los avisos en tiempo real (Ably) como lo hace sesion.js
 //   omitir()   anota una comprobación que no se pudo correr (no cuenta como fallida)
+//   enlaceDelLog()  el último token de un enlace de recuperación o confirmación que el
+//              servidor escribió en su log (la base guarda solo su SHA-256)
 //
 // q() devuelve las filas con los nombres de columna de MySQL (ContrasenaHash,
 // EsPrincipal) y los booleanos como 1/0, igual que mysql2. Así las comprobaciones
@@ -16,10 +18,23 @@
 // En un INSERT devuelve { insertId } (el SQL termina en RETURNING <llave>).
 // ==========================================================================
 import { createClient } from '@ably/pubsub-device';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import pg from 'pg';
 import { NOMBRES_MYSQL } from './nombres-mysql.mjs';
 
 export const PUERTO = 3055;
+export const LOG_SERVIDOR = path.join(os.tmpdir(), 'entrelazados_next_pruebas.log');
+
+// Sin correo configurado, el servidor escribe los enlaces en su log. tipo: 'recuperacion' | 'confirmacion'
+export function enlaceDelLog(tipo, email) {
+    const frase = tipo === 'recuperacion' ? 'Enlace de recuperación para' : 'Enlace para confirmar el correo de';
+    const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`${esc(frase)} ${esc(email)} .*token=([a-f0-9]{64})`, 'g');
+    const todos = [...fs.readFileSync(LOG_SERVIDOR, 'utf8').matchAll(regex)];
+    return todos.length ? todos[todos.length - 1][1] : null;
+}
 export const B = `http://localhost:${PUERTO}`;
 
 let ok = 0;

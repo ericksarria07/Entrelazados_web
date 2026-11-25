@@ -7,6 +7,9 @@
 // mismo token como "Authorization: Bearer <token>".
 // Después se consulta la base para tener el rol y el estado ACTUALES: si el admin
 // suspende o elimina la cuenta, la sesión deja de servir al instante.
+// El token lleva la versión de la sesión (usuarios.version_sesion, "v"): cerrar sesión o
+// restablecer la contraseña la sube en 1 y los tokens anteriores dejan de servir, aunque
+// alguien los haya copiado. Los tokens viejos sin "v" cuentan como versión 0.
 //
 //   const usuario = await exigirSesion(req);          // { id, rol, esAdmin }
 //   exigirRoles(usuario, 'proveedor');                // el admin siempre pasa
@@ -28,8 +31,31 @@ export const COOKIE_SESION = "sesion";
 
 export const esRolAdmin = (rol: string) => rol === "administrador" || rol === "admin";
 
-export function firmarToken(usuario: { usuario_id: number; tipo_rol: string }): string {
-  return jwt.sign({ id: usuario.usuario_id, rol: usuario.tipo_rol }, jwtSecreto(), { expiresIn: duracionSesion });
+export function firmarToken(usuario: { usuario_id: number; tipo_rol: string; version_sesion: number }): string {
+  return jwt.sign({ id: usuario.usuario_id, rol: usuario.tipo_rol, v: usuario.version_sesion }, jwtSecreto(), {
+    expiresIn: duracionSesion,
+  });
+}
+
+// Datos de un token válido (firma y vencimiento), sin consultar la base. null si no sirve.
+export function leerToken(token: string | null): { id: number; v: number } | null {
+  if (!token) return null;
+  try {
+    const datos = jwt.verify(token, jwtSecreto()) as jwt.JwtPayload;
+    return { id: Number(datos.id), v: Number(datos.v ?? 0) };
+  } catch {
+    return null;
+  }
+}
+
+// Cierra todas las sesiones abiertas de la cuenta del token (al cerrar sesión)
+export async function cerrarSesiones(token: string | null): Promise<void> {
+  const datos = leerToken(token);
+  if (!datos) return;
+  await obtenerPool().query("UPDATE usuarios SET version_sesion = version_sesion + 1 WHERE usuario_id = $1 AND version_sesion = $2", [
+    datos.id,
+    datos.v,
+  ]);
 }
 
 // Opciones de la cookie de sesión. En `next dev` (http://localhost) va sin Secure.
@@ -59,7 +85,7 @@ function leerCookie(req: Request, nombre: string): string | null {
 }
 
 // Token de la petición: "Authorization: Bearer" (si trae algo) o, si no, la cookie.
-function tokenDe(req: Request): string | null {
+export function tokenDe(req: Request): string | null {
   const encabezado = req.headers.get("authorization") ?? "";
   const bearer = encabezado.startsWith("Bearer ") ? encabezado.slice(7).trim() : "";
   return bearer || leerCookie(req, COOKIE_SESION) || null;
@@ -72,8 +98,11 @@ async function usuarioDelToken(token: string | null): Promise<Usuario> {
   if (!token) throw new ErrorHttp(401, "Debes iniciar sesión para continuar.");
 
   let usuarioId: unknown;
+  let version = 0;
   try {
-    usuarioId = (jwt.verify(token, jwtSecreto()) as jwt.JwtPayload).id;
+    const datos = jwt.verify(token, jwtSecreto()) as jwt.JwtPayload;
+    usuarioId = datos.id;
+    version = Number(datos.v ?? 0);
   } catch (err) {
     // Solo un token malo o vencido es "sesión inválida"; cualquier otro error sigue su camino
     // (p. ej. Next interrumpe un prerender que llega aquí: no es un token inválido)
@@ -81,12 +110,12 @@ async function usuarioDelToken(token: string | null): Promise<Usuario> {
     throw new ErrorHttp(401, "Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
   }
 
-  type Fila = { usuario_id: number; tipo_rol: string | null; estado_cuenta: string | null };
+  type Fila = { usuario_id: number; tipo_rol: string | null; estado_cuenta: string | null; version_sesion: number };
   let usuario: Fila | undefined;
   try {
     ({
       rows: [usuario],
-    } = await obtenerPool().query<Fila>("SELECT usuario_id, tipo_rol, estado_cuenta FROM usuarios WHERE usuario_id = $1", [
+    } = await obtenerPool().query<Fila>("SELECT usuario_id, tipo_rol, estado_cuenta, version_sesion FROM usuarios WHERE usuario_id = $1", [
       usuarioId,
     ]));
   } catch (err) {
@@ -94,6 +123,9 @@ async function usuarioDelToken(token: string | null): Promise<Usuario> {
     throw new ErrorHttp(500, "Error al verificar la sesión.");
   }
   if (!usuario) throw new ErrorHttp(401, "La cuenta ya no existe. Inicia sesión nuevamente.");
+  if (usuario.version_sesion !== version) {
+    throw new ErrorHttp(401, "Tu sesión se cerró (saliste o cambiaste la contraseña). Inicia sesión nuevamente.");
+  }
   if ((usuario.estado_cuenta ?? "").toLowerCase() === "suspendido") {
     throw new ErrorHttp(403, "Tu cuenta ha sido suspendida por el administrador.");
   }

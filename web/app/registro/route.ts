@@ -2,7 +2,7 @@
 // Si hay que confirmar el correo, la cuenta nace sin verificar y con un enlace de 24 h.
 import bcrypt from "bcryptjs";
 import { rondasBcrypt, urlPublica, verificarCorreo } from "@/lib/config";
-import { enviarEnlaceVerificacion, nuevoToken } from "@/lib/cuentas";
+import { LARGO_MINIMO_CONTRASENA, enviarEnlaceVerificacion, hashToken, nuevoToken } from "@/lib/cuentas";
 import { enTransaccion } from "@/lib/db";
 import { ErrorHttp, json, leerCuerpo, ruta } from "@/lib/http";
 import { ipDe, limite } from "@/lib/limites";
@@ -22,8 +22,8 @@ export const POST = ruta(async (req) => {
   if (!nombreDepartamento || !emailLimpio || !b.nombre || !rol || !passwordPlano) {
     throw new ErrorHttp(400, "Por favor, completa todos los campos obligatorios.");
   }
-  if (typeof passwordPlano !== "string" || passwordPlano.length < 6) {
-    throw new ErrorHttp(400, "La contraseña debe tener al menos 6 caracteres.");
+  if (typeof passwordPlano !== "string" || passwordPlano.length < LARGO_MINIMO_CONTRASENA) {
+    throw new ErrorHttp(400, `La contraseña debe tener al menos ${LARGO_MINIMO_CONTRASENA} caracteres.`);
   }
   const rolMinus = rol.toLowerCase();
   if (!["proveedor", "emprendedor"].includes(rolMinus)) {
@@ -60,7 +60,7 @@ export const POST = ruta(async (req) => {
                                correo_verificado, token_verificacion, expiracion_verificacion)
          VALUES ($1, $2, $3, 'Activo', $4::boolean, $5, CASE WHEN $4::boolean THEN NULL ELSE now() + interval '24 hours' END)
          RETURNING usuario_id`,
-        [emailLimpio, passwordHash, rol, !confirmar, tokenVerificacion]
+        [emailLimpio, passwordHash, rol, !confirmar, tokenVerificacion && hashToken(tokenVerificacion)]
       );
       const usuarioId = usuario.usuario_id;
 

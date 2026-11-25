@@ -155,7 +155,7 @@ Entrelazados_web/
 │   ├── componentes/sitio/        # cabecera, buscador, campana, Kan, tiempo real (ProveedorSitio)...
 │   ├── lib/                      # lógica del servidor: sesion.ts, http.ts, db.ts, subastas.ts, tratos.ts, kan.ts...
 │   ├── lib/cliente/              # ayudas del navegador: api.ts, sesion.ts, graficas.ts, excel.ts...
-│   ├── proxy.ts                  # protección CSRF de /api/*
+│   ├── proxy.ts                  # protección CSRF de /api/* y /registro
 │   ├── next.config.ts            # encabezados de seguridad, CSP y redirecciones de las URLs .html
 │   ├── db/esquema.ts             # las 18 tablas en Drizzle: fuente única del esquema
 │   ├── db/migraciones/           # SQL generado por drizzle-kit (+ 0001_extras.sql escrito a mano)
@@ -449,15 +449,15 @@ Cuando esas librerías publiquen una versión con el arreglo, el override se pue
 
 ## Seguridad
 
-- **Contraseñas** cifradas con bcrypt. Las cuentas antiguas en texto plano se cifran solas al iniciar sesión.
-- **Sesiones con JWT** (8 horas). En cada petición se consulta el rol y el estado actuales, así que una cuenta suspendida pierde el acceso al instante. En la versión actual el JWT vive en una **cookie `httpOnly`** (`Secure; SameSite=Lax`): ningún script de la página puede leerlo, y `localStorage` solo guarda datos que no son secretos.
+- **Contraseñas** cifradas con bcrypt, de al menos 8 caracteres. Las cuentas antiguas en texto plano se cifran solas al iniciar sesión (en producción ya no queda ninguna). El login tarda lo mismo exista o no la cuenta, así que medir el tiempo no revela qué correos están registrados.
+- **Sesiones con JWT** (8 horas). En cada petición se consulta el rol y el estado actuales, así que una cuenta suspendida pierde el acceso al instante. En la versión actual el JWT vive en una **cookie `httpOnly`** (`Secure; SameSite=Lax`): ningún script de la página puede leerlo, y `localStorage` solo guarda datos que no son secretos. El token lleva la versión de la sesión (`usuarios.version_sesion`): **cerrar sesión o restablecer la contraseña** la sube y anula los tokens anteriores, aunque alguien los haya copiado (también en los demás dispositivos).
 - Las rutas usan el usuario del token, **nunca un id enviado por el navegador**. Solo los proveedores publican y solo los emprendedores pujan.
 - **Consultas SQL parametrizadas** contra inyección SQL. Contra XSS, React escapa el texto (la versión Express usaba `esc()`); ya no se arma HTML con `innerHTML`.
-- Recuperación de contraseña: 1 solicitud por minuto por correo, la misma respuesta exista o no la cuenta, y enlace de un solo uso.
+- Recuperación de contraseña y confirmación del correo: 1 correo por minuto por dirección (contado en `limites_uso`), la misma respuesta exista o no la cuenta, y enlace de un solo uso. La base guarda solo el **SHA-256 del token** del enlace: quien lea la base no puede usar los enlaces vigentes.
 - **Límites de intentos**: 10 logins fallidos cada 15 min por IP, 5 cuentas por hora, 5 recuperaciones cada 15 min, y Kan con 10 preguntas por minuto y 150 al día por usuario. Al pasarse, responde 429 con el tiempo de espera. Los contadores viven en la tabla `limites_uso` de Postgres: todas las instancias de Vercel cuentan juntas y un despliegue nuevo no los reinicia. El cron diario borra los vencidos, y si la base no responde el límite no bloquea a nadie.
 - **Kan** solo responde con sesión iniciada y toma el rol del token, así nadie de fuera gasta la cuota de Gemini.
 - **Fotos**: máximo 5 por oferta y 5 MB cada una. El tipo real se comprueba por el contenido del archivo (no por la extensión) y el nombre lo pone el servidor. En producción van a Vercel Blob.
-- **Solo el propio sitio**: `web/proxy.ts` responde 403 a cualquier escritura (POST, PUT, PATCH, DELETE) a `/api/*` cuyo `Origin` sea de otro sitio, y la cookie es `SameSite=Lax` (protección CSRF). En Express era CORS cerrado.
+- **Solo el propio sitio**: `web/proxy.ts` responde 403 a cualquier escritura (POST, PUT, PATCH, DELETE) a `/api/*` y a `/registro` cuyo `Origin` sea de otro sitio, y la cookie es `SameSite=Lax` (protección CSRF). En Express era CORS cerrado.
 - Solo la carpeta `public/` es accesible desde el navegador.
 - **Encabezados de seguridad** (Next.js, en `web/next.config.ts`):
   - **CSP**: scripts solo del propio sitio, conexiones solo al sitio y a Ably, nada de iframes ni plugins (`frame-ancestors 'none'`, `object-src 'none'`).
@@ -481,7 +481,7 @@ Resumen. Todas las rutas responden JSON. 🔒 = requiere sesión: la cookie `ses
 | GET | `/api/verificar-correo?token=` | Confirmar el correo con el enlace recibido |
 | POST | `/api/reenviar-verificacion` | Pedir otro enlace de confirmación `{ email }` |
 | POST | `/api/login` | Iniciar sesión: guarda el JWT en la cookie `sesion` (no va en el cuerpo) y devuelve `sesion: { inicio, vence }` |
-| POST | `/api/logout` | Cerrar sesión: borra la cookie |
+| POST | `/api/logout` | Cerrar sesión: borra la cookie y anula el token (en todos los dispositivos) |
 | GET | `/api/sesion` 🔒 | Quién entró: `{ id, email, rol, esAdmin, ... }` |
 | POST | `/api/solicitar-recuperacion` | Enviar el enlace para restablecer la contraseña |
 | GET | `/api/validar-token-recuperacion` | Comprobar si un enlace sigue vigente |
@@ -646,7 +646,7 @@ Las 15 páginas están en React (detalle y orden en [ROADMAP](ROADMAP.md), secci
 | Quién entró | En el servidor, `datosDeSesionDesdeCookies()` (con `cache()`: una consulta por petición). `app/(sitio)/layout.tsx` se lo pasa a `ProveedorSitio` y los componentes lo leen con `useUsuario()`. Desde fuera, `GET /api/sesion` |
 | Páginas con sesión | Viven en `app/(sitio)/(con-sesion)/`: su layout manda a `/login` antes de pintar si la cookie venció o la cuenta fue suspendida. `/admin` además exige el rol |
 | Prefetch | Revisar el token usa la hora actual: `leerSesionDesdeCookies()` llama a `connection()` para que solo corra al atender la petición (el prefetch de `<Link>` no guarda "sin sesión"). Entrar y salir hacen una navegación completa |
-| Cerrar sesión | `POST /api/logout` borra la cookie; `cerrarSesion()` (`lib/cliente/sesion.ts`) lo llama y borra `localStorage` (menos el tema) |
+| Cerrar sesión | `POST /api/logout` borra la cookie y sube `version_sesion` (el token deja de servir); `cerrarSesion()` (`lib/cliente/sesion.ts`) lo llama y borra `localStorage` (menos el tema) |
 | CSRF | `SameSite=Lax` y `web/proxy.ts`: un POST/PUT/PATCH/DELETE cuyo `Origin` sea de otro sitio recibe 403 |
 | `localStorage` | Solo datos que no son secretos (`userId`, `userRol`, `userNombre`, `sesionInicio`, `sesionVence`). `/login` pregunta a `/api/sesion` antes de saltar al inicio. La memoria de Kan se ata a `sesionInicio` |
 

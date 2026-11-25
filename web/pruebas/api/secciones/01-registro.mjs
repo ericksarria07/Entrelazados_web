@@ -18,8 +18,10 @@ export default async function correr(ctx) {
     check('Registrarse como Administrador → rechazado (400)', r.status === 400, JSON.stringify(r));
     r = await ctx.reg('prov1@prueba.com', 'Proveedor');
     check('Correo duplicado → rechazado', r.status >= 400, JSON.stringify(r));
-    r = await ctx.reg('corta@prueba.com', 'Proveedor', { password: '123' });
-    check('Contraseña de menos de 6 caracteres → 400', r.status === 400);
+    r = await ctx.reg('corta@prueba.com', 'Proveedor', { password: 'Clave12' });
+    check('Contraseña de menos de 8 caracteres → 400', r.status === 400 && /al menos 8/.test(r.data.message), JSON.stringify(r.data));
+    r = await api('POST', '/registro', { headers: { Origin: 'https://sitio-malo.example' }, body: { nombre: 'Malo', email: 'csrf@prueba.com', telefono: '88887777', rol: 'Emprendedor', deptoId: 'Managua', password: 'Clave123' } });
+    check('Registro enviado desde otro sitio → 403 (proxy.ts también cuida /registro)', r.status === 403, String(r.status));
     const filaP1 = (await q(`SELECT contrasena_hash FROM usuarios WHERE correo_electronico = $1`, ['prov1@prueba.com']))[0];
     check('La contraseña se guarda cifrada con bcrypt', /^\$2[aby]\$/.test(filaP1.ContrasenaHash), filaP1.ContrasenaHash);
 }

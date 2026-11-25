@@ -322,11 +322,11 @@ const NIVELES: [string, string][] = [
 
 function evaluarFuerza(pass: string) {
   let puntos = 0;
-  if (pass.length >= 6) puntos++;
-  if (pass.length >= 10) puntos++;
+  if (pass.length >= 8) puntos++;
+  if (pass.length >= 12) puntos++;
   if (/[a-zA-ZñÑ]/.test(pass) && /\d/.test(pass)) puntos++;
   if (/[^a-zA-Z0-9ñÑ]/.test(pass) || (/[a-z]/.test(pass) && /[A-Z]/.test(pass))) puntos++;
-  if (pass.length < 6) puntos = Math.min(puntos, 1);
+  if (pass.length < 8) puntos = Math.min(puntos, 1);
   return puntos;
 }
 
@@ -399,9 +399,9 @@ function NuevaContrasena({
 
   async function guardar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (pass.length < 6) {
+    if (pass.length < 8) {
       campoNueva.current?.focus();
-      return setMensaje({ texto: "La contraseña debe tener al menos 6 caracteres.", tipo: "error" });
+      return setMensaje({ texto: "La contraseña debe tener al menos 8 caracteres.", tipo: "error" });
     }
     if (pass !== conf) {
       campoConf.current?.focus();
@@ -454,7 +454,7 @@ function NuevaContrasena({
           </div>
         </div>
         <ul className="requisitos">
-          <Requisito id="req-largo" cumple={pass.length >= 6} texto="Al menos 6 caracteres" />
+          <Requisito id="req-largo" cumple={pass.length >= 8} texto="Al menos 8 caracteres" />
           <Requisito id="req-mezcla" cumple={mezcla} texto="Letras y números (recomendado)" />
         </ul>
 

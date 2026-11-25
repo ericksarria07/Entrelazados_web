@@ -2,7 +2,7 @@
 // Siempre responde lo mismo, exista o no la cuenta, para no revelar qué correos están registrados.
 import { urlPublica } from "@/lib/config";
 import { correoConfigurado, enviarDespues, enviarRecuperacion } from "@/lib/correo";
-import { MENSAJE_RECUPERACION, nuevoToken, puedeEnviar } from "@/lib/cuentas";
+import { MENSAJE_RECUPERACION, hashToken, nuevoToken, puedeEnviar } from "@/lib/cuentas";
 import { obtenerPool } from "@/lib/db";
 import { ErrorHttp, json, leerCuerpo, ruta } from "@/lib/http";
 import { ipDe, limite } from "@/lib/limites";
@@ -15,7 +15,7 @@ export const POST = ruta(async (req) => {
     throw new ErrorHttp(400, "Por favor proporciona un correo electrónico válido.");
   }
   const respuesta = json({ message: MENSAJE_RECUPERACION });
-  if (!puedeEnviar(emailLimpio.toLowerCase())) return respuesta;
+  if (!(await puedeEnviar(emailLimpio.toLowerCase()))) return respuesta;
 
   const pool = obtenerPool();
   const {
@@ -29,7 +29,7 @@ export const POST = ruta(async (req) => {
   const token = nuevoToken();
   await pool.query(
     "UPDATE usuarios SET token_recuperacion = $1, expiracion_token = now() + interval '1 hour' WHERE usuario_id = $2",
-    [token, usuario.usuario_id]
+    [hashToken(token), usuario.usuario_id]
   );
 
   const base = urlPublica(req);
