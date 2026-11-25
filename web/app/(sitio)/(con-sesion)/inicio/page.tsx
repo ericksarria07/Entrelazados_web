@@ -2,6 +2,7 @@
 // /inicio: página de inicio con sesión (antes index.html, ROADMAP 2.3)
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fotoUnsplash } from "@/lib/unsplash";
 import EnlaceAdmin from "@/componentes/sitio/EnlaceAdmin";
 import GlobitoChat from "@/componentes/sitio/GlobitoChat";
 import Kan from "@/componentes/sitio/Kan";
@@ -52,7 +53,8 @@ export default async function PaginaInicio() {
           <div className="amazon-card" id="loginCard">
             <h2 id="card-welcome-title">¡Hola de nuevo, {usuario?.nombre || "Usuario"}!</h2>
             <img
-              src={`https://images.unsplash.com/photo-1605733160314-4fc7dac4bb16?q=80&w=1190&${UNSPLASH}`}
+              {...fotoUnsplash(`https://images.unsplash.com/photo-1605733160314-4fc7dac4bb16?q=80&w=1190&${UNSPLASH}`, 340)}
+              decoding="async"
               className="amazon-card-img"
               alt="Zapatos de Cuero"
             />
@@ -70,19 +72,19 @@ export default async function PaginaInicio() {
             <h2>Cueros y Pieles Populares</h2>
             <div className="sub-grid">
               <div className="sub-grid-item">
-                <img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200" alt="Vacuno" />
+                <img {...fotoUnsplash("https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200", 165)} decoding="async" alt="Vacuno" />
                 <span>Vacuno Flor</span>
               </div>
               <div className="sub-grid-item">
-                <img src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=200" alt="Gamuza" />
+                <img {...fotoUnsplash("https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=200", 165)} decoding="async" alt="Gamuza" />
                 <span>Gamuza / Suede</span>
               </div>
               <div className="sub-grid-item">
-                <img src={`https://images.unsplash.com/photo-1699779328284-d13d2a4e6e6b?q=80&w=687&${UNSPLASH}`} alt="Suela" />
+                <img {...fotoUnsplash(`https://images.unsplash.com/photo-1699779328284-d13d2a4e6e6b?q=80&w=687&${UNSPLASH}`, 165)} decoding="async" alt="Suela" />
                 <span>Suela Gruesa</span>
               </div>
               <div className="sub-grid-item">
-                <img src="https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=200" alt="Grabado" />
+                <img {...fotoUnsplash("https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=200", 165)} decoding="async" alt="Grabado" />
                 <span>Cuero Grabado</span>
               </div>
             </div>
@@ -94,7 +96,9 @@ export default async function PaginaInicio() {
           <div className="amazon-card">
             <h2>Herrajes y Accesorios</h2>
             <img
-              src={`https://plus.unsplash.com/premium_photo-1682145989449-1e625c4982ce?q=80&w=1170&${UNSPLASH}`}
+              {...fotoUnsplash(`https://plus.unsplash.com/premium_photo-1682145989449-1e625c4982ce?q=80&w=1170&${UNSPLASH}`, 340)}
+              loading="lazy"
+              decoding="async"
               className="amazon-card-img"
               alt="Herrajes"
             />
@@ -109,7 +113,9 @@ export default async function PaginaInicio() {
               Conecta directamente con productores de Masaya, Granada y Estelí sin intermediarios.
             </p>
             <img
-              src={`https://images.unsplash.com/photo-1607969892714-797a3d4c266a?q=80&w=1170&${UNSPLASH}`}
+              {...fotoUnsplash(`https://images.unsplash.com/photo-1607969892714-797a3d4c266a?q=80&w=1170&${UNSPLASH}`, 340)}
+              loading="lazy"
+              decoding="async"
               className="amazon-card-img"
               alt="Trabajador de Cuero"
             />
@@ -124,7 +130,7 @@ export default async function PaginaInicio() {
           <div className="shelf-items">
             {MAS_BUSCADOS.map(([foto, alt, titulo, precio]) => (
               <div className="shelf-item" key={titulo}>
-                <img src={foto} alt={alt} />
+                <img {...fotoUnsplash(foto, 200)} loading="lazy" decoding="async" alt={alt} />
                 <Link href="/mercado" className="shelf-item-title">
                   {titulo}
                 </Link>

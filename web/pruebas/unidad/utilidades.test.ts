@@ -95,3 +95,12 @@ test("sinDatosPrivados quita el token de la dirección y deja lo demás", async 
   assert.equal(sinDatosPrivados("https://e.com/mercado?q=cuero"), "https://e.com/mercado?q=cuero");
   assert.equal(sinDatosPrivados("no es una url"), "no es una url");
 });
+
+// ---------------------------------------------------------------- FOTOS DE UNSPLASH
+test("fotoUnsplash pide la foto del ancho en que se muestra (1x y 2x)", async () => {
+  const { fotoUnsplash } = await import("../../lib/unsplash.ts");
+  const f = fotoUnsplash("https://images.unsplash.com/photo-1?q=80&w=1190&auto=format", 340);
+  assert.equal(f.src, "https://images.unsplash.com/photo-1?q=80&w=340&auto=format");
+  assert.equal(f.srcSet, "https://images.unsplash.com/photo-1?q=80&w=340&auto=format 1x, https://images.unsplash.com/photo-1?q=80&w=680&auto=format 2x");
+  assert.equal(fotoUnsplash("https://images.unsplash.com/photo-2", 165).src, "https://images.unsplash.com/photo-2?w=165");
+});

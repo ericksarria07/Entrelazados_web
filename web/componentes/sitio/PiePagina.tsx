@@ -31,7 +31,7 @@ export default function PiePagina({ enlaces = TODOS }: { enlaces?: [string, stri
 
         <div className="footer-volcano">
           {/* eslint-disable-next-line @next/next/no-img-element -- mismo archivo de public/ que antes */}
-          <img src="/volcan.webp" alt="Volcán Nicaragua" />
+          <img src="/volcan.webp" loading="lazy" decoding="async" alt="Volcán Nicaragua" />
         </div>
       </div>
     </footer>
