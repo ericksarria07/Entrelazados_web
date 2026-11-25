@@ -89,6 +89,7 @@ Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3
 - **Confirmación del correo al registrarse**: enlace de 24 horas; sin confirmarlo no se puede entrar (se puede pedir otro enlace desde el login).
 - **Recuperación de contraseña por correo**: enlace de un solo uso que vence en 1 hora.
 - Diseño adaptado a celular.
+- **Páginas de error en español:** una dirección que no existe muestra un aviso 404 con enlaces a la portada y al mercado, y un fallo inesperado muestra "Algo salió mal" con **Reintentar** (y el código del error para buscarlo en los registros de Vercel). Con el estilo del sitio y en modo oscuro (`app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`).
 - **Modo oscuro**: la primera vez sigue el modo del sistema; el botón redondo de abajo a la izquierda lo cambia y la elección se recuerda en el navegador (también al cerrar sesión). Al imprimir o guardar un PDF siempre se usa el modo claro.
 - **Accesibilidad**:
   - foco visible al navegar con el teclado y enlace "Saltar al contenido";
@@ -697,7 +698,8 @@ RECORRIDO_URL=http://localhost:3000 npm run recorrido
 **Pruebas E2E** (`web/pruebas/e2e/`, `@playwright/test` 1.57.0), en un navegador de verdad y con tamaño de celular:
 - **`flujos.spec.ts`, los 5 flujos clave:** el proveedor publica; dos emprendedores pujan (el segundo supera al primero); la subasta cierra y el trato se completa, se califica y se abre el comprobante; comprador y proveedor se escriben por el chat; un emprendedor edita su perfil.
 - **`sesion-atras.spec.ts`:** con el botón Atrás, una página que el navegador guardó en memoria se recarga si se cerró la sesión o entró otra cuenta, y no recarga si la sesión es la misma.
-- **`accesibilidad.spec.ts`:** pasa [axe](https://github.com/dequelabs/axe-core) (`@axe-core/playwright` 4.14.0, reglas WCAG 2.1 A y AA) por 10 páginas, en modo claro y oscuro. Las públicas son `/`, `/login`, `/unirse`, `/restablecer` y `/perfil-publico`; con sesión, `/inicio`, `/mercado`, `/perfil`, `/dashboard` y `/chat`. Falla con las infracciones graves (`critical` y `serious`); las menores solo las lista.
+- **`paginas-error.spec.ts`:** una dirección que no existe responde 404 con el aviso en español, sin indexar, y el botón lleva a la portada.
+- **`accesibilidad.spec.ts`:** pasa [axe](https://github.com/dequelabs/axe-core) (`@axe-core/playwright` 4.14.0, reglas WCAG 2.1 A y AA) por 11 páginas, en modo claro y oscuro. Las públicas son `/`, `/login`, `/unirse`, `/restablecer`, `/perfil-publico` y la 404; con sesión, `/inicio`, `/mercado`, `/perfil`, `/dashboard` y `/chat`. Falla con las infracciones graves (`critical` y `serious`); las menores solo las lista.
 - **`ayudas.ts`:** crea las cuentas e inicia sesión, y lo comparten las dos.
 
 Antes de empezar se vacía y se siembra la base de pruebas, y Playwright levanta `next start` en el puerto 3066. No dependen de Gemini, Ably ni Blob, así que el CI las corre en cada push (job "E2E (Playwright)", contra un Postgres desechable; si fallan, sube el informe y las trazas).
