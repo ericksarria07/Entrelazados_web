@@ -114,7 +114,7 @@ Página **Reportes** (`/reportes`) con gráficas y tablas del periodo elegido (3
 | Tiempo real | **Ably** (`@ably/pubsub-device` en el navegador, `@ably/pubsub-server` en el servidor) |
 | Fotos | **Vercel Blob** (en local, a disco) |
 | Correo | `nodemailer` (Gmail con contraseña de aplicación u otro SMTP) |
-| IA | Gemini: Kan responde en streaming con el **Vercel AI SDK** (`ai` + `@ai-sdk/google`); el asistente de publicación y el precio sugerido usan `@google/genai` (JSON con esquema) |
+| IA | Gemini con el **Vercel AI SDK** (`ai` + `@ai-sdk/google`): Kan responde en streaming (`streamText`); el asistente de publicación y el precio sugerido piden un objeto validado con un esquema Zod (`generateText` + `Output.object`) |
 | Pruebas | `node` para la API, **Playwright 1.57.0** para los E2E y el recorrido |
 | Producción | **Vercel** (dominio en Cloudflare), rama de producción `migracion-nextjs`, CD con migraciones automáticas |
 

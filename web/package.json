@@ -24,7 +24,6 @@
     "@ably/pubsub-device": "3.1.0",
     "@ably/pubsub-server": "^3.1.0",
     "@ai-sdk/google": "4.0.114",
-    "@google/genai": "^3.4.0",
     "@tabler/icons-webfont": "3.50.0",
     "@vercel/blob": "^2.9.0",
     "@vercel/functions": "^3.11.3",
@@ -40,7 +39,8 @@
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

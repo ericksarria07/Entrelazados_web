@@ -169,7 +169,7 @@ export default async function PaginaPerfil() {
                     <div className="section-header">
                       <i className="ti ti-shield-check" aria-hidden="true" /> Panel de Control Administrativo
                     </div>
-                    <p style={{ fontSize: 13, color: "#666", marginBottom: 15 }}>
+                    <p className="texto-gris" style={{ fontSize: 13, marginBottom: 15 }}>
                       Cuentas con permisos de administración general para moderar la plataforma, gestionar cuentas de usuarios y
                       supervisar transacciones.
                     </p>

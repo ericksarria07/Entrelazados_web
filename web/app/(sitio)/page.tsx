@@ -89,7 +89,7 @@ export default async function Portada() {
             {usuario ? (
               <>
                 <h2>¡Bienvenido de nuevo, {usuario.nombre}!</h2>
-                <p style={{ fontSize: 13, color: "#555", marginBottom: 15 }}>
+                <p className="texto-gris" style={{ fontSize: 13, marginBottom: 15 }}>
                   Explora las cotizaciones recientes de tu cuenta de {usuario.rol}.
                 </p>
                 <Link
@@ -160,7 +160,7 @@ export default async function Portada() {
 
           <div className="amazon-card">
             <h2>Materia Prima Directa de Curtiembres</h2>
-            <p style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginBottom: 15 }}>
+            <p className="texto-gris" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 15 }}>
               Conecta directamente con productores de Masaya, Granada y Estelí sin intermediarios.
             </p>
             <img
