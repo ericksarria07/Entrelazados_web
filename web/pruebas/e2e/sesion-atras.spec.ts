@@ -37,6 +37,16 @@ async function listaParaRestaurar(pagina: Page) {
   await Promise.all([pagina.waitForRequest((r) => r.url().includes("/api/chat/no-leidos")), pagina.reload()]);
 }
 
+// Esa petición también la puede hacer la página vieja justo al recargar, y entonces el
+// evento sale antes de que exista el oyente y se pierde. Por eso se repite el evento hasta
+// ver el resultado (repetirlo no cambia nada: con la sesión cerrada, recargar es lo correcto).
+async function restaurarHasta(pagina: Page, resultado: () => Promise<void>) {
+  await expect(async () => {
+    await restaurarDeLaMemoria(pagina).catch(() => {}); // si ya está recargando, no hay contexto
+    await resultado();
+  }).toPass({ timeout: 25_000, intervals: [1000, 2000, 3000] });
+}
+
 test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
   test.beforeAll(async () => {
     alfa = await crearCuenta("Emprendedor", "Cuenta Alfa Atras", 1);
@@ -59,8 +69,7 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
     await Promise.all([otra.waitForURL(/\/inicio/), otra.click("#btn-submit-login")]);
 
     await pagina.bringToFront();
-    await Promise.all([pagina.waitForEvent("load"), restaurarDeLaMemoria(pagina)]);
-    await expect(nombreEnElMenu(pagina)).toHaveText(beta.nombre);
+    await restaurarHasta(pagina, () => expect(nombreEnElMenu(pagina)).toHaveText(beta.nombre, { timeout: 4000 }));
     await pagina.context().close();
   });
 
@@ -71,8 +80,10 @@ test.describe.serial("Botón Atrás tras cambiar de cuenta", () => {
     pagina.on("console", (m) => consola.push(`${m.type()}: ${m.text()}`.slice(0, 200)));
     pagina.on("framenavigated", (f) => f === pagina.mainFrame() && consola.push(`navegó a ${f.url()}`));
     await cerrarSesionDesde(pagina);
-    await restaurarDeLaMemoria(pagina);
-    const llego = await pagina.waitForURL(/\/login/, { timeout: 20_000 }).then(() => true, () => false);
+    const llego = await restaurarHasta(pagina, () => expect(pagina).toHaveURL(/\/login/, { timeout: 4000 })).then(
+      () => true,
+      () => false,
+    );
     if (!llego) {
       // Diagnóstico para el CI: dónde quedó y con qué sesión
       const diagnostico = await pagina.evaluate(async () => ({
