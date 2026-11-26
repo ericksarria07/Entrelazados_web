@@ -6,12 +6,14 @@
 //   - los íconos Tabler (npm, versión fija),
 //   - los colores base y el modo oscuro (app/estilos/tema.css, el mismo de siempre),
 //   - el script del tema antes de pintar (sin parpadeo), "Saltar al contenido"
-//     y el botón de modo oscuro.
+//     y el botón de modo oscuro,
+//   - en Vercel, Web Analytics y Speed Insights (componentes/Medicion.tsx).
 // ==========================================================================
 import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 import type { Metadata } from "next";
 import { Source_Sans_3 } from "next/font/google";
 import BotonTema from "@/componentes/BotonTema";
+import Medicion from "@/componentes/Medicion";
 import { urlDelSitio } from "@/lib/config";
 import { DESCRIPCION_SITIO, OPEN_GRAPH_BASE } from "@/lib/metadatos";
 import { SCRIPT_TEMA } from "@/lib/script-tema";
@@ -50,6 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </a>
         {children}
         <BotonTema />
+        {process.env.VERCEL && <Medicion />}
       </body>
     </html>
   );
