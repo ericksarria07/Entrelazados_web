@@ -52,7 +52,7 @@ tags:
   - name: Ofertas
     description: Publicaciones de materiales (rutas/ofertas.js). Publicar abre una subasta de 7 días.
   - name: Subastas
-    description: Subastas y pujas. Las vencidas se cierran al listar subastas, pujar, ver tratos o el dashboard, y con un cron diario.
+    description: Subastas y pujas. Las vencidas se cierran al listar subastas, pujar, ver tratos o el dashboard, y con una corrida cada hora (Vercel Schedules).
   - name: Chat y Kan
     description: Mensajes entre usuarios y el asistente Kan (rutas/chat.js, rutas/kan.js)
   - name: Tratos
@@ -348,7 +348,7 @@ paths:
     get:
       tags: [Subastas]
       summary: Cierre diario de las subastas vencidas (cron de Vercel)
-      description: Lo llama Vercel una vez al día con `Authorization Bearer <CRON_SECRET>`. Sin ese secreto responde 401.
+      description: Lo llama Vercel Schedules cada hora con `Authorization Bearer <CRON_SECRET>`. Sin ese secreto responde 401.
       responses:
         "200":
           description: Cuántas subastas cerró
@@ -1531,7 +1531,7 @@ paths:
     post:
       tags: [Administración]
       summary: Cerrar ahora las subastas vencidas
-      description: Normalmente se cierran solas (al listar subastas, pujar, ver tratos o el dashboard, y con el cron diario). Cada subasta con pujas crea un trato con el ganador.
+      description: Normalmente se cierran solas (al listar subastas, pujar, ver tratos o el dashboard, y con la corrida de cada hora). Cada subasta con pujas crea un trato con el ganador.
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
