@@ -108,3 +108,16 @@ export function leerHistorial(valor: unknown): MensajeHistorial[] {
     .slice(-MAX_HISTORIAL)
     .map((m) => ({ rol: m.rol, texto: m.texto.trim().slice(0, LARGO_HISTORIAL) }));
 }
+
+// Cuánto falta para que cierre una subasta, en palabras ("2 días y 3 h", "45 min").
+// Kan lo usa en las herramientas para no hacer cuentas con fechas.
+export function tiempoRestante(fin: Date, ahora: Date = new Date()): string {
+  const minutos = Math.floor((fin.getTime() - ahora.getTime()) / 60_000);
+  if (minutos <= 0) return "ya venció";
+  if (minutos < 60) return `${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `${horas} h`;
+  const dias = Math.floor(horas / 24);
+  const resto = horas % 24;
+  return `${dias} ${dias === 1 ? "día" : "días"}${resto ? ` y ${resto} h` : ""}`;
+}
