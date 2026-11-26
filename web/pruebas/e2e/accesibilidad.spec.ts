@@ -1,6 +1,6 @@
 // ==========================================================================
 // ACCESIBILIDAD AUTOMÁTICA CON AXE (WCAG 2.1 A y AA)
-// Revisa las páginas públicas y las de sesión en tamaño de celular, en modo claro y oscuro.
+// Revisa las páginas públicas (también la 404) y las de sesión en tamaño de celular, en modo claro y oscuro.
 // Falla con las infracciones "critical" y "serious" (contraste, etiquetas, nombres de
 // botones...). Las "moderate" y "minor" se listan en la consola sin fallar.
 // ==========================================================================
@@ -44,7 +44,7 @@ test.describe.serial("Accesibilidad (axe)", () => {
   for (const tema of ["claro", "oscuro"] as const) {
     test(`páginas públicas (modo ${tema})`, async ({ page }) => {
       await page.addInitScript((t) => localStorage.setItem("entrelazados-tema", t), tema);
-      for (const ruta of ["/", "/login", "/unirse", "/restablecer", `/perfil-publico?id=${cuenta.id}`]) {
+      for (const ruta of ["/", "/login", "/unirse", "/restablecer", `/perfil-publico?id=${cuenta.id}`, "/pagina-que-no-existe"]) {
         await page.goto(ruta);
         await revisar(page, `${ruta} (${tema})`);
       }

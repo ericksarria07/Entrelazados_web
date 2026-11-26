@@ -14,6 +14,7 @@ import { Source_Sans_3 } from "next/font/google";
 import BotonTema from "@/componentes/BotonTema";
 import { urlDelSitio } from "@/lib/config";
 import { DESCRIPCION_SITIO, OPEN_GRAPH_BASE } from "@/lib/metadatos";
+import { SCRIPT_TEMA } from "@/lib/script-tema";
 import "./estilos/base.css";
 import "./estilos/tema.css";
 
@@ -35,10 +36,6 @@ export const metadata: Metadata = {
   openGraph: OPEN_GRAPH_BASE,
   twitter: { card: "summary_large_image" },
 };
-
-// Igual que tema.js: elección guardada o, si no hay, el modo del sistema. Va en línea
-// para que corra antes de pintar.
-const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('entrelazados-tema');if(t!=='claro'&&t!=='oscuro'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'oscuro':'claro'}var r=document.documentElement;r.setAttribute('data-tema',t);r.style.colorScheme=t==='oscuro'?'dark':'light'}catch(e){}})();`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
