@@ -50,7 +50,7 @@ export default function PaginaLogin() {
 
           <div className="footer-volcano">
             {/* eslint-disable-next-line @next/next/no-img-element -- mismo archivo de public/ que las páginas viejas */}
-            <img src="/volcan.webp" alt="Volcán Nicaragua" />
+            <img src="/volcan.webp" loading="lazy" decoding="async" alt="Volcán Nicaragua" />
           </div>
         </div>
       </footer>
